@@ -1,0 +1,51 @@
+---
+export const prerender = false;
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { buildAbcFortune } from "../lib/abcFortune";
+
+const reqUrl = Astro.request.url;                 // 生
+const abc = new URL(reqUrl).searchParams.get("abc");
+const pick = (abc === "A" || abc === "B" || abc === "C") ? abc : null;
+const fortune = pick ? buildAbcFortune(pick) : null;
+---
+
+
+
+<BaseLayout title="白音七">
+  <section class="panel abc-fortune">
+    <h2>今日の3行占い</h2>
+    <p class="sub">直感で A / B / C を選んでください。個人情報は不要です。</p>
+
+    <div class="abc-buttons" id="abc-buttons">
+      <button type="button" data-pick="A">A</button>
+      <button type="button" data-pick="B">B</button>
+      <button type="button" data-pick="C">C</button>
+    </div>
+
+    <script is:inline>
+      const $buttons = document.getElementById("abc-buttons");
+      $buttons.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-pick]");
+        if (!btn) return;
+        const pick = btn.dataset.pick;
+        const url = new URL(location.href);
+        url.searchParams.set("abc", pick);
+        location.href = url.toString();
+      });
+    </script>
+
+    {fortune ? (
+      <div class="abc-result">
+        <p class="small">選んだのは：<strong>{fortune.pick}</strong>（{fortune.dateKey} / JST）</p>
+        <p class="reason">理由：{fortune.reason}</p>
+        <ul>
+          <li>テーマ：{fortune.theme}</li>
+          <li>ひと言：{fortune.line}</li>
+          <li>行動：{fortune.action}</li>
+        </ul>
+      </div>
+    ) : (
+      <p class="note">A/B/Cを選ぶと、今日の占いが表示されます。</p>
+    )}
+  </section>
+</BaseLayout>

@@ -1,0 +1,47 @@
+---
+interface Props {
+  title?: string;
+}
+
+const props = Astro.props as Props;
+const title = props.title ?? "白音七";
+
+import Header from "../components/Header.astro";
+import "../styles/global.css";
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+  </head>
+
+  <body>
+    <Header />
+
+    <main class="container">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+<nav class="footer-nav">
+  <a href="/privacy">プライバシーポリシー</a>
+  <span class="separator">｜</span>
+  <a href="/disclaimer">免責事項</a>
+  <span class="separator">｜</span>
+  <a href="https://forms.gle/n7Y86G8yXT7McrXGA" target="_blank" rel="noopener">
+    お問い合わせ
+  </a>
+</nav>
+
+
+  <p>© 2025 白音七（nana-fortune.com）</p>
+
+  <p class="note">
+    この占いは、日々の気持ちを整えるためのものです。<br />
+    医療・法律・投資などの判断にはご利用いただけません。
+  </p>
+</footer>
+  </body>
+</html>

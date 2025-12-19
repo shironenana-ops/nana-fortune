@@ -1,0 +1,46 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="相性占い - 白音七メソッド">
+  <h1>💞 相性占い（白音七メソッド）</h1>
+
+  <div class="panel">
+    <form id="f">
+      <p>Aさん 生年月日 <input type="date" id="aBirth" required />　お名前 <input id="aName" /></p>
+      <p>Bさん 生年月日 <input type="date" id="bBirth" required />　お名前 <input id="bName" /></p>
+      <button class="btn" type="submit">占う</button>
+    </form>
+    <div id="out" class="result-box" hidden></div>
+  </div>
+
+  <script type="module" is:inline>
+    import { compat } from '../lib/shirone/compat.ts';
+    const f = document.getElementById('f');
+    const out = document.getElementById('out');
+
+    f.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const aBirth = (document.getElementById('aBirth') as HTMLInputElement).value;
+      const bBirth = (document.getElementById('bBirth') as HTMLInputElement).value;
+      const aName  = (document.getElementById('aName')  as HTMLInputElement).value;
+      const bName  = (document.getElementById('bName')  as HTMLInputElement).value;
+
+      const r = compat({ a:{birthISO:aBirth, name:aName}, b:{birthISO:bBirth, name:bName} });
+
+      out.hidden = false;
+      out.innerHTML = `
+        <p class="lead">A: ${aName||"Aさん"}（LN:${r.aLife}） × B: ${bName||"Bさん"}（LN:${r.bLife}）</p>
+        <p>${r.summary}</p>
+        <ul>${r.tips.map(t=>`<li>${t}</li>`).join("")}</ul>
+      `;
+    });
+  </script>
+
+  <style>
+    .panel{ background:rgba(255,255,255,.05); padding:1em 1.5em; border-radius:1em; margin:1.5em 0; }
+    .btn{ background:gold; color:#000; border:none; padding:.5em 1.2em; border-radius:10px; cursor:pointer; font-weight:600; }
+    .result-box{ margin-top:1em; line-height:1.9; }
+    .lead{ font-size:1.1rem; font-weight:700; }
+  </style>
+</BaseLayout>
