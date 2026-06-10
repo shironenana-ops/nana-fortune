@@ -1,0 +1,949 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const pageTitle = "会員ページ | 白音七";
+---
+
+<BaseLayout title={pageTitle}>
+  <main class="members-shell">
+    <section class="hero-card reveal">
+      <div class="hero-badge">MEMBER HOME</div>
+      <h1 id="memberGreeting">会員ページ</h1>
+      <p id="memberLead">
+        あなたの現在の会員状態、音声利用回数、深掘り鑑定の状態を確認できます。
+      </p>
+    </section>
+
+    <section class="status-grid reveal">
+      <article class="status-card status-main">
+        <div class="status-card__head">
+          <span class="status-chip">CURRENT PLAN</span>
+          <span id="statusDot" class="status-dot"></span>
+        </div>
+
+        <h2 id="planLabel">読み込み中...</h2>
+        <p id="planCaption" class="status-caption">会員情報を取得しています。</p>
+
+        <div class="status-stats">
+          <div class="status-stat">
+            <span class="status-stat__label">会員状態</span>
+            <strong id="subscriptionStatus">-</strong>
+          </div>
+
+          <div class="status-stat">
+            <span class="status-stat__label">深掘り鑑定</span>
+            <strong id="deepEnabled">-</strong>
+          </div>
+        </div>
+      </article>
+
+      <article class="status-card status-voice">
+        <div class="status-card__head">
+          <span class="status-chip">VOICE BALANCE</span>
+        </div>
+
+        <h2 id="voiceMain">- / -</h2>
+        <p class="status-caption">今月利用できる音声鑑定の残り回数です。</p>
+
+        <div class="meter-wrap">
+          <div class="meter">
+            <div id="meterFill" class="meter__fill" style="width:0%"></div>
+          </div>
+          <div class="meter-meta">
+            <span>使用済み: <strong id="voiceUsed">-</strong></span>
+            <span>残り: <strong id="voiceRemaining">-</strong></span>
+          </div>
+        </div>
+
+        <div class="meter-meta" style="margin-top:10px;">
+          <span>単発残数: <strong id="extraVoiceRemaining">-</strong></span>
+          <span>月上限: <strong id="voiceLimit">-</strong></span>
+        </div>
+      </article>
+
+      <article class="status-card status-updated">
+        <div class="status-card__head">
+          <span class="status-chip">LAST UPDATE</span>
+        </div>
+
+        <h2 id="updatedAtDisplay">-</h2>
+        <p class="status-caption">決済やプラン更新が反映された最新時刻です。</p>
+
+        <div class="submail-box">
+          <span class="submail-box__label">Stripeメール</span>
+          <strong id="stripeMail">-</strong>
+        </div>
+      </article>
+    </section>
+
+    <section class="plan-change-notice reveal" id="planChangeNotice" hidden>
+      <div class="plan-change-notice__chip">PLAN CHANGE RESERVED</div>
+      <h3 id="planChangeNoticeTitle">プラン変更を予約しました</h3>
+      <p id="planChangeNoticeText">次回更新日から新しいプランへ切り替わります。</p>
+    </section>
+
+    <section class="action-row reveal">
+      <a class="action-btn action-btn--ghost" href="/history">履歴を見る</a>
+      <a class="action-btn action-btn--accent" href="/premium">会員限定鑑定へ</a>
+      <a class="action-btn action-btn--gold" href="/">TOPへ戻る</a>
+    </section>
+
+    <section class="plan-area reveal">
+      <div class="section-head">
+        <div class="section-chip">PLAN SELECT</div>
+        <h2>必要に応じて、次の一手へ</h2>
+        <p>現在の会員状態に応じて、アップグレードや単発追加を選べます。</p>
+      </div>
+
+      <div id="billingMessage" class="billing-message" style="display:none;"></div>
+      <div id="planCards" class="plan-grid">
+        <article class="plan-card">
+          <h3>読み込み中...</h3>
+          <p>会員状態を確認しています。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="reveal loading-box" id="statusLoading">
+      <p>会員情報を読み込み中です...</p>
+    </section>
+
+    <section class="reveal error-box" id="statusError" hidden>
+      <p id="statusErrorText">会員情報の取得に失敗しました。</p>
+    </section>
+  </main>
+
+  <script src="/js/billing.js" is:inline></script>
+
+  <script is:inline>
+    const USER_STATUS_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/user/status";
+    const CHANGE_PLAN_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/subscription/change-plan";
+
+    const userId =
+      localStorage.getItem("userId") ||
+      localStorage.getItem("user_id") ||
+      "";
+
+    let currentPlan = "free";
+    let currentPendingPlan = "";
+    let currentPeriodEnd = "";
+    let currentStatusInfo = null;
+    let isSubmittingPlanChange = false;
+
+    const planNames = {
+      free: "フリー会員",
+      normal: "ライト会員",
+      premium: "プレミアム会員",
+      extra: "単発音声",
+    };
+
+    const statusNames = {
+      inactive: "未契約",
+      active: "有効",
+      canceled: "解約済み",
+      trialing: "トライアル",
+      past_due: "支払保留",
+    };
+
+    function normalizePlan(rawPlan) {
+      const plan = String(rawPlan || "").toLowerCase();
+      if (plan === "premium") return "premium";
+      if (plan === "normal" || plan === "light" || plan === "member") return "normal";
+      return "free";
+    }
+
+    function formatDate(value) {
+      if (!value) return "未反映";
+      try {
+        const d = new Date(value);
+        return d.toLocaleString("ja-JP");
+      } catch {
+        return value;
+      }
+    }
+
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function setStatusDot(status) {
+      const dot = document.getElementById("statusDot");
+      if (!dot) return;
+      dot.classList.remove("is-active", "is-inactive", "is-canceled");
+
+      if (status === "active" || status === "trialing" || status === "past_due") {
+        dot.classList.add("is-active");
+      } else if (status === "canceled") {
+        dot.classList.add("is-canceled");
+      } else {
+        dot.classList.add("is-inactive");
+      }
+    }
+
+    function showPlanChangeNotice(pendingPlan, effectiveAt) {
+      const box = document.getElementById("planChangeNotice");
+      const title = document.getElementById("planChangeNoticeTitle");
+      const text = document.getElementById("planChangeNoticeText");
+
+      if (!box || !title || !text) return;
+
+      if (!pendingPlan) {
+        box.hidden = true;
+        return;
+      }
+
+      title.textContent = `${planNames[pendingPlan] || pendingPlan} への変更予約済み`;
+      text.textContent = effectiveAt
+        ? `${formatDate(effectiveAt)} から反映予定です。`
+        : "次回更新日から反映予定です。";
+      box.hidden = false;
+    }
+
+    function setBillingMessage(message, isError = false) {
+      const box = document.getElementById("billingMessage");
+      if (!box) return;
+
+      if (!message) {
+        box.style.display = "none";
+        box.textContent = "";
+        box.style.borderColor = "rgba(202, 168, 79, 0.35)";
+        box.style.background = "rgba(202, 168, 79, 0.08)";
+        box.style.color = "#f5e8bf";
+        return;
+      }
+
+      box.style.display = "block";
+      box.textContent = message;
+
+      if (isError) {
+        box.style.borderColor = "rgba(255, 128, 128, 0.35)";
+        box.style.background = "rgba(127, 29, 29, 0.18)";
+        box.style.color = "#ffd7d7";
+      } else {
+        box.style.borderColor = "rgba(202, 168, 79, 0.35)";
+        box.style.background = "rgba(202, 168, 79, 0.08)";
+        box.style.color = "#f5e8bf";
+      }
+    }
+
+    function getEmailForCheckout() {
+      return (
+        localStorage.getItem("userEmail") ||
+        localStorage.getItem("user_email") ||
+        localStorage.getItem("userId") ||
+        localStorage.getItem("user_id") ||
+        ""
+      );
+    }
+
+    function buildExtraCard(sourcePath) {
+      return `
+        <article class="plan-card" data-plan-card="extra">
+          <span class="plan-card__tag">単発追加</span>
+          <h3>単発音声占い</h3>
+          <p>300円で音声占いを1回だけ追加できる買い切りプランです。</p>
+          <div class="plan-card__price">¥300</div>
+          <button class="plan-card__button" data-plan="extra" data-source-path="${sourcePath}">
+            単発音声を申し込む
+          </button>
+        </article>
+      `;
+    }
+
+    function buildNormalCard(sourcePath) {
+      return `
+        <article class="plan-card" data-plan-card="normal">
+          <span class="plan-card__tag">月額ライト会員</span>
+          <h3>ライト会員</h3>
+          <p>月額980円で、音声占い5回と履歴確認ができる基本プランです。</p>
+          <div class="plan-card__price">¥980 <small>/ 月</small></div>
+          <button class="plan-card__button" data-plan="normal" data-source-path="${sourcePath}">
+            ライト会員に申し込む
+          </button>
+        </article>
+      `;
+    }
+
+    function buildPremiumCard(sourcePath) {
+      return `
+        <article class="plan-card plan-card--premium" data-plan-card="premium">
+          <span class="plan-card__tag">人気No.1 プレミアム</span>
+          <h3>プレミアム会員</h3>
+          <p>月額2980円で、音声20回・履歴確認・深掘り鑑定まで使える本命プランです。</p>
+          <div class="plan-card__price">¥2,980 <small>/ 月</small></div>
+          <button class="plan-card__button" data-plan="premium" data-source-path="${sourcePath}">
+            プレミアム会員に申し込む
+          </button>
+        </article>
+      `;
+    }
+
+    function buildDowngradeCard() {
+      return `
+        <article class="plan-card" data-plan-card="normal">
+          <span class="plan-card__tag">次回更新から変更</span>
+          <h3>ライト会員へ変更</h3>
+          <p>プレミアム会員からライト会員へ、次回更新日から切り替える予約を行います。</p>
+          <div class="plan-card__price">¥980 <small>/ 月</small></div>
+          <button class="plan-card__button" data-plan="normal">
+            ライト会員へ変更予約
+          </button>
+        </article>
+      `;
+    }
+
+    function renderPlanCards(plan, pendingPlan = "", currentPeriodEnd = "") {
+      const grid = document.getElementById("planCards");
+      if (!grid) return;
+
+      const sourcePath = "/members";
+      let html = "";
+
+      if (plan === "premium") {
+        html = buildExtraCard(sourcePath) + buildDowngradeCard();
+
+        setBillingMessage(
+          pendingPlan === "normal"
+            ? (currentPeriodEnd
+                ? `現在プレミアム会員です。ライト会員への変更は ${formatDate(currentPeriodEnd)} から反映予定です。単発追加は引き続き利用できます。`
+                : "現在プレミアム会員です。ライト会員への変更を予約済みです。単発追加は引き続き利用できます。")
+            : "現在プレミアム会員です。重複月額決済は表示せず、単発追加と次回更新からのライト変更のみ表示しています。"
+        );
+      } else if (plan === "normal") {
+        html = buildPremiumCard(sourcePath) + buildExtraCard(sourcePath);
+        setBillingMessage(
+          "現在ライト会員です。プレミアムへのアップグレードと単発追加のみ表示しています。"
+        );
+      } else {
+        html = buildNormalCard(sourcePath) + buildPremiumCard(sourcePath) + buildExtraCard(sourcePath);
+        setBillingMessage("");
+      }
+
+      grid.innerHTML = html;
+      bindPlanButtons();
+      updateRenderedPlanStates(plan, pendingPlan, currentPeriodEnd);
+    }
+
+    function updateRenderedPlanStates(plan, pendingPlan = "", currentPeriodEnd = "") {
+      const normalCard = document.querySelector('[data-plan-card="normal"]');
+      const premiumCard = document.querySelector('[data-plan-card="premium"]');
+      const normalBtn = document.querySelector('#planCards [data-plan="normal"]');
+      const premiumBtn = document.querySelector('#planCards [data-plan="premium"]');
+
+      normalCard?.classList.remove("is-current", "is-pending");
+      premiumCard?.classList.remove("is-current", "is-pending");
+
+      if (plan === "normal") {
+        if (premiumBtn) {
+          premiumBtn.disabled = false;
+          premiumBtn.textContent = "プレミアム会員に申し込む";
+        }
+      }
+
+      if (plan === "premium") {
+        if (normalBtn) {
+          normalBtn.disabled = false;
+          normalBtn.textContent = "ライト会員へ変更予約";
+        }
+
+        if (pendingPlan === "normal") {
+          normalCard?.classList.add("is-pending");
+          if (normalBtn) {
+            normalBtn.disabled = true;
+            normalBtn.textContent = currentPeriodEnd
+              ? `変更予約済み（${formatDate(currentPeriodEnd)} 反映）`
+              : "変更予約済み";
+          }
+        }
+      }
+    }
+
+    async function requestPlanChange(targetPlan) {
+      if (isSubmittingPlanChange) return;
+      isSubmittingPlanChange = true;
+
+      try {
+        const response = await fetch(CHANGE_PLAN_API, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            target_plan: targetPlan
+          })
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data?.message || data?.error || "プラン変更予約に失敗しました。");
+        }
+
+        currentPendingPlan = data.pending_plan || targetPlan;
+        currentPeriodEnd = data.effective_at || currentPeriodEnd;
+
+        showPlanChangeNotice(currentPendingPlan, currentPeriodEnd);
+        renderPlanCards(currentPlan, currentPendingPlan, currentPeriodEnd);
+
+        alert(
+          data?.message ||
+            `${planNames[targetPlan] || targetPlan} への変更を予約しました。`
+        );
+      } finally {
+        isSubmittingPlanChange = false;
+      }
+    }
+
+    function bindPlanButtons() {
+      document.querySelectorAll("#planCards [data-plan]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const plan = btn.getAttribute("data-plan");
+          const sourcePath = btn.getAttribute("data-source-path") || "/members";
+          if (!plan) return;
+
+          if (plan === "normal" && currentPlan === "premium") {
+            const ok = confirm("次回更新日からライト会員へ変更予約します。よろしいですか？");
+            if (!ok) return;
+
+            try {
+              await requestPlanChange("normal");
+            } catch (e) {
+              alert(e.message || "変更予約に失敗しました。");
+            }
+            return;
+          }
+
+          if (!window.startCheckout) {
+            alert("決済機能の読み込みに失敗しました。");
+            return;
+          }
+
+          try {
+            await window.startCheckout({
+              user_id: userId,
+              email: getEmailForCheckout(),
+              plan,
+              source_path: sourcePath,
+            });
+          } catch (e) {
+            alert(e.message || "決済開始に失敗しました。");
+          }
+        });
+      });
+    }
+
+    async function loadMembershipStatus() {
+      const loading = document.getElementById("statusLoading");
+      const errorBox = document.getElementById("statusError");
+      const errorText = document.getElementById("statusErrorText");
+
+      if (!userId) {
+        loading.hidden = true;
+        errorBox.hidden = false;
+        errorText.textContent = "ユーザーIDが見つかりません。ログインし直してください。";
+        return;
+      }
+
+      try {
+        const res = await fetch(`${USER_STATUS_API}?user_id=${encodeURIComponent(userId)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "会員情報の取得に失敗しました。");
+        }
+
+        const plan = normalizePlan(data.plan || "free");
+        const subscriptionStatus = String(data.subscription_status || "inactive").toLowerCase();
+        const voiceLimit = Number(data.monthly_voice_limit ?? data.voice_limit ?? 0);
+        const voiceUsed = Number(data.monthly_voice_used ?? data.voice_used ?? 0);
+        const voiceRemaining = Math.max(voiceLimit - voiceUsed, 0);
+        const extraVoiceRemaining = Number(data.extra_voice_remaining ?? 0);
+        const deepEnabled = !!data.deep_enabled;
+        const pendingPlan = normalizePlan(data.pending_plan || "");
+        const currentPeriodEnd = data.current_period_end || "";
+
+        currentPlan = plan;
+        currentPendingPlan = pendingPlan;
+        window.currentPendingPlan = pendingPlan;
+        window.currentPeriodEnd = currentPeriodEnd;
+        currentStatusInfo = data;
+
+        setText("memberGreeting", `${userId} さんの会員ページ`);
+        setText("planLabel", planNames[plan] || plan);
+        setText(
+          "planCaption",
+          subscriptionStatus === "active" || subscriptionStatus === "trialing" || subscriptionStatus === "past_due"
+            ? "現在の会員状態は有効です。今の利用状況を静かに確認できます。"
+            : "まだ会員化は完了していません。必要に応じてプランを選べます。"
+        );
+        setText("subscriptionStatus", statusNames[subscriptionStatus] || subscriptionStatus);
+        setText("deepEnabled", deepEnabled ? "利用可能" : "利用不可");
+        setText("voiceMain", `${voiceRemaining} / ${voiceLimit}`);
+        setText("voiceUsed", `${voiceUsed}`);
+        setText("voiceRemaining", `${voiceRemaining}`);
+        setText("extraVoiceRemaining", `${extraVoiceRemaining}`);
+        setText("voiceLimit", `${voiceLimit}`);
+        setText("updatedAtDisplay", formatDate(data.updated_at));
+        setText("stripeMail", data.stripe_customer_email || "未設定");
+
+        const fillPercent = voiceLimit > 0 ? Math.min((voiceUsed / voiceLimit) * 100, 100) : 0;
+        const meterFill = document.getElementById("meterFill");
+        if (meterFill) meterFill.style.width = `${fillPercent}%`;
+
+        setStatusDot(subscriptionStatus);
+        showPlanChangeNotice(pendingPlan, currentPeriodEnd);
+        renderPlanCards(plan, pendingPlan, currentPeriodEnd);
+
+        loading.hidden = true;
+      } catch (err) {
+        loading.hidden = true;
+        errorBox.hidden = false;
+        errorText.textContent = err.message || "会員情報の取得に失敗しました。";
+        setBillingMessage("会員状態の取得に失敗しました。", true);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadMembershipStatus();
+    });
+  </script>
+</BaseLayout>
+
+<style>
+  :global(body) {
+    background:
+      radial-gradient(circle at top left, rgba(101, 65, 255, 0.24), transparent 28%),
+      radial-gradient(circle at top right, rgba(45, 111, 255, 0.18), transparent 24%),
+      linear-gradient(180deg, #050814 0%, #070b1f 45%, #140a29 100%);
+    color: #f6e7b8;
+  }
+
+  .members-shell {
+    width: min(1120px, calc(100% - 32px));
+    margin: 28px auto 64px;
+  }
+
+  .hero-card,
+  .status-card,
+  .plan-area,
+  .loading-box,
+  .error-box,
+  .plan-change-notice {
+    background: linear-gradient(180deg, rgba(14, 19, 42, 0.96), rgba(10, 14, 32, 0.92));
+    border: 1px solid rgba(214, 174, 64, 0.24);
+    border-radius: 28px;
+    box-shadow:
+      0 18px 60px rgba(0, 0, 0, 0.35),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+
+  .hero-card {
+    padding: 32px;
+    margin-bottom: 22px;
+  }
+
+  .hero-badge,
+  .section-chip,
+  .status-chip,
+  .plan-card__tag,
+  .plan-change-notice__chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(214, 174, 64, 0.38);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: #f5d97a;
+    background: rgba(255, 221, 120, 0.06);
+  }
+
+  .hero-card h1 {
+    margin: 16px 0 10px;
+    font-size: clamp(30px, 4vw, 46px);
+    line-height: 1.2;
+    color: #ffe7a6;
+  }
+
+  .hero-card p {
+    margin: 0;
+    color: rgba(255, 236, 179, 0.82);
+    line-height: 1.8;
+  }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .status-card {
+    padding: 24px;
+  }
+
+  .status-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+
+  .status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #666;
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+
+  .status-dot.is-active {
+    background: #8bff9d;
+    box-shadow: 0 0 18px rgba(139, 255, 157, 0.7);
+  }
+
+  .status-dot.is-inactive {
+    background: #999;
+    box-shadow: 0 0 16px rgba(160, 160, 160, 0.45);
+  }
+
+  .status-dot.is-canceled {
+    background: #ff8e8e;
+    box-shadow: 0 0 18px rgba(255, 142, 142, 0.7);
+  }
+
+  .status-card h2,
+  .plan-change-notice h3 {
+    margin: 0 0 10px;
+    font-size: clamp(24px, 3vw, 34px);
+    color: #fff0bf;
+  }
+
+  .status-caption,
+  .plan-change-notice p {
+    margin: 0;
+    line-height: 1.8;
+    color: rgba(255, 236, 179, 0.74);
+  }
+
+  .status-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 22px;
+  }
+
+  .status-stat {
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .status-stat__label,
+  .submail-box__label {
+    display: block;
+    font-size: 12px;
+    color: rgba(255, 236, 179, 0.64);
+    margin-bottom: 8px;
+  }
+
+  .status-stat strong,
+  .submail-box strong {
+    color: #fff2c8;
+    font-size: 18px;
+  }
+
+  .meter-wrap {
+    margin-top: 20px;
+  }
+
+  .meter {
+    height: 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .meter__fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ffd66b 0%, #a46bff 100%);
+    transition: width 0.35s ease;
+  }
+
+  .meter-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    color: rgba(255, 236, 179, 0.78);
+    font-size: 14px;
+  }
+
+  .submail-box {
+    margin-top: 22px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    overflow-wrap: anywhere;
+  }
+
+  .plan-change-notice {
+    margin-bottom: 22px;
+    padding: 22px 24px;
+    border-color: rgba(139, 110, 255, 0.35);
+    box-shadow:
+      0 18px 60px rgba(0, 0, 0, 0.35),
+      inset 0 0 0 1px rgba(177, 124, 255, 0.08);
+  }
+
+  .plan-change-notice__chip {
+    border-color: rgba(177, 124, 255, 0.35);
+    color: #d5beff;
+    background: rgba(177, 124, 255, 0.08);
+  }
+
+  .action-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0 20px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  }
+
+  .action-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .action-btn--ghost {
+    color: #f4db8a;
+    border: 1px solid rgba(214, 174, 64, 0.35);
+    background: rgba(255, 220, 120, 0.05);
+  }
+
+  .action-btn--accent {
+    color: #fff;
+    background: linear-gradient(135deg, #7f5cff 0%, #b17cff 100%);
+    box-shadow: 0 12px 28px rgba(127, 92, 255, 0.35);
+  }
+
+  .action-btn--gold {
+    color: #241200;
+    background: linear-gradient(135deg, #f3d25d 0%, #dcae3c 100%);
+    box-shadow: 0 12px 28px rgba(220, 174, 60, 0.35);
+  }
+
+  .plan-area {
+    padding: 28px;
+  }
+
+  .section-head h2 {
+    margin: 14px 0 10px;
+    font-size: clamp(26px, 3vw, 36px);
+    color: #ffe7a6;
+  }
+
+  .section-head p {
+    margin: 0;
+    color: rgba(255, 236, 179, 0.74);
+    line-height: 1.8;
+  }
+
+  .billing-message {
+    margin-top: 18px;
+    margin-bottom: 4px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(202, 168, 79, 0.35);
+    background: rgba(202, 168, 79, 0.08);
+    color: #f5e8bf;
+    line-height: 1.8;
+  }
+
+  .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 26px;
+  }
+
+  .plan-card {
+    border-radius: 24px;
+    padding: 24px;
+    background: linear-gradient(180deg, rgba(17, 22, 48, 0.98), rgba(14, 18, 38, 0.96));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+
+  .plan-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(214, 174, 64, 0.38);
+  }
+
+  .plan-card.is-current {
+    border-color: rgba(243, 210, 93, 0.62);
+    box-shadow: 0 0 0 1px rgba(243, 210, 93, 0.2), 0 18px 42px rgba(220, 174, 60, 0.18);
+  }
+
+  .plan-card.is-pending {
+    border-color: rgba(177, 124, 255, 0.52);
+    box-shadow: 0 0 0 1px rgba(177, 124, 255, 0.22), 0 18px 42px rgba(127, 92, 255, 0.18);
+  }
+
+  .plan-card--premium {
+    box-shadow: inset 0 0 0 1px rgba(177, 124, 255, 0.22);
+  }
+
+  .plan-card h3 {
+    margin: 18px 0 10px;
+    color: #fff0bf;
+    font-size: 28px;
+  }
+
+  .plan-card p {
+    margin: 0 0 20px;
+    color: rgba(255, 236, 179, 0.74);
+    line-height: 1.8;
+    min-height: 88px;
+  }
+
+  .plan-card__price {
+    font-size: 34px;
+    font-weight: 800;
+    color: #ffe18f;
+    margin-bottom: 18px;
+  }
+
+  .plan-card__price small {
+    font-size: 18px;
+    opacity: 0.8;
+  }
+
+  .plan-card__button {
+    width: 100%;
+    min-height: 48px;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 800;
+    color: #101014;
+    background: linear-gradient(135deg, #f2d56b 0%, #d7a63d 100%);
+    box-shadow: 0 14px 30px rgba(220, 174, 60, 0.24);
+    transition: transform 0.18s ease, opacity 0.18s ease, filter 0.18s ease;
+  }
+
+  .plan-card--premium .plan-card__button {
+    color: #fff;
+    background: linear-gradient(135deg, #8461ff 0%, #b780ff 100%);
+    box-shadow: 0 14px 30px rgba(132, 97, 255, 0.3);
+  }
+
+  .plan-card__button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+  }
+
+  .plan-card__button:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  .loading-box,
+  .error-box {
+    margin-top: 22px;
+    padding: 18px 22px;
+  }
+
+  .loading-box p,
+  .error-box p {
+    margin: 0;
+    color: rgba(255, 236, 179, 0.82);
+  }
+
+  .error-box {
+    border-color: rgba(255, 128, 128, 0.26);
+    background: linear-gradient(180deg, rgba(47, 17, 24, 0.94), rgba(34, 12, 18, 0.9));
+  }
+
+  .reveal {
+    animation: fadeUp 0.35s ease both;
+  }
+
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 980px) {
+    .status-grid,
+    .plan-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .plan-card p {
+      min-height: auto;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .members-shell {
+      width: min(100% - 20px, 1120px);
+      margin-top: 18px;
+    }
+
+    .hero-card,
+    .status-card,
+    .plan-area,
+    .plan-change-notice {
+      padding: 20px;
+      border-radius: 22px;
+    }
+
+    .action-row {
+      flex-direction: column;
+    }
+
+    .action-btn {
+      width: 100%;
+    }
+
+    .status-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .meter-meta {
+      flex-direction: column;
+    }
+  }
+</style>

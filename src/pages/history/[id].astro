@@ -1,0 +1,481 @@
+---
+export const prerender = false;
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>今日のあなたの運命 | 白音七</title>
+    <link rel="stylesheet" href="/src/styles/global.css" />
+  </head>
+  <body class="fortune-body">
+    <main class="fortune-history-detail-page">
+      <div class="fortune-container">
+        <section class="fortune-history-detail-frame fortune-detail-page-frame">
+          <div class="fortune-detail-hero">
+            <div class="fortune-detail-kicker">SHIRONE7 DIVINATION DETAIL</div>
+            <h1 class="fortune-history-detail-title fortune-detail-page-title">静かに導かれる、あなたの流れ</h1>
+            <p class="fortune-detail-page-lead">
+              保存された音声鑑定の結果を、静かに受け取り、振り返るためのページです。
+            </p>
+          </div>
+
+          <div id="detail" class="fortune-detail-loading">読み込み中...</div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const API_BASE = "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod";
+
+      function escapeHtml(str) {
+        return String(str ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function nl2br(str) {
+        return escapeHtml(str).replace(/\n/g, "<br>");
+      }
+
+      function getUserId() {
+        return localStorage.getItem("user_id") || localStorage.getItem("userId") || "";
+      }
+
+      function getHistoryIdFromPath() {
+        const pathParts = window.location.pathname.split("/");
+        const rawHistoryId = pathParts[pathParts.length - 1] || "";
+        return decodeURIComponent(rawHistoryId);
+      }
+
+      function formatDate(item) {
+        const raw =
+          item?.created_at ||
+          item?.timestamp ||
+          item?.updated_at ||
+          "";
+
+        if (!raw) return "日時不明";
+
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return raw;
+
+        return d.toLocaleString("ja-JP", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      }
+
+      function normalizeStatus(status) {
+        return String(status || "").toLowerCase();
+      }
+
+      function getStatusInfo(status) {
+        const normalized = normalizeStatus(status);
+
+        if (normalized === "completed") {
+          return {
+            label: "✅ 完了",
+            className: "fortune-detail-status completed",
+            lead: "鑑定は完了しています。今日の流れと、今のあなたに必要な視点を受け取ってください。"
+          };
+        }
+
+        if (normalized === "processing" || normalized === "pending" || normalized === "transcribing") {
+          return {
+            label: "🔄 処理中",
+            className: "fortune-detail-status processing",
+            lead: "ただいま鑑定を生成しています。少し時間を空けてから再読み込みしてください。"
+          };
+        }
+
+        if (normalized === "error" || normalized === "failed") {
+          return {
+            label: "❌ エラー",
+            className: "fortune-detail-status error",
+            lead: "鑑定処理でエラーが発生しました。内容を確認し、必要であれば再鑑定してください。"
+          };
+        }
+
+        return {
+          label: "・状態不明",
+          className: "fortune-detail-status unknown",
+          lead: "状態の判定ができませんでした。"
+        };
+      }
+
+      function extractMainResult(item) {
+        const result = item?.result && typeof item.result === "object" ? item.result : {};
+
+        const summary =
+          result.summary ||
+          item.summary ||
+          item.result_preview ||
+          item.result_text ||
+          "";
+
+        const fullText =
+          result.full_text ||
+          item.result_text ||
+          "";
+
+        const todayFlow =
+          result.today_flow ||
+          result.todayFlow ||
+          "";
+
+        const outerImpression =
+          result.outer_impression ||
+          result.outerImpression ||
+          "";
+
+        const actionHint =
+          result.action_hint ||
+          result.actionHint ||
+          "";
+
+        return {
+          summary,
+          fullText,
+          todayFlow,
+          outerImpression,
+          actionHint
+        };
+      }
+
+      function renderCompletedDetail(item) {
+        const statusInfo = getStatusInfo(item?.status);
+        const dateText = formatDate(item);
+        const title = item?.title || item?.input_title || item?.category || "音声鑑定";
+        const plan = item?.plan || item?.tier || "未設定";
+        const historyId = item?.history_id || item?.id || "不明";
+        const userId = item?.user_id || getUserId() || "不明";
+
+        const resultData = extractMainResult(item);
+        const summary = resultData.summary;
+        const fullText = resultData.fullText;
+        const todayFlow = resultData.todayFlow;
+        const outerImpression = resultData.outerImpression;
+        const actionHint = resultData.actionHint;
+
+        let html = `
+          <div class="fortune-detail-status-row">
+            <span class="${statusInfo.className}">${escapeHtml(statusInfo.label)}</span>
+          </div>
+
+          <div class="fortune-detail-meta-card">
+            <dl class="fortune-detail-meta">
+              <div class="fortune-detail-meta-row">
+                <dt>日時</dt>
+                <dd>${escapeHtml(dateText)}</dd>
+              </div>
+              <div class="fortune-detail-meta-row">
+                <dt>タイトル</dt>
+                <dd>${escapeHtml(title)}</dd>
+              </div>
+              <div class="fortune-detail-meta-row">
+                <dt>プラン</dt>
+                <dd>${escapeHtml(plan)}</dd>
+              </div>
+              <div class="fortune-detail-meta-row">
+                <dt>履歴ID</dt>
+                <dd>${escapeHtml(historyId)}</dd>
+              </div>
+              <div class="fortune-detail-meta-row">
+                <dt>ユーザー</dt>
+                <dd>${escapeHtml(userId)}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <section class="fortune-detail-section">
+            <h2 class="fortune-detail-section-title">静かな導入</h2>
+            <div class="fortune-detail-main-card">
+              <p class="fortune-detail-main-text">${escapeHtml(statusInfo.lead)}</p>
+            </div>
+          </section>
+        `;
+
+        if (summary) {
+          html += `
+            <section class="fortune-detail-section">
+              <h2 class="fortune-detail-section-title">今回の鑑定要約</h2>
+              <div class="fortune-detail-main-card">
+                <p class="fortune-detail-main-text">${nl2br(summary)}</p>
+              </div>
+            </section>
+          `;
+        }
+
+        if (fullText && fullText !== summary) {
+          html += `
+            <section class="fortune-detail-section">
+              <h2 class="fortune-detail-section-title">詳細メッセージ</h2>
+              <div class="fortune-detail-main-card">
+                <p class="fortune-detail-main-text">${nl2br(fullText)}</p>
+              </div>
+            </section>
+          `;
+        }
+
+        if (todayFlow || outerImpression || actionHint) {
+          html += `
+            <section class="fortune-detail-section">
+              <h2 class="fortune-detail-section-title">読み解きの断片</h2>
+              <div class="fortune-detail-subgrid">
+                ${
+                  todayFlow
+                    ? `
+                  <article class="fortune-detail-subcard">
+                    <h3>今日の流れ</h3>
+                    <p>${nl2br(todayFlow)}</p>
+                  </article>
+                `
+                    : ""
+                }
+
+                ${
+                  outerImpression
+                    ? `
+                  <article class="fortune-detail-subcard">
+                    <h3>外側から見える傾向</h3>
+                    <p>${nl2br(outerImpression)}</p>
+                  </article>
+                `
+                    : ""
+                }
+
+                ${
+                  actionHint
+                    ? `
+                  <article class="fortune-detail-subcard">
+                    <h3>行動ヒント</h3>
+                    <p>${nl2br(actionHint)}</p>
+                  </article>
+                `
+                    : ""
+                }
+              </div>
+            </section>
+          `;
+        }
+
+        html += `
+          <section class="fortune-detail-section">
+            <h2 class="fortune-detail-section-title">次の行動</h2>
+            <div class="fortune-detail-info-box">
+              今日の流れを確認したあと、もう一度音声鑑定を行うことで、変化の兆しや迷いの輪郭がより明確になります。
+            </div>
+          </section>
+
+          <div class="fortune-history-detail-actions fortune-detail-actions">
+            <a class="fortune-btn secondary" href="/history">履歴一覧へ戻る</a>
+            <a class="fortune-btn secondary" href="/members">会員ページへ戻る</a>
+            <a class="fortune-btn violet" href="/premium/voice">もう一度鑑定する</a>
+          </div>
+        `;
+
+        return html;
+      }
+
+      function renderProcessingDetail(item) {
+        const statusInfo = getStatusInfo(item?.status);
+        const dateText = formatDate(item);
+        const title = item?.title || item?.input_title || item?.category || "音声鑑定";
+
+        return `
+          <div class="fortune-detail-status-row">
+            <span class="${statusInfo.className}">${escapeHtml(statusInfo.label)}</span>
+          </div>
+
+          <div class="fortune-detail-meta-card">
+            <dl class="fortune-detail-meta">
+              <div class="fortune-detail-meta-row">
+                <dt>日時</dt>
+                <dd>${escapeHtml(dateText)}</dd>
+              </div>
+              <div class="fortune-detail-meta-row">
+                <dt>タイトル</dt>
+                <dd>${escapeHtml(title)}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <section class="fortune-detail-section">
+            <h2 class="fortune-detail-section-title">処理状況</h2>
+            <div class="fortune-detail-info-box">
+              ${escapeHtml(statusInfo.lead)}
+            </div>
+          </section>
+
+          <div class="fortune-history-detail-actions fortune-detail-actions">
+            <a class="fortune-btn secondary" href="/history">履歴一覧へ戻る</a>
+            <a class="fortune-btn secondary" href="/members">会員ページへ戻る</a>
+            <button class="fortune-btn violet" type="button" onclick="window.location.reload()">再読み込み</button>
+          </div>
+        `;
+      }
+
+      function renderErrorDetail(item) {
+        const statusInfo = getStatusInfo(item?.status);
+        const dateText = formatDate(item);
+        const title = item?.title || item?.input_title || item?.category || "音声鑑定";
+
+        const transcribeError =
+          item?.transcribe_error?.error ||
+          item?.transcribe_error ||
+          item?.error ||
+          "エラー内容は取得できませんでした。";
+
+        return `
+          <div class="fortune-detail-status-row">
+            <span class="${statusInfo.className}">${escapeHtml(statusInfo.label)}</span>
+          </div>
+
+          <div class="fortune-detail-meta-card">
+            <dl class="fortune-detail-meta">
+              <div class="fortune-detail-meta-row">
+                <dt>日時</dt>
+                <dd>${escapeHtml(dateText)}</dd>
+              </div>
+              <div class="fortune-detail-meta-row">
+                <dt>タイトル</dt>
+                <dd>${escapeHtml(title)}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <section class="fortune-detail-section">
+            <h2 class="fortune-detail-section-title">エラー内容</h2>
+            <div class="fortune-detail-error-box">${nl2br(transcribeError)}</div>
+          </section>
+
+          <section class="fortune-detail-section">
+            <h2 class="fortune-detail-section-title">ご案内</h2>
+            <div class="fortune-detail-info-box">
+              ${escapeHtml(statusInfo.lead)}
+            </div>
+          </section>
+
+          <div class="fortune-history-detail-actions fortune-detail-actions">
+            <a class="fortune-btn secondary" href="/history">履歴一覧へ戻る</a>
+            <a class="fortune-btn secondary" href="/members">会員ページへ戻る</a>
+            <a class="fortune-btn violet" href="/premium/voice">再鑑定する</a>
+          </div>
+        `;
+      }
+
+      function renderEmptyDetail(item) {
+        const statusInfo = getStatusInfo(item?.status);
+
+        return `
+          <div class="fortune-detail-status-row">
+            <span class="${statusInfo.className}">${escapeHtml(statusInfo.label)}</span>
+          </div>
+
+          <section class="fortune-detail-section">
+            <h2 class="fortune-detail-section-title">鑑定結果</h2>
+            <div class="fortune-detail-info-box">
+              まだ表示できる鑑定結果がありません。
+            </div>
+          </section>
+
+          <div class="fortune-history-detail-actions fortune-detail-actions">
+            <a class="fortune-btn secondary" href="/history">履歴一覧へ戻る</a>
+            <a class="fortune-btn violet" href="/premium/voice">音声鑑定へ進む</a>
+          </div>
+        `;
+      }
+
+      function renderDetail(item) {
+        const target = document.getElementById("detail");
+        const status = normalizeStatus(item?.status);
+
+        let html = "";
+
+        if (status === "completed") {
+          const resultData = extractMainResult(item);
+          if (
+            resultData.summary ||
+            resultData.fullText ||
+            resultData.todayFlow ||
+            resultData.outerImpression ||
+            resultData.actionHint
+          ) {
+            html = renderCompletedDetail(item);
+          } else {
+            html = renderEmptyDetail(item);
+          }
+        } else if (status === "processing" || status === "pending" || status === "transcribing") {
+          html = renderProcessingDetail(item);
+        } else if (status === "error" || status === "failed") {
+          html = renderErrorDetail(item);
+        } else {
+          html = renderEmptyDetail(item);
+        }
+
+        target.className = "";
+        target.innerHTML = html;
+      }
+
+      function renderSimpleError(message) {
+        const target = document.getElementById("detail");
+        target.className = "fortune-detail-error-state";
+        target.innerHTML = `
+          <div class="fortune-detail-error-box">${escapeHtml(message)}</div>
+          <div class="fortune-history-detail-actions fortune-detail-actions" style="margin-top: 18px;">
+            <a class="fortune-btn secondary" href="/history">履歴一覧へ戻る</a>
+            <a class="fortune-btn violet" href="/members">会員ページへ戻る</a>
+          </div>
+        `;
+      }
+
+      async function loadDetail() {
+        const userId = getUserId();
+        const historyId = getHistoryIdFromPath();
+
+        if (!userId) {
+          renderSimpleError("ログインしてください");
+          return;
+        }
+
+        if (!historyId) {
+          renderSimpleError("history_id が取得できません");
+          return;
+        }
+
+        try {
+          const res = await fetch(
+            `${API_BASE}/history/detail?user_id=${encodeURIComponent(userId)}&history_id=${encodeURIComponent(historyId)}`
+          );
+
+          if (!res.ok) {
+            throw new Error(`API error: ${res.status}`);
+          }
+
+          const data = await res.json();
+          const item = data?.item || data;
+
+          if (!item || typeof item !== "object") {
+            throw new Error("鑑定データが見つかりません");
+          }
+
+          renderDetail(item);
+        } catch (err) {
+          console.error(err);
+          renderSimpleError("鑑定詳細の取得に失敗しました。時間を空けて再度お試しください。");
+        }
+      }
+
+      loadDetail();
+    </script>
+  </body>
+</html>

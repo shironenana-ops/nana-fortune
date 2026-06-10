@@ -1,0 +1,332 @@
+---
+import "../styles/global.css";
+
+export const prerender = false;
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>会員限定鑑定 | 白音七</title>
+    <meta name="description" content="白音七メソッドの会員限定鑑定ページ" />
+  </head>
+
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
+
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/members">会員ページ</a>
+          <a href="/history">履歴一覧</a>
+          <a href="/privacy">プライバシーポリシー</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
+
+    <main class="fortune-premium-page">
+      <section class="fortune-container" style="padding: 48px 0 88px;">
+        <div class="fortune-premium-page-frame">
+          <div id="premiumContent"></div>
+        </div>
+      </section>
+    </main>
+
+    <script is:inline src="/js/billing.js"></script>
+
+    <script>
+      const USER_STATUS_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/user/status";
+
+      const authArea = document.getElementById("authArea");
+      const premiumContent = document.getElementById("premiumContent");
+
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+      const input = JSON.parse(localStorage.getItem("fortuneInput") || "null");
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function normalizePlan(rawPlan) {
+        const plan = String(rawPlan || "").toLowerCase();
+        if (plan === "premium") return "premium";
+        if (plan === "normal" || plan === "light" || plan === "member") return "normal";
+        return "free";
+      }
+
+      function formatDate(value) {
+        if (!value) return "未反映";
+        try {
+          return new Date(value).toLocaleString("ja-JP");
+        } catch {
+          return value;
+        }
+      }
+
+      function getUserId() {
+        return (
+          localStorage.getItem("userId") ||
+          localStorage.getItem("user_id") ||
+          ""
+        );
+      }
+
+      function getEmailForCheckout() {
+        return (
+          localStorage.getItem("userEmail") ||
+          localStorage.getItem("user_email") ||
+          localStorage.getItem("userId") ||
+          localStorage.getItem("user_id") ||
+          ""
+        );
+      }
+
+      function buildExtraCard() {
+        return `
+          <article class="fortune-card" style="padding:24px; border-radius:22px;">
+            <div style="display:inline-flex; margin-bottom:12px; padding:6px 12px; border-radius:999px; border:1px solid rgba(202,168,79,0.24); color:#f2dd9a; font-size:0.85rem;">
+              単発追加
+            </div>
+            <h3 style="margin:0 0 12px; color:#fff0bf;">単発音声占い</h3>
+            <p style="line-height:1.8; color:#dbc979;">
+              300円で音声占いを1回だけ追加できる買い切りプランです。
+            </p>
+            <ul style="margin:16px 0 20px; padding-left:1.2rem; line-height:1.9; color:#dbc979;">
+              <li>単発300円</li>
+              <li>音声占い1回</li>
+              <li>買い切り</li>
+            </ul>
+            <div style="margin-bottom:16px; color:#fff0bf; font-size:1.3rem; font-weight:700;">¥300</div>
+            <button class="fortune-btn secondary" type="button" data-checkout-plan="extra" data-source-path="/premium">
+              単発音声を申し込む
+            </button>
+          </article>
+        `;
+      }
+
+      function buildNormalCard() {
+        return `
+          <article class="fortune-card" style="padding:24px; border-radius:22px;">
+            <div style="display:inline-flex; margin-bottom:12px; padding:6px 12px; border-radius:999px; border:1px solid rgba(202,168,79,0.24); color:#f2dd9a; font-size:0.85rem;">
+              月額ライト会員
+            </div>
+            <h3 style="margin:0 0 12px; color:#fff0bf;">ライト会員</h3>
+            <p style="line-height:1.8; color:#dbc979;">
+              月額980円で、音声占い5回と履歴確認ができる基本プランです。
+            </p>
+            <ul style="margin:16px 0 20px; padding-left:1.2rem; line-height:1.9; color:#dbc979;">
+              <li>月額980円</li>
+              <li>音声占い5回</li>
+              <li>履歴確認</li>
+            </ul>
+            <div style="margin-bottom:16px; color:#fff0bf; font-size:1.3rem; font-weight:700;">¥980 / 月</div>
+            <button class="fortune-btn gold" type="button" data-checkout-plan="normal" data-source-path="/premium">
+              ライト会員に申し込む
+            </button>
+          </article>
+        `;
+      }
+
+      function buildPremiumCard() {
+        return `
+          <article class="fortune-card" style="padding:24px; border-radius:22px; border:1px solid rgba(182,140,255,0.4); box-shadow:0 0 30px rgba(182,140,255,0.12);">
+            <div style="display:inline-flex; margin-bottom:12px; padding:6px 12px; border-radius:999px; border:1px solid rgba(182,140,255,0.34); color:#d9c2ff; font-size:0.85rem;">
+              人気No.1 プレミアム
+            </div>
+            <h3 style="margin:0 0 12px; color:#fff0bf;">プレミアム会員</h3>
+            <p style="line-height:1.8; color:#dbc979;">
+              月額2980円で、音声20回・履歴確認・深掘り鑑定まで使える本命プランです。
+            </p>
+            <ul style="margin:16px 0 20px; padding-left:1.2rem; line-height:1.9; color:#dbc979;">
+              <li>月額2980円</li>
+              <li>音声占い20回</li>
+              <li>履歴確認</li>
+              <li>深掘り鑑定</li>
+            </ul>
+            <div style="margin-bottom:16px; color:#fff0bf; font-size:1.3rem; font-weight:700;">¥2,980 / 月</div>
+            <button class="fortune-btn violet" type="button" data-checkout-plan="premium" data-source-path="/premium">
+              プレミアム会員に申し込む
+            </button>
+          </article>
+        `;
+      }
+
+      function buildPlanGrid(statusInfo) {
+        const plan = statusInfo.plan;
+
+        if (plan === "premium") {
+          return buildExtraCard();
+        }
+
+        if (plan === "normal") {
+          return buildPremiumCard() + buildExtraCard();
+        }
+
+        return buildNormalCard() + buildPremiumCard() + buildExtraCard();
+      }
+
+      function buildBillingMessage(statusInfo) {
+        if (statusInfo.plan === "premium") {
+          return statusInfo.cancelAtPeriodEnd
+            ? `現在プレミアム会員です。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}特典を利用できます。単発追加のみ表示しています。`
+            : "現在プレミアム会員です。重複月額決済を防ぐため、単発追加のみ表示しています。";
+        }
+
+        if (statusInfo.plan === "normal") {
+          return statusInfo.cancelAtPeriodEnd
+            ? `現在ライト会員です。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}特典を利用できます。アップグレードと単発追加のみ表示しています。`
+            : "現在ライト会員です。プレミアムへのアップグレードと単発追加のみ表示しています。";
+        }
+
+        return "";
+      }
+
+      async function fetchUserStatus() {
+        const userId = getUserId();
+        if (!userId) {
+          throw new Error("ログイン情報が見つかりません。");
+        }
+
+        const res = await fetch(`${USER_STATUS_API}?user_id=${encodeURIComponent(userId)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "会員情報の取得に失敗しました。");
+        }
+
+        return {
+          plan: normalizePlan(data.plan || "free"),
+          cancelAtPeriodEnd: Boolean(data.cancel_at_period_end),
+          currentPeriodEnd: data.current_period_end || "",
+          raw: data
+        };
+      }
+
+      function bindLogout() {
+        if (token && email) {
+          authArea.innerHTML = `
+            <span class="fortune-user">${escapeHtml(email)}</span>
+            <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+          `;
+
+          document.getElementById("logoutBtn").addEventListener("click", () => {
+            localStorage.removeItem("token");
+            localStorage.removeItem("loginEmail");
+            localStorage.removeItem("userId");
+            localStorage.removeItem("user_id");
+            window.location.href = "/";
+          });
+        } else {
+          authArea.innerHTML = `
+            <a href="/login?redirect=/premium" class="fortune-nav-pill">会員ログイン</a>
+          `;
+        }
+      }
+
+      async function renderPremiumPage() {
+        bindLogout();
+
+        if (!token) {
+          premiumContent.innerHTML = `
+            <section class="fortune-card" style="padding:40px; border-radius:28px;">
+              <div style="display:inline-flex; padding:8px 14px; border-radius:999px; border:1px solid rgba(202,168,79,0.28); color:#f2dd9a; margin-bottom:18px;">
+                MEMBER CONTENT
+              </div>
+              <h1 style="margin:0 0 14px; font-size:2.2rem; color:#fff0bf;">会員限定鑑定</h1>
+              <p style="margin:0 0 24px; line-height:1.9; color:#dbc979;">
+                このページを見るにはログインが必要です。
+              </p>
+              <div style="display:flex; flex-wrap:wrap; gap:12px;">
+                <a href="/login?redirect=/premium" class="fortune-btn gold big">ログインして続きを見る</a>
+                <a href="/" class="fortune-btn secondary">TOPへ戻る</a>
+              </div>
+            </section>
+          `;
+          return;
+        }
+
+        const name = input?.name || "あなた";
+
+        let statusInfo = {
+          plan: "free",
+          cancelAtPeriodEnd: false,
+          currentPeriodEnd: ""
+        };
+
+        let billingMessage = "";
+        try {
+          statusInfo = await fetchUserStatus();
+          billingMessage = buildBillingMessage(statusInfo);
+        } catch (error) {
+          console.error(error);
+          billingMessage = "会員状態の確認に失敗しました。安全のため、この画面では単発追加のみ表示します。";
+          statusInfo = {
+            plan: "premium",
+            cancelAtPeriodEnd: false,
+            currentPeriodEnd: ""
+          };
+        }
+
+        premiumContent.innerHTML = `
+          <section class="fortune-card" style="padding:40px; border-radius:28px; margin-bottom:28px; background: linear-gradient(180deg, rgba(10,14,34,0.95), rgba(16,11,40,0.92));">
+            <div style="display:inline-flex; padding:8px 14px; border-radius:999px; border:1px solid rgba(202,168,79,0.28); color:#f2dd9a; margin-bottom:18px;">
+              MEMBER CONTENT
+            </div>
+            <h1 style="margin:0 0 14px; font-size:2.35rem; color:#fff0bf;">${escapeHtml(name)}さんの会員限定鑑定</h1>
+            <p style="margin:0; line-height:1.95; color:#dbc979;">
+              ここでは白音七メソッドの中核となる読みを味わえます。<br />
+              無料版では見えなかった「本質」「流れ」「現在地」を、継続的に追えます。
+            </p>
+          </section>
+
+          <section class="fortune-card" style="padding:34px; border-radius:28px; margin-bottom:28px;">
+            <div style="display:inline-flex; padding:8px 14px; border-radius:999px; border:1px solid rgba(202,168,79,0.28); color:#f2dd9a; margin-bottom:16px;">
+              COURSE SELECT
+            </div>
+            <h2 style="margin:0 0 10px; color:#fff0bf; font-size:2rem;">悩みに合わせて選ぶ特別鑑定</h2>
+            <p style="margin:0 0 8px; color:#dbc979; line-height:1.9;">
+              まずは無料で雰囲気を体験し、そのあと必要に応じて会員化・単発追加を選べます。
+            </p>
+            <p style="margin:0 0 24px; color:#f2dd9a;">
+              980円はライト会員、2980円はプレミアム会員、300円は単発音声1回です。
+            </p>
+
+            <div id="billingMessage" style="display:${billingMessage ? "block" : "none"}; margin-bottom:18px; padding:14px 16px; border-radius:16px; border:1px solid rgba(202,168,79,0.35); background:rgba(202,168,79,0.08); color:#f5e8bf; line-height:1.8;">
+              ${escapeHtml(billingMessage)}
+            </div>
+
+            <div id="planGrid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px;">
+              ${buildPlanGrid(statusInfo)}
+            </div>
+          </section>
+
+          <section style="display:flex; flex-wrap:wrap; gap:12px;">
+            <a href="/premium/voice" class="fortune-btn violet">音声鑑定ページへ</a>
+            <a href="/history" class="fortune-btn secondary">履歴を見る</a>
+            <a href="/members" class="fortune-btn gold">会員ページへ戻る</a>
+            <a href="/join" class="fortune-btn secondary">プラン案内を見る</a>
+          </section>
+        `;
+
+        window.ShironeBilling?.bindBillingButtons();
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        renderPremiumPage();
+      });
+    </script>
+  </body>
+</html>

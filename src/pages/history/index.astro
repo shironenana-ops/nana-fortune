@@ -1,0 +1,1245 @@
+---
+export const prerender = false;
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>音声鑑定履歴 | 白音七</title>
+    <meta name="description" content="白音七の音声鑑定履歴一覧" />
+
+    <style>
+      :root {
+        --bg-1: #050816;
+        --bg-2: #0b1330;
+        --panel: rgba(15, 20, 40, 0.88);
+        --line: rgba(202, 168, 79, 0.22);
+        --line-strong: rgba(202, 168, 79, 0.36);
+        --gold: #f2dd9a;
+        --gold-strong: #fff0bf;
+        --text: #f8f3df;
+        --muted: #dbc979;
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+
+        --ok-bg: rgba(56, 142, 60, 0.18);
+        --ok-bd: rgba(129, 199, 132, 0.38);
+        --ok-tx: #d6f5da;
+
+        --wait-bg: rgba(255, 193, 7, 0.16);
+        --wait-bd: rgba(255, 224, 130, 0.38);
+        --wait-tx: #fff1bf;
+
+        --err-bg: rgba(198, 40, 40, 0.18);
+        --err-bd: rgba(239, 154, 154, 0.34);
+        --err-tx: #ffd6d6;
+
+        --info-bg: rgba(255, 255, 255, 0.04);
+        --info-bd: rgba(255, 255, 255, 0.12);
+        --info-tx: #e9defd;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 15% 20%, rgba(90, 50, 180, 0.22), transparent 32%),
+          radial-gradient(circle at 82% 24%, rgba(60, 110, 255, 0.12), transparent 30%),
+          linear-gradient(135deg, var(--bg-1) 0%, #07112a 50%, #020615 100%);
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .container {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: rgba(4, 8, 20, 0.82);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(202, 168, 79, 0.12);
+      }
+
+      .header-inner {
+        min-height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--gold-strong);
+        letter-spacing: 0.08em;
+      }
+
+      .logo-mark {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 30% 30%, #fff6cf, #c79d36 70%);
+        box-shadow: 0 0 16px rgba(255, 226, 138, 0.6);
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      .nav-link {
+        color: var(--gold);
+      }
+
+      .nav-pill,
+      .nav-logout {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 0 16px;
+        border-radius: 999px;
+        border: 1px solid rgba(202, 168, 79, 0.24);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--gold-strong);
+        cursor: pointer;
+        font: inherit;
+      }
+
+      .nav-user {
+        color: var(--gold-strong);
+      }
+
+      .page {
+        padding: 40px 0 88px;
+      }
+
+      .hero,
+      .panel,
+      .history-wrap {
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: linear-gradient(180deg, rgba(10, 14, 34, 0.96), rgba(16, 11, 40, 0.9));
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        padding: 40px;
+        margin-bottom: 28px;
+      }
+
+      .panel {
+        padding: 34px;
+        margin-bottom: 28px;
+      }
+
+      .history-wrap {
+        padding: 34px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(202, 168, 79, 0.28);
+        color: var(--gold);
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+        margin-bottom: 16px;
+      }
+
+      .hero h1,
+      .panel h2,
+      .history-wrap h2 {
+        margin: 0 0 12px;
+        color: var(--gold-strong);
+        line-height: 1.35;
+      }
+
+      .hero p,
+      .panel p,
+      .history-wrap p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.9;
+      }
+
+      .billing-message {
+        display: none;
+        margin: 0 0 18px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid var(--line-strong);
+        color: var(--gold);
+        background: rgba(202, 168, 79, 0.08);
+        line-height: 1.8;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .billing-message.is-show {
+        display: block;
+      }
+
+      .billing-message.is-error {
+        border-color: var(--err-bd);
+        background: rgba(198, 40, 40, 0.12);
+        color: var(--err-tx);
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 18px;
+      }
+
+      .menu-card,
+      .history-card,
+      .loading-card,
+      .empty-card,
+      .notice-card,
+      .debug-card,
+      .member-status-card {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(20, 24, 48, 0.94), rgba(21, 17, 38, 0.88));
+      }
+
+      .menu-card,
+      .member-status-card {
+        padding: 24px;
+      }
+
+      .menu-card.featured {
+        border-color: rgba(182, 140, 255, 0.42);
+        box-shadow: 0 0 30px rgba(182, 140, 255, 0.12);
+      }
+
+      .menu-card.current,
+      .member-status-card.current {
+        border-color: rgba(242, 221, 154, 0.4);
+        background:
+          linear-gradient(135deg, rgba(242, 221, 154, 0.08), rgba(182, 140, 255, 0.08)),
+          linear-gradient(180deg, rgba(20, 24, 48, 0.94), rgba(21, 17, 38, 0.88));
+      }
+
+      .menu-card h3,
+      .history-card h3,
+      .member-status-card h3 {
+        margin: 0 0 10px;
+        color: var(--gold-strong);
+      }
+
+      .price {
+        margin: 16px 0;
+        font-size: 1.32rem;
+        font-weight: 700;
+        color: var(--gold-strong);
+      }
+
+      .plan-note {
+        margin-top: 12px;
+        color: var(--muted);
+        line-height: 1.8;
+        font-size: 0.92rem;
+      }
+
+      .member-status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+      }
+
+      .member-status-badge.free {
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.14);
+        color: var(--text);
+      }
+
+      .member-status-badge.normal {
+        background: rgba(242, 221, 154, 0.12);
+        border: 1px solid rgba(242, 221, 154, 0.28);
+        color: var(--gold-strong);
+      }
+
+      .member-status-badge.premium {
+        background: rgba(182, 140, 255, 0.18);
+        border: 1px solid rgba(182, 140, 255, 0.34);
+        color: #f0e6ff;
+      }
+
+      .btn-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 0 22px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+      }
+
+      .btn-gold {
+        color: #1a1405;
+        background: linear-gradient(135deg, #f0d46a 0%, #cfa640 100%);
+        box-shadow: 0 10px 24px rgba(207, 166, 64, 0.28);
+      }
+
+      .btn-violet {
+        color: #fff8ff;
+        background: linear-gradient(135deg, #7f5af0 0%, #b68cff 100%);
+        box-shadow: 0 10px 24px rgba(127, 90, 240, 0.26);
+      }
+
+      .btn-secondary {
+        color: var(--gold-strong);
+        border-color: rgba(202, 168, 79, 0.28);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .btn-disabled {
+        opacity: 0.55;
+        cursor: default;
+        pointer-events: none;
+      }
+
+      .history-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+      }
+
+      .history-status-tools {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+
+      .notice-card {
+        display: none;
+        padding: 14px 16px;
+        border: 1px solid var(--info-bd);
+        background: var(--info-bg);
+        color: var(--info-tx);
+        line-height: 1.8;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .notice-card.is-show {
+        display: block;
+      }
+
+      .notice-card.is-error {
+        border-color: var(--err-bd);
+        background: rgba(198, 40, 40, 0.12);
+        color: var(--err-tx);
+      }
+
+      .debug-card {
+        display: none;
+        padding: 16px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.8;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .debug-card.is-show {
+        display: block;
+      }
+
+      .history-list {
+        display: grid;
+        gap: 16px;
+      }
+
+      .loading-card,
+      .empty-card {
+        padding: 24px;
+        color: var(--muted);
+      }
+
+      .history-card {
+        padding: 22px;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      }
+
+      .history-card.is-clickable {
+        cursor: pointer;
+      }
+
+      .history-card.is-clickable:hover {
+        transform: translateY(-2px);
+        border-color: rgba(202, 168, 79, 0.34);
+      }
+
+      .history-meta {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+
+      .history-date {
+        color: var(--gold);
+        font-size: 0.88rem;
+        margin-bottom: 8px;
+      }
+
+      .history-status {
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(202, 168, 79, 0.24);
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .history-status--completed {
+        background: var(--ok-bg);
+        border-color: var(--ok-bd);
+        color: var(--ok-tx);
+      }
+
+      .history-status--processing {
+        background: var(--wait-bg);
+        border-color: var(--wait-bd);
+        color: var(--wait-tx);
+      }
+
+      .history-status--error {
+        background: var(--err-bg);
+        border-color: var(--err-bd);
+        color: var(--err-tx);
+      }
+
+      .history-status--unknown {
+        background: rgba(255,255,255,0.08);
+        border-color: rgba(255,255,255,0.14);
+        color: var(--text);
+      }
+
+      .history-summary {
+        line-height: 1.85;
+        color: var(--muted);
+        margin-bottom: 14px;
+      }
+
+      .history-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .history-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(202, 168, 79, 0.24);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--gold-strong);
+        font-size: 0.9rem;
+        font-family: inherit;
+        cursor: pointer;
+      }
+
+      .history-action.primary {
+        background: linear-gradient(135deg, #7f5af0 0%, #b68cff 100%);
+        border-color: transparent;
+        color: #fff;
+      }
+
+      @media (max-width: 720px) {
+        .container {
+          width: min(100% - 20px, 1120px);
+        }
+
+        .hero,
+        .panel,
+        .history-wrap {
+          padding: 22px;
+          border-radius: 22px;
+        }
+
+        .header-inner {
+          padding: 12px 0;
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .logo {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="header">
+      <div class="container header-inner">
+        <a href="/" class="logo">
+          <span class="logo-mark"></span>
+          <span>白音七</span>
+        </a>
+
+        <nav class="nav" id="authNav">
+          <a class="nav-link" href="/">TOP</a>
+          <a class="nav-link" href="/members">会員ページ</a>
+          <a class="nav-link" href="/premium">会員限定鑑定</a>
+          <a class="nav-link" href="/privacy">プライバシーポリシー</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page">
+      <div class="container">
+        <section class="hero">
+          <div class="badge">HISTORY</div>
+          <h1>音声鑑定履歴</h1>
+          <p>
+            過去の音声鑑定を一覧で確認できます。<br />
+            前回の流れを見返すことで、今のあなたの立ち位置がよりはっきり見えてきます。
+          </p>
+        </section>
+
+        <section class="panel">
+          <div class="badge">PLAN SELECT</div>
+          <h2>履歴から、次の一手へ</h2>
+          <p style="margin-bottom: 8px;">
+            過去の鑑定を見返したあとに、必要な深さだけ追加できます。
+          </p>
+          <p style="margin-bottom: 24px; color: var(--gold);">
+            会員状態に応じて、表示される申込み内容が変わります。
+          </p>
+
+          <div id="billingMessage" class="billing-message"></div>
+          <div id="planCards" class="cards">
+            <div class="loading-card">会員状態を確認しています...</div>
+          </div>
+        </section>
+
+        <section class="history-wrap">
+          <div class="history-head">
+            <div>
+              <h2>あなたの鑑定一覧</h2>
+              <p>新しい順に表示します。</p>
+            </div>
+
+            <div class="btn-row">
+              <a href="/premium/voice" class="btn btn-violet">音声鑑定へ</a>
+              <a href="/members" class="btn btn-secondary">会員ページへ</a>
+              <button id="reloadHistoryButton" class="btn btn-secondary" type="button">再読み込み</button>
+            </div>
+          </div>
+
+          <div class="history-status-tools">
+            <div id="historyNotice" class="notice-card"></div>
+            <div id="debugBox" class="debug-card"></div>
+          </div>
+
+          <div id="historyList" class="history-list">
+            <div class="loading-card">読み込み中...</div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script is:inline src="/js/billing.js"></script>
+
+    <script>
+      const API_BASE = "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod";
+      const HISTORY_API_BASE = API_BASE;
+      const DEBUG_HISTORY = false;
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function showNotice(message, isError) {
+        const el = document.getElementById("historyNotice");
+        if (!el) return;
+
+        if (!message) {
+          el.textContent = "";
+          el.className = "notice-card";
+          return;
+        }
+
+        el.textContent = message;
+        el.className = "notice-card is-show" + (isError ? " is-error" : "");
+      }
+
+      function hideNotice() {
+        showNotice("", false);
+      }
+
+      function showDebug(value) {
+        const el = document.getElementById("debugBox");
+        if (!el) return;
+
+        if (!DEBUG_HISTORY || !value) {
+          el.textContent = "";
+          el.className = "debug-card";
+          return;
+        }
+
+        el.textContent = value;
+        el.className = "debug-card is-show";
+      }
+
+      function showBillingMessage(message, isError) {
+        const el = document.getElementById("billingMessage");
+        if (!el) return;
+
+        if (!message) {
+          el.textContent = "";
+          el.className = "billing-message";
+          return;
+        }
+
+        el.textContent = message;
+        el.className = "billing-message is-show" + (isError ? " is-error" : "");
+      }
+
+      function getUserId() {
+        return localStorage.getItem("user_id") || localStorage.getItem("userId") || "";
+      }
+
+      function setupAuthNav() {
+        const authNav = document.getElementById("authNav");
+        const token = localStorage.getItem("token");
+        const email = localStorage.getItem("loginEmail");
+
+        if (token && email) {
+          authNav.insertAdjacentHTML(
+            "beforeend",
+            '<span class="nav-user">' +
+              escapeHtml(email) +
+              '</span><button id="logoutBtn" class="nav-logout" type="button">⏻ ログアウト</button>'
+          );
+
+          const logoutBtn = document.getElementById("logoutBtn");
+          if (logoutBtn) {
+            logoutBtn.addEventListener("click", function () {
+              localStorage.removeItem("token");
+              localStorage.removeItem("loginEmail");
+              localStorage.removeItem("userId");
+              localStorage.removeItem("user_id");
+              window.location.href = "/";
+            });
+          }
+        } else {
+          authNav.insertAdjacentHTML(
+            "beforeend",
+            '<a href="/login?redirect=/history" class="nav-pill">会員ログイン</a>'
+          );
+        }
+      }
+
+      function normalizeStatus(status) {
+        return String(status || "").toLowerCase();
+      }
+
+      function getStatusInfo(status) {
+        const normalized = normalizeStatus(status);
+
+        if (normalized === "completed") {
+          return {
+            text: "✅ 完了",
+            className: "history-status history-status--completed",
+            description: "鑑定結果を確認できます。"
+          };
+        }
+
+        if (normalized === "processing" || normalized === "pending") {
+          return {
+            text: "🔄 処理中",
+            className: "history-status history-status--processing",
+            description: "現在、音声鑑定を処理しています。"
+          };
+        }
+
+        if (normalized === "error" || normalized === "failed") {
+          return {
+            text: "❌ エラー",
+            className: "history-status history-status--error",
+            description: "鑑定処理に失敗しました。再試行してください。"
+          };
+        }
+
+        return {
+          text: "・状態不明",
+          className: "history-status history-status--unknown",
+          description: "状態を判定できませんでした。"
+        };
+      }
+
+      function formatDate(rawDate) {
+        if (!rawDate) return "日時不明";
+
+        const dt = new Date(rawDate);
+        if (!isNaN(dt.getTime())) {
+          return dt.toLocaleString("ja-JP", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit"
+          });
+        }
+
+        return String(rawDate);
+      }
+
+      function extractItems(data) {
+        if (Array.isArray(data)) {
+          return data;
+        }
+
+        if (data && Array.isArray(data.items)) {
+          return data.items;
+        }
+
+        if (data && typeof data.body === "string") {
+          try {
+            const parsed = JSON.parse(data.body);
+            if (Array.isArray(parsed)) return parsed;
+            if (parsed && Array.isArray(parsed.items)) return parsed.items;
+          } catch (error) {
+            console.error("body parse error:", error);
+          }
+        }
+
+        if (data && data.body && typeof data.body === "object") {
+          if (Array.isArray(data.body)) return data.body;
+          if (Array.isArray(data.body.items)) return data.body.items;
+        }
+
+        return [];
+      }
+
+      function buildHistoryActions(item, status) {
+        const normalized = normalizeStatus(status);
+        const historyId =
+          item && (item.history_id || item.id)
+            ? String(item.history_id || item.id)
+            : "";
+
+        if (normalized === "completed") {
+          if (!historyId) return "";
+          return (
+            '<div class="history-actions">' +
+              '<a class="history-action primary" href="/history/' +
+              encodeURIComponent(historyId) +
+              '">結果を見る</a>' +
+            '</div>'
+          );
+        }
+
+        if (normalized === "processing" || normalized === "pending") {
+          if (!historyId) {
+            return (
+              '<div class="history-actions">' +
+                '<button class="history-action" type="button" onclick="window.location.reload()">再読み込み</button>' +
+              '</div>'
+            );
+          }
+
+          return (
+            '<div class="history-actions">' +
+              '<a class="history-action primary" href="/premium/voice-processing?id=' +
+              encodeURIComponent(historyId) +
+              '">処理画面を開く</a>' +
+              '<button class="history-action" type="button" onclick="window.location.reload()">再読み込み</button>' +
+            '</div>'
+          );
+        }
+
+        if (normalized === "error" || normalized === "failed") {
+          return (
+            '<div class="history-actions">' +
+              '<a class="history-action primary" href="/premium/voice">再鑑定する</a>' +
+            '</div>'
+          );
+        }
+
+        return "";
+      }
+
+      function renderHistory(items) {
+        const list = document.getElementById("historyList");
+        list.innerHTML = "";
+
+        items.sort(function (a, b) {
+          const ta =
+            a && (a.created_at || a.timestamp || a.createdAt)
+              ? (a.created_at || a.timestamp || a.createdAt)
+              : "";
+          const tb =
+            b && (b.created_at || b.timestamp || b.createdAt)
+              ? (b.created_at || b.timestamp || b.createdAt)
+              : "";
+          return String(tb).localeCompare(String(ta));
+        });
+
+        items.forEach(function (item) {
+          const rawDate =
+            (item && (item.created_at || item.timestamp || item.createdAt)) ||
+            (item && item.history_id && String(item.history_id).includes("#")
+              ? String(item.history_id).split("#")[0]
+              : "") ||
+            "";
+
+          const title =
+            (item && (item.title || item.input_title || item.category || item.kind)) ||
+            "音声鑑定";
+
+          const status = (item && item.status) || "completed";
+          const statusInfo = getStatusInfo(status);
+
+          const summary =
+            (item && item.result && item.result.summary) ||
+            (item && item.summary) ||
+            (item && item.result_preview) ||
+            (item && item.result_text) ||
+            statusInfo.description;
+
+          const historyId = (item && (item.history_id || item.id)) || "";
+
+          const card = document.createElement("article");
+          card.className = "history-card";
+
+          if (normalizeStatus(status) === "completed" && historyId) {
+            card.classList.add("is-clickable");
+          }
+
+          card.innerHTML =
+            '<div class="history-meta">' +
+              '<div>' +
+                '<div class="history-date">' + escapeHtml(formatDate(rawDate)) + '</div>' +
+                '<h3>' + escapeHtml(title) + '</h3>' +
+              '</div>' +
+              '<div class="' + escapeHtml(statusInfo.className) + '">' + escapeHtml(statusInfo.text) + '</div>' +
+            '</div>' +
+            '<div class="history-summary">' + escapeHtml(summary) + '</div>' +
+            buildHistoryActions(item, status);
+
+          if (normalizeStatus(status) === "completed" && historyId) {
+            card.addEventListener("click", function (event) {
+              const target = event.target;
+              if (target && target.closest && target.closest(".history-actions")) {
+                return;
+              }
+              window.location.href = "/history/" + encodeURIComponent(historyId);
+            });
+          }
+
+          list.appendChild(card);
+        });
+      }
+
+      function extractUserStatusPayload(data) {
+        if (!data) return {};
+
+        if (data.item && typeof data.item === "object") return data.item;
+        if (data.user && typeof data.user === "object") return data.user;
+        if (data.body && typeof data.body === "string") {
+          try {
+            return JSON.parse(data.body);
+          } catch (error) {
+            console.error("user status body parse error:", error);
+          }
+        }
+        if (data.body && typeof data.body === "object") return data.body;
+
+        return data;
+      }
+
+      function normalizePlan(rawPlan) {
+        const plan = String(rawPlan || "").toLowerCase();
+
+        if (plan === "premium") return "premium";
+        if (plan === "normal" || plan === "light" || plan === "member") return "normal";
+        return "free";
+      }
+
+      function normalizeSubscriptionStatus(rawStatus) {
+        return String(rawStatus || "").toLowerCase();
+      }
+
+      function isPaidLikeUser(statusInfo) {
+        if (!statusInfo) return false;
+
+        if (statusInfo.plan === "premium" || statusInfo.plan === "normal") {
+          return true;
+        }
+
+        const sub = normalizeSubscriptionStatus(statusInfo.subscriptionStatus);
+        return sub === "active" || sub === "trialing" || sub === "past_due";
+      }
+
+      function buildFreePlanCards() {
+        return `
+          <article class="menu-card">
+            <h3>ライト会員</h3>
+            <p>月額980円。音声占い5回と履歴確認ができる基本プランです。</p>
+            <div class="price">¥980 / 月</div>
+            <button class="btn btn-gold" type="button" data-checkout-plan="normal" data-source-path="/history">
+              ライト会員に申し込む
+            </button>
+          </article>
+
+          <article class="menu-card featured">
+            <h3>プレミアム会員</h3>
+            <p>月額2980円。音声20回・履歴確認・深掘りまで使える本命プランです。</p>
+            <div class="price">¥2,980 / 月</div>
+            <button class="btn btn-violet" type="button" data-checkout-plan="premium" data-source-path="/history">
+              プレミアム会員に申し込む
+            </button>
+          </article>
+
+          <article class="menu-card">
+            <h3>単発音声占い</h3>
+            <p>300円。音声占いを1回だけ追加できる買い切りプランです。</p>
+            <div class="price">¥300</div>
+            <button class="btn btn-secondary" type="button" data-checkout-plan="extra" data-source-path="/history">
+              単発音声を申し込む
+            </button>
+          </article>
+        `;
+      }
+
+      function buildNormalMemberCards(statusInfo) {
+        const renewalText = statusInfo.currentPeriodEnd
+          ? "次回更新日: " + escapeHtml(formatDate(statusInfo.currentPeriodEnd))
+          : "ライト会員が有効です。";
+
+        const cancelText = statusInfo.cancelAtPeriodEnd
+          ? "解約予約中です。次回更新日までは利用できます。"
+          : "重複課金防止のため、このページから月額申込みはできません。";
+
+        return `
+          <article class="member-status-card current">
+            <div class="member-status-badge normal">現在ライト会員</div>
+            <h3>ライト会員をご利用中です</h3>
+            <p>${renewalText}</p>
+            <div class="plan-note">${cancelText}</div>
+            <div class="btn-row" style="margin-top:16px;">
+              <a class="btn btn-secondary" href="/members">会員ページで確認する</a>
+            </div>
+          </article>
+
+          <article class="menu-card">
+            <h3>単発音声占い</h3>
+            <p>月の回数とは別に、音声占いを1回だけ追加できます。</p>
+            <div class="price">¥300</div>
+            <button class="btn btn-secondary" type="button" data-checkout-plan="extra" data-source-path="/history">
+              単発音声を申し込む
+            </button>
+            <div class="plan-note">ライト会員中は、履歴ページでは単発追加のみ受け付けます。</div>
+          </article>
+        `;
+      }
+
+      function buildPremiumMemberCards(statusInfo) {
+        const renewalText = statusInfo.currentPeriodEnd
+          ? "次回更新日: " + escapeHtml(formatDate(statusInfo.currentPeriodEnd))
+          : "プレミアム会員が有効です。";
+
+        const cancelText = statusInfo.cancelAtPeriodEnd
+          ? "解約予約中です。次回更新日まではプレミアム特典を利用できます。"
+          : "プレミアム会員のため、このページから月額申込みは表示していません。";
+
+        return `
+          <article class="member-status-card current">
+            <div class="member-status-badge premium">現在プレミアム会員</div>
+            <h3>プレミアム会員をご利用中です</h3>
+            <p>${renewalText}</p>
+            <div class="plan-note">${cancelText}</div>
+            <div class="btn-row" style="margin-top:16px;">
+              <a class="btn btn-violet" href="/members">会員ページで確認する</a>
+              <a class="btn btn-secondary" href="/premium/voice">音声鑑定へ進む</a>
+            </div>
+          </article>
+        `;
+      }
+
+      function buildUnknownCards() {
+        return `
+          <article class="member-status-card">
+            <div class="member-status-badge free">会員状態確認中</div>
+            <h3>会員状態を判定できませんでした</h3>
+            <p>安全のため、このページでは月額申込みを表示していません。</p>
+            <div class="plan-note">会員ページから状態を確認してください。</div>
+            <div class="btn-row" style="margin-top:16px;">
+              <a class="btn btn-secondary" href="/members">会員ページへ</a>
+            </div>
+          </article>
+        `;
+      }
+
+      function renderPlanCards(statusInfo) {
+        const container = document.getElementById("planCards");
+        if (!container) return;
+
+        if (!statusInfo) {
+          container.innerHTML = buildUnknownCards();
+          return;
+        }
+
+        if (statusInfo.plan === "premium") {
+          container.innerHTML = buildPremiumMemberCards(statusInfo);
+          return;
+        }
+
+        if (statusInfo.plan === "normal") {
+          container.innerHTML = buildNormalMemberCards(statusInfo);
+          return;
+        }
+
+        if (isPaidLikeUser(statusInfo)) {
+          container.innerHTML = buildUnknownCards();
+          return;
+        }
+
+        container.innerHTML = buildFreePlanCards();
+
+        if (window.ShironeBilling && typeof window.ShironeBilling.bindBillingButtons === "function") {
+          window.ShironeBilling.bindBillingButtons();
+        }
+      }
+
+      async function loadUserStatus() {
+        const userId = getUserId();
+
+        if (!userId) {
+          renderPlanCards(null);
+          showBillingMessage("ログイン情報が見つからないため、申込み表示を制限しています。", true);
+          return;
+        }
+
+        try {
+          const res = await fetch(
+            `${API_BASE}/user/status?user_id=${encodeURIComponent(userId)}`,
+            { method: "GET" }
+          );
+
+          const rawText = await res.text();
+          let data = null;
+
+          try {
+            data = rawText ? JSON.parse(rawText) : null;
+          } catch (error) {
+            throw new Error("user/status のレスポンスがJSONではありません");
+          }
+
+          if (!res.ok) {
+            const apiMessage =
+              (data && data.error) ||
+              (data && data.message) ||
+              ("HTTP " + res.status);
+            throw new Error(apiMessage);
+          }
+
+          const payload = extractUserStatusPayload(data);
+
+          const normalized = {
+            plan: normalizePlan(
+              payload.plan ||
+              payload.current_plan ||
+              payload.membership_plan
+            ),
+            subscriptionStatus: normalizeSubscriptionStatus(
+              payload.subscription_status ||
+              payload.status
+            ),
+            currentPeriodEnd:
+              payload.current_period_end ||
+              payload.currentPeriodEnd ||
+              "",
+            cancelAtPeriodEnd:
+              Boolean(payload.cancel_at_period_end) ||
+              Boolean(payload.cancelAtPeriodEnd),
+            monthlyVoiceLimit:
+              Number(payload.monthly_voice_limit || 0),
+            monthlyVoiceUsed:
+              Number(payload.monthly_voice_used || 0),
+            extraVoiceRemaining:
+              Number(payload.extra_voice_remaining || 0)
+          };
+
+          if (normalized.plan === "premium") {
+            showBillingMessage(
+              normalized.cancelAtPeriodEnd
+                ? "現在プレミアム会員です。解約予約中ですが、次回更新日までは利用できます。"
+                : "現在プレミアム会員です。このページでは月額の重複申込みを表示していません。",
+              false
+            );
+          } else if (normalized.plan === "normal") {
+            showBillingMessage(
+              normalized.cancelAtPeriodEnd
+                ? "現在ライト会員です。解約予約中ですが、次回更新日までは利用できます。"
+                : "現在ライト会員です。このページでは月額の重複申込みを表示していません。",
+              false
+            );
+          } else {
+            showBillingMessage("", false);
+          }
+
+          renderPlanCards(normalized);
+        } catch (error) {
+          console.error("user status load error:", error);
+          showBillingMessage(
+            "会員状態の確認に失敗したため、安全のため月額申込みを非表示にしました。",
+            true
+          );
+          renderPlanCards(null);
+        }
+      }
+
+      async function loadHistory() {
+        const list = document.getElementById("historyList");
+        const userId = getUserId();
+
+        list.innerHTML = '<div class="loading-card">読み込み中...</div>';
+        hideNotice();
+        showDebug("");
+
+        if (!userId) {
+          list.innerHTML = '<div class="empty-card">ログインしてください。</div>';
+          showNotice("localStorage に user_id / userId が見つかりません。ログイン後に再度お試しください。", true);
+          showDebug(
+            "確認ポイント:\n" +
+            "localStorage.user_id = " + String(localStorage.getItem("user_id")) + "\n" +
+            "localStorage.userId = " + String(localStorage.getItem("userId"))
+          );
+          return;
+        }
+
+        const url = HISTORY_API_BASE + "/history/list?user_id=" + encodeURIComponent(userId);
+
+        try {
+          const response = await fetch(url, {
+            method: "GET"
+          });
+
+          const rawText = await response.text();
+
+          let data = null;
+          try {
+            data = rawText ? JSON.parse(rawText) : null;
+          } catch (parseError) {
+            throw new Error("APIレスポンスがJSONではありません: " + rawText);
+          }
+
+          if (!response.ok) {
+            const apiMessage =
+              (data && data.error) ||
+              (data && data.message) ||
+              ("HTTP " + response.status);
+            throw new Error(apiMessage);
+          }
+
+          const items = extractItems(data);
+
+          if (!items.length) {
+            list.innerHTML = '<div class="empty-card">まだ履歴がありません。</div>';
+            showDebug(
+              "API URL:\n" + url + "\n\n" +
+              "Response:\n" + JSON.stringify(data, null, 2)
+            );
+            return;
+          }
+
+          renderHistory(items);
+
+          showDebug(
+            "API URL:\n" + url + "\n\n" +
+            "取得件数: " + items.length + "\n\n" +
+            "Response:\n" + JSON.stringify(data, null, 2)
+          );
+        } catch (error) {
+          console.error("history load error:", error);
+          list.innerHTML = '<div class="empty-card">履歴の取得に失敗しました。</div>';
+          showNotice("履歴の読み込みに失敗しました。\n" + String(error && error.message ? error.message : error), true);
+          showDebug(
+            "API URL:\n" + url + "\n\n" +
+            "user_id:\n" + userId + "\n\n" +
+            "error:\n" + String(error && error.stack ? error.stack : error)
+          );
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        setupAuthNav();
+
+        const reloadButton = document.getElementById("reloadHistoryButton");
+        if (reloadButton) {
+          reloadButton.addEventListener("click", function () {
+            loadHistory();
+            loadUserStatus();
+          });
+        }
+
+        loadUserStatus();
+        loadHistory();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,64 @@
+---
+const url = new URL(Astro.request.url);
+const sessionId = url.searchParams.get("session_id");
+const plan = url.searchParams.get("plan");
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>決済完了 - 白音七</title>
+    <style>
+      body {
+        background: linear-gradient(135deg, #0b0f1a, #0e1530);
+        color: #fff;
+        font-family: "Noto Sans JP", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        padding: 40px;
+        text-align: center;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+      }
+      h1 {
+        font-size: 28px;
+        margin-bottom: 20px;
+        color: #ffd700;
+      }
+      p {
+        margin: 10px 0;
+      }
+      .btn {
+        margin-top: 20px;
+        padding: 12px 24px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #ffd700, #ffcc00);
+        color: #000;
+        text-decoration: none;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="card">
+      <h1>✨ 決済が完了しました ✨</h1>
+
+      <p>ご利用ありがとうございます。</p>
+
+      <p>プラン: {plan}</p>
+
+      <p style="font-size: 12px; opacity: 0.6;">
+        セッションID: {sessionId}
+      </p>
+
+      <a href="/members" class="btn">会員ページへ</a>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,225 @@
+---
+import "../styles/global.css";
+
+const siteTitle = "白音七";
+const siteCatch = "ログインして鑑定結果を記録する";
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{siteTitle} | ログイン</title>
+    <meta name="description" content={siteCatch} />
+  </head>
+
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
+
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/history">履歴一覧</a>
+          <a href="/privacy">プライバシーポリシー</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
+
+    <main class="fortune-login-page">
+      <section class="fortune-container">
+        <div class="fortune-login-frame">
+          <div class="fortune-login-kicker">MEMBER LOGIN</div>
+
+          <h1 class="fortune-login-title">記録を残すためのログイン</h1>
+
+          <p class="fortune-login-lead">
+            白音七では、気に入った鑑定結果を記録として残し、
+            あとから読み返せるようにできます。<br />
+            まずはログインして、あなたの流れを積み重ねていきましょう。
+          </p>
+
+          <div class="fortune-login-grid">
+            <div class="fortune-login-card">
+              <h2>ログインするとできること</h2>
+              <ul class="fortune-bullet-list">
+                <li>鑑定結果の保存</li>
+                <li>保存した履歴の読み返し</li>
+                <li>自分の流れの変化を追跡</li>
+              </ul>
+
+              <div style="margin-top:24px;">
+                <h2 style="margin-bottom:12px;">はじめての方はこちら</h2>
+                <p style="margin:0; line-height:1.9; color:var(--fortune-text-main);">
+                  白音七を初めて使う方は、先に新規登録をしてください。
+                  <br>登録後にログインできます。</br>
+                </p>
+
+                <div class="fortune-login-actions" style="margin-top:16px;">
+                  <a id="signupLinkSide" href="/signup" class="fortune-btn secondary">
+                    新規登録はこちら
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div class="fortune-login-card featured">
+              <h2>ログイン</h2>
+
+              <form id="loginForm" class="fortune-login-form">
+                <label class="fortune-login-label" for="email">メールアドレス</label>
+                <input
+                  class="fortune-login-input"
+                  type="email"
+                  id="email"
+                  name="email"
+                  placeholder="example@mail.com"
+                  required
+                />
+
+                <label class="fortune-login-label" for="password">パスワード</label>
+                <input
+                  class="fortune-login-input"
+                  type="password"
+                  id="password"
+                  name="password"
+                  placeholder="パスワードを入力"
+                  required
+                />
+
+                <p id="loginMessage" class="fortune-login-message"></p>
+
+                <div class="fortune-login-actions">
+                  <button type="submit" class="fortune-btn primary">
+                    ログインする
+                  </button>
+                  <a href="/diagnosis" class="fortune-btn violet">
+                    先に占いに戻る
+                  </a>
+                </div>
+
+                <div class="fortune-login-actions" style="margin-top:8px;">
+                  <a id="signupLinkMain" href="/signup" class="fortune-btn secondary">
+                    新規登録して始める
+                  </a>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="fortune-login-bottom">
+            <p>
+              まだ会員でない場合は、新規登録後にログインしてください。<br />
+              ログイン後は会員ページや履歴ページに進めます。
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const API_BASE = "https://i3fn2xgcrl.execute-api.ap-northeast-1.amazonaws.com";
+
+      const authArea = document.getElementById("authArea");
+      const token = localStorage.getItem("token");
+      const savedEmail = localStorage.getItem("loginEmail");
+
+      const signupLinkSide = document.getElementById("signupLinkSide");
+      const signupLinkMain = document.getElementById("signupLinkMain");
+
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect") || "/members";
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function buildSignupHref() {
+        return `/signup?redirect=${encodeURIComponent(redirect)}`;
+      }
+
+      if (signupLinkSide) signupLinkSide.href = buildSignupHref();
+      if (signupLinkMain) signupLinkMain.href = buildSignupHref();
+
+      if (token && savedEmail) {
+        authArea.innerHTML = `
+          <span class="fortune-user">${escapeHtml(savedEmail)}</span>
+          <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+        `;
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("loginEmail");
+          localStorage.removeItem("userId");
+          localStorage.removeItem("user_id");
+          window.location.href = "/";
+        });
+      } else {
+        authArea.innerHTML = `
+          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+        `;
+      }
+
+      const loginForm = document.getElementById("loginForm");
+      const loginMessage = document.getElementById("loginMessage");
+
+      loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        loginMessage.textContent = "";
+
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value.trim();
+
+        if (!email || !password) {
+          loginMessage.textContent = "メールアドレスとパスワードを入力してください。";
+          return;
+        }
+
+        try {
+          const res = await fetch(`${API_BASE}/login`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              email,
+              password
+            })
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data?.message || "ログイン失敗");
+          }
+
+          localStorage.setItem("token", data.token || "token");
+          localStorage.setItem("loginEmail", data.user_id || email);
+          localStorage.setItem("userId", data.user_id || email);
+          localStorage.setItem("user_id", data.user_id || email);
+
+          loginMessage.textContent = "ログインしました。";
+
+          setTimeout(() => {
+            window.location.href = redirect || "/members";
+          }, 700);
+
+        } catch (error) {
+          console.error(error);
+          loginMessage.textContent = error?.message || "ログインに失敗しました。";
+        }
+      });
+    </script>
+  </body>
+</html>

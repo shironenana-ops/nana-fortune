@@ -1,0 +1,105 @@
+---
+import "../../styles/global.css";
+export const prerender = false;
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>音声鑑定を解析中 | 白音七</title>
+  </head>
+
+  <body class="fortune-body">
+    <main class="fortune-session-page">
+      <section class="fortune-container">
+        <div class="fortune-session-frame">
+          <div class="fortune-session-head">
+            <div class="fortune-member-kicker">VOICE PROCESSING</div>
+            <h1 class="fortune-session-title">音声鑑定を解析中です</h1>
+            <p class="fortune-session-lead" id="processingText">
+              音声を受け付けました。文字起こしと鑑定生成を進めています。
+            </p>
+          </div>
+
+          <div class="fortune-card">
+            <h2>現在の状態</h2>
+            <p id="statusText">受付直後です。しばらくお待ちください。</p>
+          </div>
+
+          <div class="fortune-session-actions">
+            <a href="/history" class="fortune-btn secondary">履歴一覧を見る</a>
+            <a href="/premium/voice" class="fortune-btn violet">音声鑑定へ戻る</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const API_BASE = "https://i3fn2xgcrl.execute-api.ap-northeast-1.amazonaws.com";
+      const token = localStorage.getItem("token");
+      const userId =
+        localStorage.getItem("userId") ||
+        localStorage.getItem("user_id") ||
+        "";
+      const params = new URLSearchParams(window.location.search);
+      const historyId = params.get("history_id");
+      const statusText = document.getElementById("statusText");
+      const processingText = document.getElementById("processingText");
+
+      async function pollStatus() {
+        if (!historyId || !userId) {
+          statusText.textContent = "history_id または userId が取得できません。";
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${API_BASE}/history/detail?user_id=${encodeURIComponent(userId)}&history_id=${encodeURIComponent(historyId)}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token || ""}`
+              }
+            }
+          );
+
+          if (!response.ok) {
+            statusText.textContent = "解析状況を確認中です。";
+            return;
+          }
+
+          const data = await response.json();
+          const status = data?.status || data?.item?.status || "";
+
+          if (!status) {
+            statusText.textContent = "解析状況を確認中です。";
+            return;
+          }
+
+          statusText.textContent = `現在の状態: ${status}`;
+
+          if (status === "completed" || data?.result || data?.item?.result_s3_key) {
+            processingText.textContent = "解析が進みました。履歴詳細へ移動します。";
+            setTimeout(() => {
+              window.location.href = `/history/${encodeURIComponent(historyId)}`;
+            }, 1000);
+            return;
+          }
+
+          if (status === "failed") {
+            processingText.textContent = "解析に失敗しました。履歴一覧から再確認してください。";
+            return;
+          }
+        } catch (error) {
+          console.error(error);
+          statusText.textContent = "解析状況を確認中です。";
+        }
+      }
+
+      pollStatus();
+      setInterval(pollStatus, 5000);
+    </script>
+  </body>
+</html>

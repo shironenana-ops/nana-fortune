@@ -1,0 +1,777 @@
+---
+import "../styles/global.css";
+
+export const prerender = false;
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>会員登録・プラン案内 | 白音七</title>
+    <meta
+      name="description"
+      content="白音七の会員登録ページ。ライト会員、プレミアム会員、単発音声占いの違いを比較しながら申し込めます。"
+    />
+  </head>
+
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
+
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/members">会員ページ</a>
+          <a href="/history">履歴一覧</a>
+          <a href="/privacy">プライバシーポリシー</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
+
+    <main class="join-page">
+      <section class="fortune-container join-hero-wrap">
+        <div class="join-hero-frame">
+          <div class="join-kicker">JOIN SHIRONE7</div>
+          <h1 class="join-title">神秘を、日常へ。<br />白音七の会員案内</h1>
+          <p class="join-lead">
+            白音七は、数秘術・占星術・生命診断・手相・バイオリズムを重ねて、
+            今のあなたに必要な流れを静かに読み解く鑑定サービスです。<br />
+            無料の入り口から始めて、必要に応じて会員登録や単発追加を選べます。
+          </p>
+
+          <div class="join-hero-actions">
+            <a href="#plans" class="fortune-btn gold">プランを見る</a>
+            <a href="/premium/voice" class="fortune-btn violet">音声鑑定へ</a>
+            <a href="/" class="fortune-btn secondary">TOPへ戻る</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="fortune-container join-section">
+        <div class="join-section-frame">
+          <div class="join-section-chip">WHAT YOU GET</div>
+          <h2 class="join-section-title">白音七で受け取れるもの</h2>
+          <p class="join-section-lead">
+            占い結果をただ読むだけでなく、今の自分の位置・心の傾き・次の一歩を見つけるための導線を用意しています。
+          </p>
+
+          <div class="join-feature-grid">
+            <article class="join-feature-card">
+              <div class="join-feature-icon">①</div>
+              <h3>今の流れを把握する</h3>
+              <p>
+                今日の流れ、外から見える印象、行動ヒントまで含めて、今の自分を立体的に見直せます。
+              </p>
+            </article>
+
+            <article class="join-feature-card">
+              <div class="join-feature-icon">②</div>
+              <h3>履歴で変化を追う</h3>
+              <p>
+                過去の鑑定を見返すことで、言葉の変化や迷いの輪郭を継続的に確認できます。
+              </p>
+            </article>
+
+            <article class="join-feature-card">
+              <div class="join-feature-icon">③</div>
+              <h3>必要な深さだけ選べる</h3>
+              <p>
+                軽く試したい人も、しっかり深掘りしたい人も、自分に合った形で鑑定を続けられます。
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="fortune-container join-section" id="plans">
+        <div class="join-section-frame">
+          <div class="join-section-chip">PLAN SELECT</div>
+          <h2 class="join-section-title">あなたに合うプランを選ぶ</h2>
+          <p class="join-section-lead">
+            会員状態に応じて表示内容が切り替わります。重複課金は防ぎつつ、単発追加はいつでも使える設計です。
+          </p>
+
+          <div id="joinBillingMessage" class="join-billing-message" style="display:none;"></div>
+
+          <div id="joinPlanGrid" class="join-plan-grid">
+            <article class="join-plan-card">
+              <h3>読み込み中...</h3>
+              <p>会員状態を確認しています。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="fortune-container join-section">
+        <div class="join-section-frame">
+          <div class="join-section-chip">FREE / MEMBER</div>
+          <h2 class="join-section-title">無料と会員の違い</h2>
+          <p class="join-section-lead">
+            最初は無料で体験し、必要になったタイミングで会員化する流れがおすすめです。
+          </p>
+
+          <div class="join-compare-grid">
+            <article class="join-compare-card">
+              <h3>無料でできること</h3>
+              <ul>
+                <li>白音七の世界観を体験</li>
+                <li>軽い読みの入口を確認</li>
+                <li>まずは相性を見る</li>
+              </ul>
+            </article>
+
+            <article class="join-compare-card premium">
+              <h3>会員でできること</h3>
+              <ul>
+                <li>音声鑑定を継続利用</li>
+                <li>履歴を見返して流れを追う</li>
+                <li>深掘り鑑定に進む</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="fortune-container join-section">
+        <div class="join-section-frame">
+          <div class="join-section-chip">FAQ</div>
+          <h2 class="join-section-title">よくある質問</h2>
+
+          <div class="join-faq-list">
+            <article class="join-faq-item">
+              <h3>まずはどのプランがおすすめ？</h3>
+              <p>
+                初めてならライト会員がおすすめです。継続して深く使いたい場合はプレミアム会員が向いています。
+              </p>
+            </article>
+
+            <article class="join-faq-item">
+              <h3>プレミアム会員でも単発音声は使える？</h3>
+              <p>
+                使えます。月額会員であっても、必要に応じて単発追加ができる設計です。
+              </p>
+            </article>
+
+            <article class="join-faq-item">
+              <h3>すでに会員なのにまた月額申込みできますか？</h3>
+              <p>
+                このページでは重複月額決済を防ぐように制御しています。現在のプランに応じて、表示される申込み内容が変わります。
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="fortune-container join-bottom-cta">
+        <div class="join-bottom-cta-frame">
+          <h2>あなたの流れを、次の一歩につなげる</h2>
+          <p>
+            いま必要なのが継続的な読みなのか、単発の確認なのか。<br />
+            白音七は、あなたのペースで選べるように設計されています。
+          </p>
+
+          <div class="join-hero-actions" style="margin-top:24px;">
+            <a href="#plans" class="fortune-btn gold">プランを選ぶ</a>
+            <a href="/members" class="fortune-btn secondary">会員ページへ</a>
+            <a href="/premium/voice" class="fortune-btn violet">音声鑑定へ</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script is:inline src="/js/billing.js"></script>
+
+    <script>
+      const USER_STATUS_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/user/status";
+
+      const authArea = document.getElementById("authArea");
+      const joinPlanGrid = document.getElementById("joinPlanGrid");
+      const joinBillingMessage = document.getElementById("joinBillingMessage");
+
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function normalizePlan(rawPlan) {
+        const plan = String(rawPlan || "").toLowerCase();
+        if (plan === "premium") return "premium";
+        if (plan === "normal" || plan === "light" || plan === "member") return "normal";
+        return "free";
+      }
+
+      function formatDate(value) {
+        if (!value) return "未反映";
+        try {
+          return new Date(value).toLocaleString("ja-JP");
+        } catch {
+          return value;
+        }
+      }
+
+      function getUserId() {
+        return (
+          localStorage.getItem("userId") ||
+          localStorage.getItem("user_id") ||
+          ""
+        );
+      }
+
+      function bindAuthArea() {
+        if (token && email) {
+          authArea.innerHTML = `
+            <span class="fortune-user">${escapeHtml(email)}</span>
+            <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+          `;
+
+          document.getElementById("logoutBtn").addEventListener("click", () => {
+            localStorage.removeItem("token");
+            localStorage.removeItem("loginEmail");
+            localStorage.removeItem("userId");
+            localStorage.removeItem("user_id");
+            window.location.href = "/";
+          });
+        } else {
+          authArea.innerHTML = `
+            <a href="/login?redirect=/join" class="fortune-nav-pill primary">会員ログイン</a>
+          `;
+        }
+      }
+
+      function showBillingMessage(message, isError = false) {
+        if (!joinBillingMessage) return;
+
+        if (!message) {
+          joinBillingMessage.style.display = "none";
+          joinBillingMessage.textContent = "";
+          return;
+        }
+
+        joinBillingMessage.style.display = "block";
+        joinBillingMessage.textContent = message;
+        joinBillingMessage.style.borderColor = isError
+          ? "rgba(255, 128, 128, 0.35)"
+          : "rgba(202, 168, 79, 0.35)";
+        joinBillingMessage.style.background = isError
+          ? "rgba(127, 29, 29, 0.18)"
+          : "rgba(202, 168, 79, 0.08)";
+        joinBillingMessage.style.color = isError ? "#ffd7d7" : "#f5e8bf";
+      }
+
+      function buildNeedLoginCard() {
+        return `
+          <article class="join-plan-card join-plan-card--current">
+            <div class="join-plan-badge">はじめての方 / 登録済みの方</div>
+            <h3>まずはこちらを選んでください</h3>
+            <p class="join-cta-lead">
+              白音七をはじめて使う方は<strong>新規登録</strong>、<br>
+              すでに登録済みの方は<strong>ログイン</strong>してください。
+            </p>
+
+            <div class="join-cta-wrap">
+              <div class="join-cta-grid">
+                <a class="join-cta-button primary" href="/signup?redirect=/join">
+                  <strong>はじめての方はこちら</strong>
+                  <span>新規登録して始める</span>
+                </a>
+
+                <a class="join-cta-button secondary" href="/login?redirect=/join">
+                  <strong>登録済みの方</strong>
+                  <span>ログインして続ける</span>
+                </a>
+              </div>
+            </div>
+          </article>
+        `;
+      }
+
+      function buildExtraCard() {
+        return `
+          <article class="join-plan-card">
+            <div class="join-plan-badge">単発追加</div>
+            <h3>単発音声占い</h3>
+            <p>
+              300円で音声占いを1回だけ追加できる買い切りプランです。
+            </p>
+            <ul class="join-plan-list">
+              <li>単発300円</li>
+              <li>音声占い1回</li>
+              <li>買い切り</li>
+            </ul>
+            <div class="join-plan-price">¥300</div>
+            <button class="join-plan-button secondary" type="button" data-checkout-plan="extra" data-source-path="/join">
+              単発音声を申し込む
+            </button>
+          </article>
+        `;
+      }
+
+      function buildNormalCard() {
+        return `
+          <article class="join-plan-card">
+            <div class="join-plan-badge">月額ライト会員</div>
+            <h3>ライト会員</h3>
+            <p>
+              月額980円で、音声占い5回と履歴確認ができる基本プランです。
+            </p>
+            <ul class="join-plan-list">
+              <li>月額980円</li>
+              <li>音声占い5回</li>
+              <li>履歴確認</li>
+            </ul>
+            <div class="join-plan-price">¥980 / 月</div>
+            <button class="join-plan-button gold" type="button" data-checkout-plan="normal" data-source-path="/join">
+              ライト会員に申し込む
+            </button>
+          </article>
+        `;
+      }
+
+      function buildPremiumCard() {
+        return `
+          <article class="join-plan-card join-plan-card--premium">
+            <div class="join-plan-badge premium">人気No.1 プレミアム</div>
+            <h3>プレミアム会員</h3>
+            <p>
+              月額2980円で、音声20回・履歴確認・深掘り鑑定まで使える本命プランです。
+            </p>
+            <ul class="join-plan-list">
+              <li>月額2980円</li>
+              <li>音声占い20回</li>
+              <li>履歴確認</li>
+              <li>深掘り鑑定</li>
+            </ul>
+            <div class="join-plan-price">¥2,980 / 月</div>
+            <button class="join-plan-button violet" type="button" data-checkout-plan="premium" data-source-path="/join">
+              プレミアム会員に申し込む
+            </button>
+          </article>
+        `;
+      }
+
+      function buildCurrentMemberCard(planText, bodyText, ctaText, ctaHref) {
+        return `
+          <article class="join-plan-card join-plan-card--current">
+            <div class="join-plan-badge current">CURRENT MEMBER</div>
+            <h3>${escapeHtml(planText)}</h3>
+            <p>${escapeHtml(bodyText)}</p>
+            <div class="join-plan-price">重複課金は表示しません</div>
+            <a class="join-plan-button secondary" href="${escapeHtml(ctaHref)}">${escapeHtml(ctaText)}</a>
+          </article>
+        `;
+      }
+
+      function renderPlanCardsForFree() {
+        joinPlanGrid.innerHTML =
+          buildNormalCard() +
+          buildPremiumCard() +
+          buildExtraCard();
+
+        window.ShironeBilling?.bindBillingButtons();
+      }
+
+      function renderPlanCardsForNormal(statusInfo) {
+        const message = statusInfo.cancelAtPeriodEnd
+          ? `現在ライト会員です。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}利用できます。アップグレードと単発追加のみ表示しています。`
+          : "現在ライト会員です。プレミアムへのアップグレードと単発追加のみ表示しています。";
+
+        showBillingMessage(message, false);
+
+        joinPlanGrid.innerHTML =
+          buildCurrentMemberCard(
+            "現在ライト会員をご利用中です",
+            "すでにライト会員のため、ライト会員の重複申込みは表示していません。必要に応じてプレミアムへのアップグレード、または単発追加を選べます。",
+            "会員ページで状態を確認する",
+            "/members"
+          ) +
+          buildPremiumCard() +
+          buildExtraCard();
+
+        window.ShironeBilling?.bindBillingButtons();
+      }
+
+      function renderPlanCardsForPremium(statusInfo) {
+        const message = statusInfo.cancelAtPeriodEnd
+          ? `現在プレミアム会員です。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}特典を利用できます。単発追加のみ表示しています。`
+          : "現在プレミアム会員です。重複月額決済を防ぐため、単発追加のみ表示しています。";
+
+        showBillingMessage(message, false);
+
+        joinPlanGrid.innerHTML =
+          buildCurrentMemberCard(
+            "現在プレミアム会員をご利用中です",
+            "すでにプレミアム会員のため、このページでは月額の重複申込みを表示していません。必要に応じて単発音声だけ追加できます。",
+            "会員ページで状態を確認する",
+            "/members"
+          ) +
+          buildExtraCard();
+
+        window.ShironeBilling?.bindBillingButtons();
+      }
+
+      async function fetchUserStatus() {
+        const userId = getUserId();
+        if (!userId) {
+          return {
+            plan: "guest",
+            cancelAtPeriodEnd: false,
+            currentPeriodEnd: ""
+          };
+        }
+
+        const res = await fetch(`${USER_STATUS_API}?user_id=${encodeURIComponent(userId)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "会員情報の取得に失敗しました。");
+        }
+
+        return {
+          plan: normalizePlan(data.plan || "free"),
+          cancelAtPeriodEnd: Boolean(data.cancel_at_period_end),
+          currentPeriodEnd: data.current_period_end || "",
+          raw: data
+        };
+      }
+
+      async function renderJoinPagePlans() {
+        bindAuthArea();
+
+        if (!token) {
+          showBillingMessage("はじめての方は新規登録、登録済みの方はログインしてからお申し込みください。", false);
+          joinPlanGrid.innerHTML = buildNeedLoginCard();
+          return;
+        }
+
+        try {
+          const statusInfo = await fetchUserStatus();
+
+          if (statusInfo.plan === "premium") {
+            renderPlanCardsForPremium(statusInfo);
+            return;
+          }
+
+          if (statusInfo.plan === "normal") {
+            renderPlanCardsForNormal(statusInfo);
+            return;
+          }
+
+          renderPlanCardsForFree();
+          showBillingMessage("", false);
+        } catch (error) {
+          console.error(error);
+          showBillingMessage("会員状態の確認に失敗しました。安全のため、この画面では単発追加のみ表示します。", true);
+          joinPlanGrid.innerHTML = buildExtraCard();
+          window.ShironeBilling?.bindBillingButtons();
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        renderJoinPagePlans();
+      });
+    </script>
+  </body>
+</html>
+
+<style>
+  .join-page {
+    padding: 38px 0 88px;
+  }
+
+  .join-hero-wrap,
+  .join-section,
+  .join-bottom-cta {
+    margin-bottom: 26px;
+  }
+
+  .join-hero-frame,
+  .join-section-frame,
+  .join-bottom-cta-frame {
+    border-radius: 30px;
+    border: 1px solid var(--fortune-line);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 24%),
+      linear-gradient(135deg, rgba(182, 140, 255, 0.05), transparent 38%),
+      rgba(6, 10, 24, 0.88);
+    box-shadow: var(--fortune-shadow-deep);
+  }
+
+  .join-hero-frame {
+    padding: 40px 32px;
+  }
+
+  .join-kicker,
+  .join-section-chip,
+  .join-plan-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(202, 168, 79, 0.28);
+    color: var(--fortune-gold-light);
+    background: rgba(202, 168, 79, 0.06);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  .join-plan-badge.premium {
+    border-color: rgba(182, 140, 255, 0.34);
+    color: #e5d8ff;
+    background: rgba(182, 140, 255, 0.12);
+  }
+
+  .join-plan-badge.current {
+    border-color: rgba(242, 221, 154, 0.4);
+    color: var(--fortune-gold-light);
+    background: rgba(242, 221, 154, 0.1);
+  }
+
+  .join-title {
+    margin: 18px 0 14px;
+    font-size: clamp(2.3rem, 5vw, 4rem);
+    line-height: 1.18;
+    color: var(--fortune-gold-light);
+    text-shadow: 0 0 20px rgba(242, 221, 154, 0.08);
+  }
+
+  .join-lead,
+  .join-section-lead,
+  .join-bottom-cta-frame p {
+    margin: 0;
+    color: var(--fortune-text-main);
+    line-height: 1.95;
+    font-size: 1rem;
+  }
+
+  .join-hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 26px;
+  }
+
+  .join-section-frame {
+    padding: 32px 26px;
+  }
+
+  .join-section-title {
+    margin: 14px 0 12px;
+    color: var(--fortune-gold-light);
+    font-size: clamp(1.9rem, 4vw, 2.7rem);
+    line-height: 1.35;
+  }
+
+  .join-feature-grid,
+  .join-compare-grid,
+  .join-plan-grid {
+    display: grid;
+    gap: 18px;
+    margin-top: 24px;
+  }
+
+  .join-feature-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .join-compare-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .join-plan-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .join-feature-card,
+  .join-compare-card,
+  .join-plan-card,
+  .join-faq-item {
+    border-radius: 24px;
+    border: 1px solid rgba(202, 168, 79, 0.16);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.02), transparent 60%),
+      rgba(255, 255, 255, 0.02);
+    box-shadow: var(--fortune-shadow-soft);
+    padding: 24px;
+  }
+
+  .join-plan-card--premium {
+    border-color: rgba(182, 140, 255, 0.34);
+    box-shadow:
+      var(--fortune-shadow-soft),
+      0 0 24px rgba(182, 140, 255, 0.12);
+  }
+
+  .join-plan-card--current {
+    border-color: rgba(242, 221, 154, 0.32);
+    background:
+      linear-gradient(135deg, rgba(242, 221, 154, 0.08), rgba(182, 140, 255, 0.05)),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .join-feature-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    color: var(--fortune-gold-light);
+    font-weight: 700;
+    border: 1px solid rgba(242, 221, 154, 0.28);
+    background:
+      radial-gradient(circle at 35% 35%, rgba(242, 221, 154, 0.2), rgba(182, 140, 255, 0.12));
+  }
+
+  .join-feature-card h3,
+  .join-compare-card h3,
+  .join-plan-card h3,
+  .join-faq-item h3 {
+    margin: 0 0 12px;
+    color: var(--fortune-gold-light);
+    font-size: 1.2rem;
+    line-height: 1.45;
+  }
+
+  .join-feature-card p,
+  .join-compare-card ul,
+  .join-plan-card p,
+  .join-faq-item p {
+    margin: 0;
+    color: var(--fortune-text-main);
+    line-height: 1.9;
+  }
+
+  .join-compare-card ul,
+  .join-plan-list {
+    padding-left: 1.2rem;
+  }
+
+  .join-compare-card li,
+  .join-plan-list li {
+    color: var(--fortune-text-main);
+    line-height: 1.9;
+    margin-bottom: 6px;
+  }
+
+  .join-billing-message {
+    margin-top: 18px;
+    margin-bottom: 6px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(202, 168, 79, 0.35);
+    background: rgba(202, 168, 79, 0.08);
+    color: #f5e8bf;
+    line-height: 1.8;
+  }
+
+  .join-plan-price {
+    margin-top: 18px;
+    margin-bottom: 18px;
+    color: var(--fortune-gold-light);
+    font-size: 1.45rem;
+    font-weight: 800;
+  }
+
+  .join-plan-button {
+    width: 100%;
+    min-height: 50px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    border: none;
+    font-family: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+  }
+
+  .join-plan-button:hover {
+    transform: translateY(-1px);
+  }
+
+  .join-plan-button.gold {
+    color: #231300;
+    background: linear-gradient(135deg, #f2d56b 0%, #d7a63d 100%);
+    box-shadow: 0 14px 30px rgba(220, 174, 60, 0.24);
+  }
+
+  .join-plan-button.violet {
+    color: #fff;
+    background: linear-gradient(135deg, #8461ff 0%, #b780ff 100%);
+    box-shadow: 0 14px 30px rgba(132, 97, 255, 0.3);
+  }
+
+  .join-plan-button.secondary {
+    color: var(--fortune-gold-light);
+    border: 1px solid rgba(202, 168, 79, 0.28);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .join-faq-list {
+    display: grid;
+    gap: 16px;
+    margin-top: 22px;
+  }
+
+  .join-bottom-cta-frame {
+    padding: 34px 26px;
+    text-align: center;
+  }
+
+  .join-bottom-cta-frame h2 {
+    margin: 0 0 12px;
+    color: var(--fortune-gold-light);
+    font-size: clamp(1.9rem, 4vw, 2.8rem);
+    line-height: 1.35;
+  }
+
+  @media (max-width: 980px) {
+    .join-feature-grid,
+    .join-compare-grid,
+    .join-plan-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .join-page {
+      padding-top: 22px;
+    }
+
+    .join-hero-frame,
+    .join-section-frame,
+    .join-bottom-cta-frame {
+      padding: 22px 18px;
+      border-radius: 22px;
+    }
+
+    .join-title {
+      font-size: 2.1rem;
+    }
+
+    .join-hero-actions {
+      flex-direction: column;
+    }
+
+    .join-hero-actions .fortune-btn {
+      width: 100%;
+    }
+  }
+</style>

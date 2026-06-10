@@ -1,0 +1,139 @@
+---
+import "../styles/global.css";
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>占い診断 | 白音七</title>
+  </head>
+
+  <body class="fortune-body">
+
+    <!-- ヘッダー -->
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
+
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/history">履歴一覧</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
+
+    <!-- メイン -->
+    <main class="fortune-diagnosis">
+      <section class="fortune-container">
+
+        <div class="fortune-diagnosis-frame">
+
+          <h1 class="fortune-diagnosis-title">
+            あなたを、静かに読み解く
+          </h1>
+
+          <p class="fortune-diagnosis-lead">
+            名前と生年月日から、今日の流れと本質を導き出します。
+          </p>
+
+          <!-- フォーム -->
+          <form id="diagnosisForm" class="fortune-diagnosis-form">
+
+            <div class="fortune-form-group">
+              <label>お名前</label>
+              <input type="text" id="name" required placeholder="例：山田 太郎" />
+            </div>
+
+            <div class="fortune-form-group">
+              <label>生年月日</label>
+              <input type="date" id="birthday" required />
+            </div>
+
+            <div class="fortune-form-group">
+              <label>性別（任意）</label>
+              <select id="gender">
+                <option value="">選択しない</option>
+                <option value="male">男性</option>
+                <option value="female">女性</option>
+              </select>
+            </div>
+
+            <div class="fortune-diagnosis-actions">
+              <button type="submit" class="fortune-btn primary">
+                ✧ 占いを開始する
+              </button>
+            </div>
+
+          </form>
+
+          <!-- ローディング -->
+          <div id="loadingArea" class="fortune-loading hidden">
+            <div class="fortune-spinner"></div>
+            <p>運命を読み解いています...</p>
+          </div>
+
+        </div>
+
+      </section>
+    </main>
+
+    <script>
+      // ログイン表示
+      const authArea = document.getElementById("authArea");
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+
+      if (token && email) {
+        authArea.innerHTML = `
+          <span class="fortune-user">${email}</span>
+          <button id="logoutBtn" class="fortune-nav-logout">⏻ ログアウト</button>
+        `;
+
+        document.getElementById("logoutBtn").onclick = () => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("loginEmail");
+          location.reload();
+        };
+      } else {
+        authArea.innerHTML = `
+          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+        `;
+      }
+
+      // フォーム処理
+      const form = document.getElementById("diagnosisForm");
+      const loading = document.getElementById("loadingArea");
+
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById("name").value;
+        const birthday = document.getElementById("birthday").value;
+        const gender = document.getElementById("gender").value;
+
+        // 入力保存
+        localStorage.setItem("fortuneInput", JSON.stringify({
+          name,
+          birthday,
+          gender
+        }));
+
+        // ローディング表示
+        form.classList.add("hidden");
+        loading.classList.remove("hidden");
+
+        // 疑似演出
+        setTimeout(() => {
+          window.location.href = "/result";
+        }, 1800);
+      });
+    </script>
+
+  </body>
+</html>
