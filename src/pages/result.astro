@@ -365,20 +365,67 @@ import "../styles/global.css";
           }
 
           try {
-            const savedItems = JSON.parse(localStorage.getItem("savedFortunes") || "[]");
+  const userId =
+    localStorage.getItem("user_id") ||
+    localStorage.getItem("userId") ||
+    localStorage.getItem("loginEmail") ||
+    "";
 
-            savedItems.unshift({
-              id: crypto.randomUUID(),
-              createdAt: new Date().toISOString(),
-              ...resultPayload
-            });
+  if (!userId) {
+    saveMessage.textContent = "ログイン情報が見つかりません。もう一度ログインしてください。";
+    window.location.href = "/login?redirect=/result";
+    return;
+  }
 
-            localStorage.setItem("savedFortunes", JSON.stringify(savedItems));
+  const historyId = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
 
-            renderSavedState();
-          } catch (error) {
-            saveMessage.textContent = "保存に失敗しました。";
-          }
+  const res = await fetch(
+    "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod/history",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        history_id: historyId,
+        type: "normal",
+        source: "free_result",
+        title: "今日の鑑定",
+        name: resultPayload.name,
+        birth_date: resultPayload.birthday,
+        gender: resultPayload.gender,
+        category: "general",
+        status: "completed",
+        created_at: createdAt,
+        updated_at: createdAt,
+        result: resultPayload
+      })
+    }
+  );
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || "履歴保存に失敗しました。");
+  }
+
+  const savedItems = JSON.parse(localStorage.getItem("savedFortunes") || "[]");
+
+  savedItems.unshift({
+    id: historyId,
+    createdAt: createdAt,
+    ...resultPayload
+  });
+
+  localStorage.setItem("savedFortunes", JSON.stringify(savedItems));
+
+  renderSavedState();
+} catch (error) {
+  console.error(error);
+  saveMessage.textContent = error?.message || "保存に失敗しました。";
+}
         });
 
         const premiumBtn = document.getElementById("premiumBtn");
