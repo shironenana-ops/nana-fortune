@@ -1,46 +1,452 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
+import "../styles/global.css";
 ---
 
-<BaseLayout title="相性占い - 白音七メソッド">
-  <h1>💞 相性占い（白音七メソッド）</h1>
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>相性占い | 白音七</title>
+    <meta
+      name="description"
+      content="白音七メソッドの相性占い。生年月日と名前から、ふたりの流れ・距離感・相性のヒントを読み解きます。"
+    />
+  </head>
 
-  <div class="panel">
-    <form id="f">
-      <p>Aさん 生年月日 <input type="date" id="aBirth" required />　お名前 <input id="aName" /></p>
-      <p>Bさん 生年月日 <input type="date" id="bBirth" required />　お名前 <input id="bName" /></p>
-      <button class="btn" type="submit">占う</button>
-    </form>
-    <div id="out" class="result-box" hidden></div>
-  </div>
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
 
-  <script type="module" is:inline>
-    import { compat } from '../lib/shirone/compat.ts';
-    const f = document.getElementById('f');
-    const out = document.getElementById('out');
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/diagnosis">今日の鑑定</a>
+          <a href="/blog">占い日記</a>
+          <a href="/about">白音七とは</a>
+          <a href="/contact">お問い合わせ</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
 
-    f.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const aBirth = (document.getElementById('aBirth') as HTMLInputElement).value;
-      const bBirth = (document.getElementById('bBirth') as HTMLInputElement).value;
-      const aName  = (document.getElementById('aName')  as HTMLInputElement).value;
-      const bName  = (document.getElementById('bName')  as HTMLInputElement).value;
+    <main class="fortune-result">
+      <section class="fortune-container">
+        <div class="fortune-result-frame">
+          <div class="fortune-detail-kicker">SHIRONE7 COMPATIBILITY</div>
 
-      const r = compat({ a:{birthISO:aBirth, name:aName}, b:{birthISO:bBirth, name:bName} });
+          <h1 class="fortune-result-title">相性占い</h1>
 
-      out.hidden = false;
-      out.innerHTML = `
-        <p class="lead">A: ${aName||"Aさん"}（LN:${r.aLife}） × B: ${bName||"Bさん"}（LN:${r.bLife}）</p>
-        <p>${r.summary}</p>
-        <ul>${r.tips.map(t=>`<li>${t}</li>`).join("")}</ul>
-      `;
-    });
-  </script>
+          <p class="fortune-result-message">
+            生年月日と名前から、ふたりの本質・距離感・流れを読み解きます。<br />
+            恋愛、夫婦、家族、仕事仲間など、関係性を静かに見直したいときに使ってください。
+          </p>
 
-  <style>
-    .panel{ background:rgba(255,255,255,.05); padding:1em 1.5em; border-radius:1em; margin:1.5em 0; }
-    .btn{ background:gold; color:#000; border:none; padding:.5em 1.2em; border-radius:10px; cursor:pointer; font-weight:600; }
-    .result-box{ margin-top:1em; line-height:1.9; }
-    .lead{ font-size:1.1rem; font-weight:700; }
-  </style>
-</BaseLayout>
+          <div class="fortune-result-card highlight">
+            <h2>ふたりの情報</h2>
+
+            <form id="compatForm" class="fortune-form">
+              <div class="fortune-form-grid">
+                <div class="fortune-form-block">
+                  <h3>Aさん</h3>
+
+                  <label class="fortune-label" for="nameA">お名前</label>
+                  <input
+                    id="nameA"
+                    class="fortune-input"
+                    type="text"
+                    placeholder="例：白音 花子"
+                    required
+                  />
+
+                  <label class="fortune-label" for="birthdayA">生年月日</label>
+                  <input
+                    id="birthdayA"
+                    class="fortune-input"
+                    type="date"
+                    required
+                  />
+                </div>
+
+                <div class="fortune-form-block">
+                  <h3>Bさん</h3>
+
+                  <label class="fortune-label" for="nameB">お名前</label>
+                  <input
+                    id="nameB"
+                    class="fortune-input"
+                    type="text"
+                    placeholder="例：七瀬 太郎"
+                    required
+                  />
+
+                  <label class="fortune-label" for="birthdayB">生年月日</label>
+                  <input
+                    id="birthdayB"
+                    class="fortune-input"
+                    type="date"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div class="fortune-result-actions">
+                <button class="fortune-btn primary" type="submit">
+                  相性を占う
+                </button>
+                <button id="clearBtn" class="fortune-btn secondary" type="button">
+                  入力をクリア
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div id="compatResultArea"></div>
+
+          <div class="fortune-result-card">
+            <h2>白音七の相性占いについて</h2>
+            <p>
+              この相性占いでは、生年月日から導くライフパスナンバーと、
+              名前から読み取る印象値を組み合わせて、ふたりの関係性を見ています。
+            </p>
+            <p>
+              相性は「良い・悪い」で終わるものではありません。<br />
+              どこが自然に合いやすく、どこに丁寧な対話が必要なのかを知ることで、
+              関係性は育てていくことができます。
+            </p>
+          </div>
+
+          <div class="fortune-result-actions">
+            <a href="/diagnosis" class="fortune-btn secondary">今日の鑑定へ</a>
+            <a href="/blog" class="fortune-btn violet">占い日記を見る</a>
+            <a href="/members" class="fortune-btn secondary">会員ページへ</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const authArea = document.getElementById("authArea");
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+
+      if (token && email) {
+        authArea.innerHTML = `
+          <span class="fortune-user">${email}</span>
+          <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+        `;
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("loginEmail");
+          localStorage.removeItem("user_id");
+          localStorage.removeItem("userId");
+          window.location.href = "/";
+        });
+      } else {
+        authArea.innerHTML = `
+          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+        `;
+      }
+
+      const compatForm = document.getElementById("compatForm");
+      const clearBtn = document.getElementById("clearBtn");
+      const compatResultArea = document.getElementById("compatResultArea");
+
+      function escapeHtml(str) {
+        return String(str ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function digitSum(value) {
+        return String(value)
+          .replace(/\D/g, "")
+          .split("")
+          .reduce((sum, n) => sum + Number(n), 0);
+      }
+
+      function reduceNumber(num) {
+        let n = Number(num) || 0;
+
+        while (n > 9) {
+          n = String(n)
+            .split("")
+            .reduce((sum, v) => sum + Number(v), 0);
+        }
+
+        return n || 0;
+      }
+
+      function getLifePath(birthday) {
+        return reduceNumber(digitSum(birthday));
+      }
+
+      function getNameNumber(name) {
+        const stripped = String(name || "").replace(/\s/g, "");
+        const total = Array.from(stripped).reduce((sum, ch) => {
+          return sum + ch.charCodeAt(0);
+        }, 0);
+
+        return reduceNumber(total);
+      }
+
+      function getZodiac(month, day) {
+        if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return "牡羊座";
+        if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return "牡牛座";
+        if ((month === 5 && day >= 21) || (month === 6 && day <= 21)) return "双子座";
+        if ((month === 6 && day >= 22) || (month === 7 && day <= 22)) return "蟹座";
+        if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return "獅子座";
+        if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return "乙女座";
+        if ((month === 9 && day >= 23) || (month === 10 && day <= 23)) return "天秤座";
+        if ((month === 10 && day >= 24) || (month === 11 && day <= 22)) return "蠍座";
+        if ((month === 11 && day >= 23) || (month === 12 && day <= 21)) return "射手座";
+        if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return "山羊座";
+        if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return "水瓶座";
+        return "魚座";
+      }
+
+      function getZodiacFromBirthday(birthday) {
+        const date = new Date(birthday);
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+
+        return getZodiac(month, day);
+      }
+
+      const lifePathThemes = {
+        1: "自分の意志で道を切り開く人",
+        2: "調和と共感を大切にする人",
+        3: "表現力と明るさで場を動かす人",
+        4: "安定と信頼を積み重ねる人",
+        5: "変化と自由の中で輝く人",
+        6: "愛情と責任感で支える人",
+        7: "内省と探求で深く見つめる人",
+        8: "現実を動かし成果につなげる人",
+        9: "包容力と広い視点で受け止める人"
+      };
+
+      const relationMessages = {
+        0: {
+          title: "鏡のように似ている関係",
+          text: "価値観や反応が近く、自然に理解し合いやすい相性です。その一方で、似ているからこそ同じところでつまずくこともあります。相手を責める前に、自分の中にも同じ揺れがないかを見ると関係が整いやすくなります。"
+        },
+        1: {
+          title: "隣り合う流れの関係",
+          text: "テンポや考え方に少し違いがありますが、その違いが良い刺激になります。片方が先に進み、もう片方が整えるような関係になりやすいです。急かしすぎず、待ちすぎず、歩幅を合わせることが鍵です。"
+        },
+        2: {
+          title: "学び合う関係",
+          text: "お互いに持っていない視点を持ち寄れる相性です。最初は違和感があっても、その違いが関係性を育てる材料になります。正しさを競うより、相手の見え方を聞くことが運を開きます。"
+        },
+        3: {
+          title: "動きが生まれる関係",
+          text: "一緒にいることで会話や行動が広がりやすい組み合わせです。ただし勢いが強くなると、どちらかが置いていかれることもあります。楽しい流れほど、確認の言葉を忘れないことが大切です。"
+        },
+        4: {
+          title: "補い合う関係",
+          text: "考え方や得意分野が違うからこそ、役割が分かれやすい相性です。片方が現実を支え、もう片方が空気を動かすような関係になりやすいです。感謝を言葉にすると関係が長続きします。"
+        },
+        5: {
+          title: "変化を呼ぶ関係",
+          text: "一緒にいることで、今までの自分では選ばなかった道が見えやすくなります。刺激的な一方で、安定を求める時期には疲れやすいこともあります。自由と安心のバランスが鍵です。"
+        },
+        6: {
+          title: "支え合いが育つ関係",
+          text: "相手を思いやる気持ちが育ちやすい相性です。ただし、尽くしすぎや我慢しすぎには注意が必要です。優しさを続けるためには、自分の本音も大切にしてください。"
+        },
+        7: {
+          title: "深く向き合う関係",
+          text: "表面的なやり取りより、心の奥にあるものを見つめる関係になりやすいです。沈黙や距離が必ずしも悪い意味ではありません。相手のペースを尊重すると、信頼が深まりやすくなります。"
+        },
+        8: {
+          title: "現実を動かす関係",
+          text: "一緒に目標を持つと強い相性です。仕事、家庭、計画など、現実的なテーマで力を合わせやすい組み合わせです。ただし勝ち負けの空気が出るとぶつかりやすいので、同じ方向を見ることが大切です。"
+        }
+      };
+
+      function getScoreText(score) {
+        if (score >= 88) {
+          return {
+            title: "とても自然に通じ合いやすい相性",
+            text: "無理をしなくても、相手の考えや空気を受け取りやすい関係です。言葉にしなくても伝わる部分がありますが、大事なことほどきちんと確認すると、さらに安定します。"
+          };
+        }
+
+        if (score >= 74) {
+          return {
+            title: "育てるほど強くなる相性",
+            text: "最初から完璧に噛み合うというより、関わるほどに理解が深まる関係です。違いを面白がれると、ふたりの距離は自然に近づいていきます。"
+          };
+        }
+
+        if (score >= 60) {
+          return {
+            title: "違いから学べる相性",
+            text: "似ている部分と違う部分がほどよく混ざっています。相手を変えようとするより、違いの理由を知ろうとすると関係が整いやすくなります。"
+          };
+        }
+
+        if (score >= 45) {
+          return {
+            title: "丁寧な対話が鍵になる相性",
+            text: "感じ方やテンポに違いが出やすい関係です。ただし、合わないという意味ではありません。言葉を省略しないこと、期待しすぎないことが大切です。"
+          };
+        }
+
+        return {
+          title: "距離感を整えることで育つ相性",
+          text: "近づきすぎると疲れやすく、離れすぎると誤解が生まれやすい関係です。お互いの安心できる距離を探すことで、無理のない関係に育てられます。"
+        };
+      }
+
+      function getAdvice(score, diff, nameDiff) {
+        if (score >= 80 && diff <= 2) {
+          return "似ている安心感が強いぶん、慣れすぎには注意です。ありがとう、助かった、うれしい。小さな言葉を省略しないことが、良い流れを長続きさせます。";
+        }
+
+        if (diff >= 6) {
+          return "ふたりは見ている方向や反応の速さに差が出やすい組み合わせです。相手が冷たい、重い、速い、遅いと決めつける前に、前提が違うのだと捉えると関係が整います。";
+        }
+
+        if (nameDiff >= 5) {
+          return "外から見える印象に差があるため、周囲からは少し意外な組み合わせに見られるかもしれません。だからこそ、ふたりだけのペースを大切にしてください。";
+        }
+
+        return "この関係を良くする鍵は、相手を占い結果に当てはめすぎないことです。相性は固定された点数ではなく、日々の言葉と行動で育っていきます。";
+      }
+
+      function calculateCompatibility(input) {
+        const lifeA = getLifePath(input.birthdayA);
+        const lifeB = getLifePath(input.birthdayB);
+        const nameA = getNameNumber(input.nameA);
+        const nameB = getNameNumber(input.nameB);
+        const zodiacA = getZodiacFromBirthday(input.birthdayA);
+        const zodiacB = getZodiacFromBirthday(input.birthdayB);
+
+        const lifeDiff = Math.abs(lifeA - lifeB);
+        const nameDiff = Math.abs(nameA - nameB);
+
+        const lifeScore = Math.max(0, 45 - lifeDiff * 4);
+        const nameScore = Math.max(0, 25 - nameDiff * 2);
+        const zodiacBonus = zodiacA === zodiacB ? 12 : 6;
+        const balanceBonus = lifeDiff === 0 ? 10 : lifeDiff <= 2 ? 8 : lifeDiff <= 4 ? 5 : 2;
+
+        const score = Math.max(
+          35,
+          Math.min(99, lifeScore + nameScore + zodiacBonus + balanceBonus + 12)
+        );
+
+        const relationKey = lifeDiff % 9;
+        const relation = relationMessages[relationKey] || relationMessages[0];
+        const scoreText = getScoreText(score);
+        const advice = getAdvice(score, lifeDiff, nameDiff);
+
+        return {
+          score,
+          lifeA,
+          lifeB,
+          nameA,
+          nameB,
+          zodiacA,
+          zodiacB,
+          relation,
+          scoreText,
+          advice
+        };
+      }
+
+      function renderResult(input, result) {
+        compatResultArea.innerHTML = `
+          <div class="fortune-result-card highlight">
+            <h2>${escapeHtml(input.nameA)}さんと${escapeHtml(input.nameB)}さんの相性</h2>
+            <p class="fortune-result-message">
+              相性スコア：<strong>${result.score}</strong> / 100
+            </p>
+
+            <div class="fortune-compat-score">
+              <div class="fortune-compat-score-number">${result.score}</div>
+              <div class="fortune-compat-score-label">${escapeHtml(result.scoreText.title)}</div>
+            </div>
+
+            <p>${escapeHtml(result.scoreText.text)}</p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>ふたりの基本データ</h2>
+            <p>
+              <strong>${escapeHtml(input.nameA)}さん</strong><br />
+              ライフパスナンバー：${result.lifeA}<br />
+              星座：${escapeHtml(result.zodiacA)}<br />
+              名前の印象値：${result.nameA}
+            </p>
+            <p>
+              <strong>${escapeHtml(input.nameB)}さん</strong><br />
+              ライフパスナンバー：${result.lifeB}<br />
+              星座：${escapeHtml(result.zodiacB)}<br />
+              名前の印象値：${result.nameB}
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>${escapeHtml(result.relation.title)}</h2>
+            <p>${escapeHtml(result.relation.text)}</p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>関係を整えるヒント</h2>
+            <p>${escapeHtml(result.advice)}</p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>今日からできる一手</h2>
+            <p>
+              相性を良くする一番の近道は、相手を変えようとすることではありません。<br />
+              今日はひとつだけ、「言わなくてもわかるはず」を手放して、短い言葉で気持ちを伝えてみてください。
+            </p>
+          </div>
+        `;
+
+        compatResultArea.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }
+
+      compatForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        const input = {
+          nameA: document.getElementById("nameA").value.trim(),
+          birthdayA: document.getElementById("birthdayA").value,
+          nameB: document.getElementById("nameB").value.trim(),
+          birthdayB: document.getElementById("birthdayB").value
+        };
+
+        if (!input.nameA || !input.birthdayA || !input.nameB || !input.birthdayB) {
+          compatResultArea.innerHTML = `
+            <div class="fortune-result-card">
+              <h2>入力が足りません</h2>
+              <p>ふたりのお名前と生年月日を入力してください。</p>
+            </div>
+          `;
+          return;
+        }
+
+        const result = calculateCompatibility(input);
+        renderResult(input, result);
+      });
+
+      clearBtn.addEventListener("click", () => {
+        compatForm.reset();
+        compatResultArea.innerHTML = "";
+      });
+    </script>
+  </body>
+</html>
