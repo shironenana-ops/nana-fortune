@@ -1076,8 +1076,8 @@ export const prerender = false;
 
         try {
           const res = await fetch(
-            `${API_BASE}/user/status?user_id=${encodeURIComponent(userId)}`,
-            { method: "GET" }
+         `${API_BASE}/history/list?user_id=${encodeURIComponent(userId)}`,
+          { method: "GET" }
           );
 
           const rawText = await res.text();
