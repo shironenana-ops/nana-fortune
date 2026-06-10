@@ -1,30 +1,122 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
+import "../styles/global.css";
 ---
 
-<BaseLayout title="お問い合わせ｜白音七">
-  <section class="contact">
-    <h1>お問い合わせ</h1>
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>お問い合わせ | 白音七</title>
+    <meta
+      name="description"
+      content="白音七へのお問い合わせページです。ご意見・ご要望・不具合報告などはこちらからご確認ください。"
+    />
+  </head>
 
-    <p>
-      白音七をご覧いただき、ありがとうございます。<br />
-      ご感想・ご質問などがありましたら、こちらからお知らせください。
-    </p>
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
 
-    <p class="note">
-      ※ 占い内容に関する個別の解釈や、医療・法律・投資に関するご相談には
-      お答えできない場合があります。あらかじめご了承ください。
-    </p>
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/diagnosis">今日の鑑定</a>
+          <a href="/blog">占い日記</a>
+          <a href="/about">白音七とは</a>
+          <a href="/compat">相性占い</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
 
-    <div class="contact-box">
-      <a
-        href="https://forms.gle/U5dvWUJmM35i6mEWA"
-        target="_blank"
-        rel="noopener"
-        class="contact-button"
-      >
-        お問い合わせフォームを開く
-      </a>
-    </div>
-  </section>
-</BaseLayout>
+    <main class="fortune-result">
+      <section class="fortune-container">
+        <div class="fortune-result-frame">
+          <div class="fortune-detail-kicker">CONTACT</div>
+
+          <h1 class="fortune-result-title">お問い合わせ</h1>
+
+          <p class="fortune-result-message">
+            白音七をご覧いただき、ありがとうございます。<br />
+            ご意見・ご要望・不具合報告などがありましたら、こちらからお知らせください。
+          </p>
+
+          <div class="fortune-result-card highlight">
+            <h2>β版について</h2>
+            <p>
+              現在、白音七はβ版として公開しています。<br />
+              表示崩れ、ログインまわり、履歴保存、占い結果の違和感など、
+              気づいた点があればぜひお知らせください。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>お問い合わせ内容の例</h2>
+            <p>
+              ・ページの表示がおかしい<br />
+              ・登録やログインがうまくいかない<br />
+              ・鑑定履歴が表示されない<br />
+              ・占い結果の文章に違和感がある<br />
+              ・正式版で追加してほしい機能がある
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>ご注意ください</h2>
+            <p>
+              占い内容に関する個別の解釈や、医療・法律・投資に関する判断については、
+              お答えできない場合があります。<br />
+              重要な判断が必要な場合は、必ず専門家へご相談ください。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>お問い合わせフォーム</h2>
+            <p>
+              現在、お問い合わせフォームは準備中です。<br />
+              β版期間中は、運営側で確認しながら順次整備していきます。
+            </p>
+            <p>
+              フォーム公開後は、このページから直接お問い合わせいただけるようになります。
+            </p>
+          </div>
+
+          <div class="fortune-result-actions">
+            <a href="/" class="fortune-btn secondary">TOPへ戻る</a>
+            <a href="/diagnosis" class="fortune-btn primary">今日の鑑定をする</a>
+            <a href="/members" class="fortune-btn violet">会員ページへ</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const authArea = document.getElementById("authArea");
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+
+      if (token && email) {
+        authArea.innerHTML = `
+          <span class="fortune-user">${email}</span>
+          <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+        `;
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("loginEmail");
+          localStorage.removeItem("user_id");
+          localStorage.removeItem("userId");
+          window.location.href = "/";
+        });
+      } else {
+        authArea.innerHTML = `
+          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+        `;
+      }
+    </script>
+  </body>
+</html>

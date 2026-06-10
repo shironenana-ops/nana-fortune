@@ -1,114 +1,117 @@
 ---
-import { Image } from 'astro:assets';
-import { getCollection } from 'astro:content';
-import BaseHead from '../../components/BaseHead.astro';
-import Footer from '../../components/Footer.astro';
-import FormattedDate from '../../components/FormattedDate.astro';
-import Header from '../../components/Header.astro';
-import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
-
-const posts = (await getCollection('blog')).sort(
-	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
-);
+import "../../styles/global.css";
 ---
 
-<!doctype html>
-<html lang="en">
-	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-		<style>
-			main {
-				width: 960px;
-			}
-			ul {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 2rem;
-				list-style-type: none;
-				margin: 0;
-				padding: 0;
-			}
-			ul li {
-				width: calc(50% - 1rem);
-			}
-			ul li * {
-				text-decoration: none;
-				transition: 0.2s ease;
-			}
-			ul li:first-child {
-				width: 100%;
-				margin-bottom: 1rem;
-				text-align: center;
-			}
-			ul li:first-child img {
-				width: 100%;
-			}
-			ul li:first-child .title {
-				font-size: 2.369rem;
-			}
-			ul li img {
-				margin-bottom: 0.5rem;
-				border-radius: 12px;
-			}
-			ul li a {
-				display: block;
-			}
-			.title {
-				margin: 0;
-				color: rgb(var(--black));
-				line-height: 1;
-			}
-			.date {
-				margin: 0;
-				color: rgb(var(--gray));
-			}
-			ul li a:hover h4,
-			ul li a:hover .date {
-				color: rgb(var(--accent));
-			}
-			ul a:hover img {
-				box-shadow: var(--box-shadow);
-			}
-			@media (max-width: 720px) {
-				ul {
-					gap: 0.5em;
-				}
-				ul li {
-					width: 100%;
-					text-align: center;
-				}
-				ul li:first-child {
-					margin-bottom: 0;
-				}
-				ul li:first-child .title {
-					font-size: 1.563em;
-				}
-			}
-		</style>
-	</head>
-	<body>
-		<Header />
-		<main>
-			<section>
-				<ul>
-					{
-						posts.map((post) => (
-							<li>
-								<a href={`/blog/${post.id}/`}>
-									{post.data.heroImage && (
-										<Image width={720} height={360} src={post.data.heroImage} alt="" />
-									)}
-									<h4 class="title">{post.data.title}</h4>
-									<p class="date">
-										<FormattedDate date={post.data.pubDate} />
-									</p>
-								</a>
-							</li>
-						))
-					}
-				</ul>
-			</section>
-		</main>
-		<Footer />
-	</body>
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>占い日記 | 白音七</title>
+    <meta
+      name="description"
+      content="白音七の占い日記。日々の運気、整え方、白音七メソッドの読み解きをお届けします。"
+    />
+  </head>
+
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
+
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/diagnosis">今日の鑑定</a>
+          <a href="/about">白音七とは</a>
+          <a href="/compat">相性占い</a>
+          <a href="/contact">お問い合わせ</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
+
+    <main class="fortune-result">
+      <section class="fortune-container">
+        <div class="fortune-result-frame">
+          <div class="fortune-detail-kicker">SHIRONE7 FORTUNE DIARY</div>
+
+          <h1 class="fortune-result-title">占い日記</h1>
+
+          <p class="fortune-result-message">
+            日々の運気の流れ、心の整え方、白音七メソッドの読み解きを少しずつ記録していく場所です。
+          </p>
+
+          <div class="fortune-result-card highlight">
+            <h2>β版のお知らせ</h2>
+            <p>
+              現在、白音七はβ版として公開中です。<br />
+              占い日記は、正式版に向けて少しずつ記事を追加していきます。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>今日の整えメモ</h2>
+            <p>
+              運気は、特別な誰かだけに降ってくるものではありません。<br />
+              朝の一呼吸、誰かへの言葉、自分を責めない選択。そうした小さな行動の積み重ねが、
+              少しずつ流れを変えていきます。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>白音七メソッドについて</h2>
+            <p>
+              白音七では、数秘術・占星術・姓名診断・日々のバイオリズムを組み合わせ、
+              「今の自分がどの流れにいるのか」をやさしく読み解いていきます。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>これから追加予定の内容</h2>
+            <p>
+              ・毎日の運気メモ<br />
+              ・イヤーナンバー別の過ごし方<br />
+              ・相性の読み解き<br />
+              ・会員限定鑑定の活用方法<br />
+              ・白音七メソッドの深掘り
+            </p>
+          </div>
+
+          <div class="fortune-result-actions">
+            <a href="/diagnosis" class="fortune-btn primary">今日の鑑定をする</a>
+            <a href="/members" class="fortune-btn secondary">会員ページへ</a>
+            <a href="/" class="fortune-btn violet">TOPへ戻る</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const authArea = document.getElementById("authArea");
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+
+      if (token && email) {
+        authArea.innerHTML = `
+          <span class="fortune-user">${email}</span>
+          <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+        `;
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("loginEmail");
+          localStorage.removeItem("user_id");
+          localStorage.removeItem("userId");
+          window.location.href = "/";
+        });
+      } else {
+        authArea.innerHTML = `
+          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+        `;
+      }
+    </script>
+  </body>
 </html>

@@ -1,36 +1,132 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+import "../styles/global.css";
 ---
 
-<BaseLayout title="白音七とは">
-  <h1>🌕 白音七とは</h1>
-  <div class="panel">
-    <p>
-      白音七（しらね なな）は、数秘術・手相・星の運行をもとに、
-      「あなたの日々をやさしく導く」ことをテーマにした占いサイトです。
-    </p>
-    <p>
-      日替わりで変わる運勢や“縁”を、数字とリズムで読み解きます。
-      白音七メソッドは、古代数秘術と現代心理学を融合した独自体系です。
-    </p>
-    <p>🌙 あなたの心に寄り添う灯を目指します。</p>
-  </div>
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>白音七とは | 白音七</title>
+    <meta
+      name="description"
+      content="白音七とは。数秘術・占星術・姓名診断を組み合わせて、日々の流れと心の整え方を読み解く占いサービスです。"
+    />
+  </head>
 
-<div class="panel">
-  <h2>運営について</h2>
-  <p>
-    白音七は、個人により運営されている占いサイトです。
-    日々の暮らしの中で、気持ちを整えるきっかけをお届けすることを目的としています。
-  </p>
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
 
-  <h2>お問い合わせ</h2>
-  <p>
-    ご意見・ご感想・お問い合わせは、
-    <a href="https://forms.gle/n7Y86G8yXT7McrXGA" target="_blank" rel="noopener">
-      お問い合わせフォーム
-    </a>
-    よりお願いいたします。
-  </p>
-</div>
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/diagnosis">今日の鑑定</a>
+          <a href="/blog">占い日記</a>
+          <a href="/compat">相性占い</a>
+          <a href="/contact">お問い合わせ</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
 
-</BaseLayout>
+    <main class="fortune-result">
+      <section class="fortune-container">
+        <div class="fortune-result-frame">
+          <div class="fortune-detail-kicker">ABOUT SHIRONE7</div>
+
+          <h1 class="fortune-result-title">白音七とは</h1>
+
+          <p class="fortune-result-message">
+            白音七は、日々の流れと心の現在地をやさしく読み解くための占いサービスです。
+          </p>
+
+          <div class="fortune-result-card highlight">
+            <h2>占いを、日々を整えるきっかけに</h2>
+            <p>
+              白音七は、「当たる・外れる」だけを目的にした占いではありません。<br />
+              今のあなたがどんな流れの中にいて、どこに意識を向けると心が整いやすいのか。
+              そのヒントを受け取るための場所です。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>白音七メソッド</h2>
+            <p>
+              白音七では、数秘術・占星術・姓名診断を中心に、あなたの本質、今の流れ、
+              外側から見える傾向を組み合わせて読み解きます。
+            </p>
+            <p>
+              生年月日から見える人生のリズム。<br />
+              星座から見える気質。<br />
+              名前からにじむ印象。<br />
+              それらをひとつの物語として重ね、今のあなたに必要な言葉へ整えていきます。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>こんなときに使ってください</h2>
+            <p>
+              ・なんとなく気持ちが揺れているとき<br />
+              ・今日どう動けばいいか迷っているとき<br />
+              ・自分の流れを客観的に見たいとき<br />
+              ・誰かとの関係性を静かに見直したいとき<br />
+              ・日々の変化を記録して、あとから振り返りたいとき
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>会員機能について</h2>
+            <p>
+              会員登録をすると、鑑定結果を履歴として保存し、あとから振り返ることができます。<br />
+              日々の鑑定を積み重ねることで、自分の変化や流れを見つけやすくなります。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>ご利用にあたって</h2>
+            <p>
+              白音七の鑑定は、日々の気持ちを整えるためのものです。<br />
+              医療・法律・投資などの専門的な判断を代替するものではありません。
+              大切な判断が必要な場合は、必ず専門家へご相談ください。
+            </p>
+          </div>
+
+          <div class="fortune-result-actions">
+            <a href="/diagnosis" class="fortune-btn primary">今日の鑑定をする</a>
+            <a href="/join" class="fortune-btn secondary">会員登録・ログイン</a>
+            <a href="/blog" class="fortune-btn violet">占い日記を見る</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const authArea = document.getElementById("authArea");
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+
+      if (token && email) {
+        authArea.innerHTML = `
+          <span class="fortune-user">${email}</span>
+          <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+        `;
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("loginEmail");
+          localStorage.removeItem("user_id");
+          localStorage.removeItem("userId");
+          window.location.href = "/";
+        });
+      } else {
+        authArea.innerHTML = `
+          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+        `;
+      }
+    </script>
+  </body>
+</html>
