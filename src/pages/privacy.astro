@@ -1,75 +1,193 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
+import "../styles/global.css";
 ---
 
-<BaseLayout title="プライバシーポリシー | 白音七">
-  <section class="page">
-    <h1>プライバシーポリシー</h1>
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>プライバシーポリシー | 白音七</title>
+    <meta
+      name="description"
+      content="白音七のプライバシーポリシーです。個人情報の取り扱い、利用目的、管理方法について記載しています。"
+    />
+  </head>
 
-    <p>
-      白音七（以下、「当サイト」といいます。）は、
-      当サイトをご利用いただく皆さまの個人情報を適切に取り扱うことを重要と考え、
-      以下のとおりプライバシーポリシーを定めます。
-    </p>
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
 
-    <h2>1. 取得する情報について</h2>
-    <p>当サイトでは、お問い合わせの際に、以下の情報を入力いただく場合があります。</p>
-    <ul>
-      <li>お名前（ニックネーム可）</li>
-      <li>メールアドレス</li>
-      <li>お問い合わせ内容</li>
-    </ul>
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/diagnosis">今日の鑑定</a>
+          <a href="/blog">占い日記</a>
+          <a href="/about">白音七とは</a>
+          <a href="/contact">お問い合わせ</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
 
-    <h2>2. 個人情報の利用目的</h2>
-    <p>取得した個人情報は、以下の目的の範囲内で利用します。</p>
-    <ul>
-      <li>お問い合わせへの対応</li>
-      <li>必要に応じたご連絡</li>
-      <li>サービス向上のための参考</li>
-    </ul>
+    <main class="fortune-result">
+      <section class="fortune-container">
+        <div class="fortune-result-frame">
+          <div class="fortune-detail-kicker">PRIVACY POLICY</div>
 
-    <h2>3. 個人情報の管理</h2>
-    <p>
-      当サイトは、取得した個人情報について、不正アクセス・紛失・漏えい等が起こらないよう、
-      適切な管理に努めます。
-    </p>
+          <h1 class="fortune-result-title">プライバシーポリシー</h1>
 
-    <h2>4. 個人情報の第三者提供について</h2>
-    <p>
-      取得した個人情報は、以下の場合を除き、第三者に提供することはありません。
-    </p>
-    <ul>
-      <li>本人の同意がある場合</li>
-      <li>法令に基づき開示が必要となる場合</li>
-    </ul>
+          <p class="fortune-result-message">
+            白音七は、利用者の個人情報を適切に取り扱い、安心してご利用いただけるサービス運営に努めます。
+          </p>
 
-    <h2>5. 外部サービスの利用について</h2>
-    <p>
-      当サイトでは、お問い合わせフォームに Googleフォーム を利用しています。
-      Googleフォームの利用により、Google社が定めるプライバシーポリシーが適用される場合があります。
-    </p>
+          <div class="fortune-result-card highlight">
+            <h2>1. 取得する情報について</h2>
+            <p>
+              白音七では、サービスの提供にあたり、以下の情報を取得する場合があります。
+            </p>
+            <p>
+              ・メールアドレス<br />
+              ・ニックネーム、名前などの入力情報<br />
+              ・生年月日、性別など鑑定に必要な情報<br />
+              ・鑑定結果、鑑定履歴<br />
+              ・お問い合わせ内容<br />
+              ・利用端末やアクセス状況に関する情報
+            </p>
+          </div>
 
-    <h2>6. アクセス解析について</h2>
-    <p>
-      当サイトでは、現在アクセス解析ツールは使用していません。
-      今後、解析ツールを導入する場合は、本ポリシーを適宜見直します。
-    </p>
+          <div class="fortune-result-card">
+            <h2>2. 利用目的</h2>
+            <p>
+              取得した情報は、以下の目的で利用します。
+            </p>
+            <p>
+              ・鑑定結果の生成、表示、保存<br />
+              ・会員登録、ログイン、本人確認<br />
+              ・鑑定履歴の保存および表示<br />
+              ・お問い合わせへの対応<br />
+              ・サービス改善、不具合調査<br />
+              ・利用状況の確認、品質向上
+            </p>
+          </div>
 
-    <h2>7. プライバシーポリシーの変更</h2>
-    <p>
-      本プライバシーポリシーは、必要に応じて内容を変更することがあります。
-      変更後の内容は、当ページにて速やかに掲載します。
-    </p>
+          <div class="fortune-result-card">
+            <h2>3. 個人情報の管理</h2>
+            <p>
+              白音七は、取得した個人情報について、不正アクセス、紛失、漏えい、改ざん等を防ぐため、
+              必要かつ適切な安全管理に努めます。
+            </p>
+          </div>
 
-    <h2>8. お問い合わせ</h2>
-    <p>
-      本ポリシーに関するお問い合わせは、
-      当サイトのお問い合わせフォームよりお願いいたします。
-    </p>
+          <div class="fortune-result-card">
+            <h2>4. 第三者提供について</h2>
+            <p>
+              白音七は、法令に基づく場合を除き、利用者本人の同意なく個人情報を第三者に提供しません。
+            </p>
+          </div>
 
-    <p class="date">
-      制定日：2025年12月18日<br />
-      白音七（nana-fortune.com）
-    </p>
-  </section>
-</BaseLayout>
+          <div class="fortune-result-card">
+            <h2>5. 外部サービスの利用について</h2>
+            <p>
+              白音七では、サービス運営のために、以下の外部サービスを利用する場合があります。
+            </p>
+            <p>
+              ・Vercel<br />
+              ・AWS<br />
+              ・Stripe<br />
+              ・Googleフォーム等のお問い合わせサービス
+            </p>
+            <p>
+              各外部サービスにおける情報の取り扱いは、それぞれのプライバシーポリシーに従います。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>6. 決済情報について</h2>
+            <p>
+              有料機能を提供する場合、決済処理には外部決済サービスを利用します。<br />
+              クレジットカード番号等の決済情報を白音七が直接保持することはありません。
+            </p>
+            <p>
+              なお、β版期間中は課金機能を停止しています。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>7. 鑑定情報の取り扱い</h2>
+            <p>
+              入力された生年月日、名前、鑑定結果などは、鑑定サービスの提供および履歴表示のために利用します。
+            </p>
+            <p>
+              鑑定内容は、医療・法律・投資などの専門的判断を代替するものではありません。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>8. プライバシーポリシーの変更</h2>
+            <p>
+              本ポリシーは、必要に応じて変更することがあります。<br />
+              重要な変更がある場合は、サイト上でお知らせします。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>9. お問い合わせ</h2>
+            <p>
+              個人情報の取り扱いに関するお問い合わせは、お問い合わせページよりご連絡ください。
+            </p>
+          </div>
+
+          <div class="fortune-result-actions">
+            <a href="/" class="fortune-btn secondary">TOPへ戻る</a>
+            <a href="/contact" class="fortune-btn primary">お問い合わせへ</a>
+            <a href="/disclaimer" class="fortune-btn violet">免責事項を見る</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="fortune-footer">
+  <div class="fortune-container fortune-footer-inner">
+    <div>© {new Date().getFullYear()} 白音七</div>
+
+    <nav class="fortune-footer-links" aria-label="フッターナビゲーション">
+      <a href="/">TOP</a>
+      <a href="/members">会員ページ</a>
+      <a href="/history">履歴一覧</a>
+      <a href="/privacy">プライバシーポリシー</a>
+      <a href="/disclaimer">免責事項</a>
+      <a href="/contact">お問い合わせ</a>
+    </nav>
+  </div>
+</footer>
+
+    <script>
+      const authArea = document.getElementById("authArea");
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+
+      if (token && email) {
+        authArea.innerHTML = `
+          <span class="fortune-user">${email}</span>
+          <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+        `;
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("loginEmail");
+          localStorage.removeItem("user_id");
+          localStorage.removeItem("userId");
+          window.location.href = "/";
+        });
+      } else {
+        authArea.innerHTML = `
+          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+        `;
+      }
+    </script>
+  </body>
+</html>

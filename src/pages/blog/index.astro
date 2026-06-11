@@ -1,5 +1,8 @@
 ---
 import "../../styles/global.css";
+
+const siteTitle = "白音七";
+const siteCatch = "神秘を、日常へ。白音七メソッドで今日の流れと自分らしく進むためのヒントを読み解く";
 ---
 
 <!DOCTYPE html>
@@ -7,13 +10,9 @@ import "../../styles/global.css";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>占い日記 | 白音七</title>
-    <meta
-      name="description"
-      content="白音七の占い日記。日々の運気、整え方、白音七メソッドの読み解きをお届けします。"
-    />
+    <title>{siteTitle} | TOP</title>
+    <meta name="description" content={siteCatch} />
   </head>
-
   <body class="fortune-body">
     <header class="fortune-header">
       <div class="fortune-container fortune-header-inner">
@@ -24,93 +23,417 @@ import "../../styles/global.css";
 
         <nav class="fortune-nav" id="navArea">
           <a href="/">TOP</a>
-          <a href="/diagnosis">今日の鑑定</a>
-          <a href="/about">白音七とは</a>
-          <a href="/compat">相性占い</a>
-          <a href="/contact">お問い合わせ</a>
+          <a href="/history">履歴一覧</a>
+          <span id="memberLinks"></span>
           <span id="authArea"></span>
         </nav>
       </div>
     </header>
 
-    <main class="fortune-result">
-      <section class="fortune-container">
-        <div class="fortune-result-frame">
-          <div class="fortune-detail-kicker">SHIRONE7 FORTUNE DIARY</div>
+    <main>
+      <section class="fortune-hero">
+        <div class="fortune-container">
+          <div class="fortune-hero-frame">
+            <div class="fortune-hero-ornament" aria-hidden="true"></div>
 
-          <h1 class="fortune-result-title">占い日記</h1>
+            <div class="fortune-hero-main">
+              <div class="fortune-kicker">白音七メソッド</div>
 
-          <p class="fortune-result-message">
-            日々の運気の流れ、心の整え方、白音七メソッドの読み解きを少しずつ記録していく場所です。
-          </p>
+              <div class="fortune-title-wrap">
+                <div class="fortune-stars" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
 
-          <div class="fortune-result-card highlight">
-            <h2>β版のお知らせ</h2>
-            <p>
-              現在、白音七はβ版として公開中です。<br />
-              占い日記は、正式版に向けて少しずつ記事を追加していきます。
-            </p>
+                <div class="fortune-title-line"></div>
+
+                <h1 class="fortune-hero-title">
+                  <span class="line line-1">神秘を、日常へ。</span>
+                  <span class="line line-2">今日のあなたを</span>
+                  <span class="line line-3">静かに読み解く。</span>
+                </h1>
+
+                <div class="fortune-title-line bottom"></div>
+              </div>
+
+              <p class="fortune-lead">
+                白音七は、
+                <strong>数秘術</strong>、
+                <strong>占星術</strong>、
+                <strong>姓名診断</strong>を中心に、
+                生命診断・手相・バイオリズムを重ねながら、
+                今日の流れと自分らしく進むためのヒントを読み解く鑑定サービスです。
+              </p>
+
+              <p class="fortune-method-line">
+                β版では
+                <strong>イヤーナンバー × 占星術 × 姓名診断</strong>
+                による無料鑑定を体験できます。
+              </p>
+
+              <div class="fortune-highlight">
+                <p>
+                  現在、白音七はβ版として先行公開中です。<br />
+                  鑑定結果・表示内容・一部機能は、正式公開に向けて調整される場合があります。
+                </p>
+              </div>
+
+              <div class="fortune-method-box">
+                <div class="fortune-method-item">
+                  <div class="fortune-method-icon">数</div>
+                  <div>
+                    <h3>数秘術</h3>
+                    <p>
+                      フル版ではピタゴラス式チャートとイヤーナンバーを使用し、
+                      生まれ持った資質と現在の流れを重ねて読み解きます。
+                    </p>
+                  </div>
+                </div>
+
+                <div class="fortune-method-item">
+                  <div class="fortune-method-icon">星</div>
+                  <div>
+                    <h3>占星術</h3>
+                    <p>
+                      その日の空気、タイミング、動き方を見ながら、
+                      今日という一日の“向き”を明らかにしていきます。
+                    </p>
+                  </div>
+                </div>
+
+                <div class="fortune-method-item">
+                  <div class="fortune-method-icon">深</div>
+                  <div>
+                    <h3>日々の記録</h3>
+                    <p>
+                      会員登録すると鑑定結果を保存でき、
+                      一度きりの占いではなく、自分自身の流れの変化として振り返れます。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="fortune-actions">
+                <a class="fortune-btn primary" href="/diagnosis">無料で今日を占う</a>
+                <a class="fortune-btn violet" href="/members" id="heroMemberBtn">会員ページを見る</a>
+              </div>
+            </div>
           </div>
+        </div>
+      </section>
 
-          <div class="fortune-result-card">
-            <h2>今日の整えメモ</h2>
-            <p>
-              運気は、特別な誰かだけに降ってくるものではありません。<br />
-              朝の一呼吸、誰かへの言葉、自分を責めない選択。そうした小さな行動の積み重ねが、
-              少しずつ流れを変えていきます。
+      <section class="fortune-section">
+        <div class="fortune-container">
+          <div class="fortune-section-frame">
+            <h2 class="fortune-section-title">β版でわかること</h2>
+            <p class="fortune-section-sub">
+              無料のβ版でも、今日の流れ・外から見える傾向・行動ヒントまで、
+              ひとつの鑑定として受け取れるように設計しています。
             </p>
-          </div>
 
-          <div class="fortune-result-card">
-            <h2>白音七メソッドについて</h2>
-            <p>
-              白音七では、数秘術・占星術・姓名診断・日々のバイオリズムを組み合わせ、
-              「今の自分がどの流れにいるのか」をやさしく読み解いていきます。
+            <div class="fortune-grid-3">
+              <article class="fortune-card">
+                <h3>今日の流れ</h3>
+                <p>
+                  今日は前へ出る日か、整える日か。
+                  イヤーナンバーと占星術から、今のタイミングをつかみます。
+                </p>
+              </article>
+
+              <article class="fortune-card">
+                <h3>外側から見える傾向</h3>
+                <p>
+                  姓名診断を加えることで、
+                  自分の印象や運の表れ方を別の角度から読み取れます。
+                </p>
+              </article>
+
+              <article class="fortune-card">
+                <h3>行動ヒント</h3>
+                <p>
+                  ただ説明するだけで終わらず、
+                  今日何を意識すると良いかまで受け取れます。
+                </p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fortune-section">
+        <div class="fortune-container">
+          <div class="fortune-section-frame">
+            <h2 class="fortune-section-title">白音七が大切にしていること</h2>
+            <p class="fortune-section-sub">
+              占いで未来を決めつけるのではなく、複数の視点を重ねて、
+              今の自分を見つめ直すための言葉へ整えていきます。
             </p>
-          </div>
 
-          <div class="fortune-result-card">
-            <h2>これから追加予定の内容</h2>
-            <p>
-              ・毎日の運気メモ<br />
-              ・イヤーナンバー別の過ごし方<br />
-              ・相性の読み解き<br />
-              ・会員限定鑑定の活用方法<br />
-              ・白音七メソッドの深掘り
+            <div class="fortune-grid-3">
+              <article class="fortune-card glow">
+                <div class="fortune-number">1</div>
+                <h3>複数の占術を掛け合わせる</h3>
+                <p>
+                  数秘術・占星術・生命診断・手相・バイオリズムを組み合わせることで、
+                  単独の占いでは見えにくい部分まで拾いやすくします。
+                </p>
+              </article>
+
+              <article class="fortune-card glow">
+                <div class="fortune-number">2</div>
+                <h3>無料でもひとつの鑑定として届ける</h3>
+                <p>
+                  イヤーナンバー・占星術・姓名診断を組み合わせ、
+                  無料版でも結果と行動ヒントまで受け取れる形にしています。
+                </p>
+              </article>
+
+              <article class="fortune-card glow">
+                <div class="fortune-number">3</div>
+                <h3>流れを追う思想がある</h3>
+                <p>
+                  その場で終わる占いではなく、
+                  自分の流れを見つめていくためのサービスとして育てていきます。
+                </p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fortune-section">
+        <div class="fortune-container">
+          <div class="fortune-section-frame">
+            <h2 class="fortune-section-title">無料でできること</h2>
+            <p class="fortune-section-sub">
+              登録前でも、今日の流れをすぐに受け取れます。
+              気に入ったら、会員登録して履歴として残せます。
             </p>
-          </div>
 
-          <div class="fortune-result-actions">
-            <a href="/diagnosis" class="fortune-btn primary">今日の鑑定をする</a>
-            <a href="/members" class="fortune-btn secondary">会員ページへ</a>
-            <a href="/" class="fortune-btn violet">TOPへ戻る</a>
+            <div class="fortune-grid-3">
+              <article class="fortune-side-card fortune-card-like featured">
+                <div class="fortune-side-label">FREE β版</div>
+                <h3>すぐに占える</h3>
+                <p>
+                  お名前と生年月日を入力するだけで、
+                  今日の流れと行動ヒントをすぐに受け取れます。
+                </p>
+              </article>
+
+              <article class="fortune-card">
+                <h3>軽量な3要素で鑑定</h3>
+                <p>
+                  イヤーナンバー、占星術、姓名診断を使って、
+                  今日の自分をテンポよく読み解きます。
+                </p>
+              </article>
+
+              <article class="fortune-card">
+                <h3>行動につながる言葉</h3>
+                <p>
+                  結果を読むだけで終わらず、
+                  今日どう動くとよいかのヒントまで受け取れます。
+                </p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fortune-section">
+        <div class="fortune-container">
+          <div class="fortune-section-frame">
+            <h2 class="fortune-section-title">もっと深く知りたい方へ</h2>
+            <p class="fortune-section-sub">
+              会員登録すると、鑑定結果を履歴として保存し、
+              日々の変化をあとから振り返れるようになります。
+            </p>
+
+            <div class="fortune-grid-3">
+              <article class="fortune-side-card fortune-card-like">
+                <div class="fortune-side-label">MEMBER 会員機能</div>
+                <h3>履歴を残せる</h3>
+                <p>
+                  無料会員でも、保存した鑑定結果をあとから読み返し、
+                  自分の流れの変化を追っていけます。
+                </p>
+              </article>
+
+              <article class="fortune-card">
+                <h3>フルメソッドへ広がる</h3>
+                <p>
+                  数秘術の深掘り、生命診断、手相、バイオリズムを含む機能は、
+                  正式公開に向けて順次整備しています。
+                </p>
+              </article>
+
+              <article class="fortune-card">
+                <h3>一度きりで終わらない</h3>
+                <p>
+                  その日の運勢だけではなく、
+                  積み重ねた記録として自分自身を見つめていけます。
+                </p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fortune-section">
+        <div class="fortune-container">
+          <div class="fortune-section-frame">
+            <h2 class="fortune-section-title">ご利用の流れ</h2>
+            <p class="fortune-section-sub">
+              まず無料で占い、気に入ったら会員登録して記録する。
+              シンプルな流れで使えます。
+            </p>
+
+            <div class="fortune-flow-grid">
+              <article class="fortune-card">
+                <div class="fortune-number">1</div>
+                <h3>無料で今日を占う</h3>
+                <p>
+                  TOPから占い画面へ進み、
+                  まずは体験版で軽量鑑定を受けます。
+                </p>
+              </article>
+
+              <article class="fortune-card">
+                <div class="fortune-number">2</div>
+                <h3>結果を受け取る</h3>
+                <p>
+                  イヤーナンバー・占星術・姓名診断を掛け合わせた結果を確認します。
+                </p>
+              </article>
+
+              <article class="fortune-card">
+                <div class="fortune-number">3</div>
+                <h3>続けたいか決める</h3>
+                <p>
+                  気に入った場合のみ、
+                  履歴保存や深掘り鑑定へ進むことを考えます。
+                </p>
+              </article>
+
+              <article class="fortune-card">
+                <div class="fortune-number">4</div>
+                <h3>会員登録して記録する</h3>
+                <p>
+                  会員はログイン後、
+                  保存した鑑定をあとから読み返せるようになります。
+                </p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fortune-bottom-cta">
+        <div class="fortune-container">
+          <div class="fortune-bottom-cta-frame">
+            <h2>今日の流れを、明日の自分へ。</h2>
+            <p>
+              鑑定結果を履歴として残すことで、<br />
+              日々の変化や、自分の選び方をあとから振り返れます。
+            </p>
+
+            <div class="fortune-bottom-actions" id="bottomCtaActions">
+              <a class="fortune-btn primary" href="/diagnosis">もう一度占う</a>
+              <a class="fortune-btn secondary" href="/login">会員ログイン</a>
+            </div>
           </div>
         </div>
       </section>
     </main>
 
+    <footer class="fortune-footer">
+      <div class="fortune-container fortune-footer-inner">
+        <div>© {new Date().getFullYear()} 白音七</div>
+
+        <div class="fortune-footer-links">
+          <a href="/">TOP</a>
+          <a href="/members">会員ページ</a>
+          <a href="/history">履歴一覧</a>
+          <a href="/privacy">プライバシーポリシー</a>
+          <a href="/disclaimer">免責事項</a>
+          <a href="/contact">お問い合わせ</a>
+        </div>
+      </div>
+    </footer>
+
     <script>
       const authArea = document.getElementById("authArea");
+      const memberLinks = document.getElementById("memberLinks");
+      const bottomCtaActions = document.getElementById("bottomCtaActions");
+      const heroMemberBtn = document.getElementById("heroMemberBtn");
+
       const token = localStorage.getItem("token");
       const email = localStorage.getItem("loginEmail");
 
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
       if (token && email) {
+        memberLinks.innerHTML = `
+          <a href="/members">会員ページ</a>
+          <a href="/premium">会員限定鑑定</a>
+        `;
+
         authArea.innerHTML = `
-          <span class="fortune-user">${email}</span>
+          <span class="fortune-user">${escapeHtml(email)}</span>
           <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
         `;
 
-        document.getElementById("logoutBtn").addEventListener("click", () => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("loginEmail");
-          localStorage.removeItem("user_id");
-          localStorage.removeItem("userId");
-          window.location.href = "/";
-        });
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (logoutBtn) {
+          logoutBtn.addEventListener("click", () => {
+            localStorage.removeItem("token");
+            localStorage.removeItem("loginEmail");
+            localStorage.removeItem("userId");
+            localStorage.removeItem("user_id");
+            window.location.href = "/";
+          });
+        }
+
+        if (bottomCtaActions) {
+          bottomCtaActions.innerHTML = `
+            <a class="fortune-btn primary" href="/diagnosis">もう一度占う</a>
+            <a class="fortune-btn secondary" href="/members">会員ページへ</a>
+          `;
+        }
+
+        if (heroMemberBtn) {
+          heroMemberBtn.textContent = "会員ページへ";
+          heroMemberBtn.href = "/members";
+        }
       } else {
-        authArea.innerHTML = `
-          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+        memberLinks.innerHTML = `
+          <a href="/join" class="fortune-btn gold">会員登録</a>
         `;
+
+        authArea.innerHTML = `
+          <a href="/login?redirect=/members" class="fortune-nav-pill">会員ログイン</a>
+        `;
+
+        if (bottomCtaActions) {
+          bottomCtaActions.innerHTML = `
+            <a class="fortune-btn primary" href="/diagnosis">もう一度占う</a>
+            <a href="/join" class="fortune-btn gold">会員登録</a>
+            <a class="fortune-btn secondary" href="/login?redirect=/members">会員ログイン</a>
+          `;
+        }
+
+        if (heroMemberBtn) {
+          heroMemberBtn.textContent = "会員ログイン";
+          heroMemberBtn.href = "/login?redirect=/members";
+        }
       }
     </script>
   </body>

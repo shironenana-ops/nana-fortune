@@ -1,10 +1,38 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
+import "../styles/global.css";
 
 const pageTitle = "会員ページ | 白音七";
 ---
 
-<BaseLayout title={pageTitle}>
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{pageTitle}</title>
+    <meta
+      name="description"
+      content="白音七の会員ページです。会員状態、音声鑑定の利用回数、プラン情報を確認できます。"
+    />
+  </head>
+
+  <body class="fortune-body members-page-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
+
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/history">履歴一覧</a>
+          <a href="/blog">占い日記</a>
+          <a href="/premium">会員限定鑑定</a>
+          <span id="memberHeaderAuth"></span>
+        </nav>
+      </div>
+    </header>
   <main class="members-shell">
     <section class="hero-card reveal">
       <div class="hero-badge">MEMBER HOME</div>
@@ -123,6 +151,9 @@ const pageTitle = "会員ページ | 白音七";
     const userId =
       localStorage.getItem("userId") ||
       localStorage.getItem("user_id") ||
+      localStorage.getItem("loginEmail") ||
+      localStorage.getItem("userEmail") ||
+      localStorage.getItem("user_email") ||
       "";
 
     let currentPlan = "free";
@@ -519,9 +550,91 @@ const pageTitle = "会員ページ | 白音七";
       loadMembershipStatus();
     });
   </script>
-</BaseLayout>
+    <footer class="fortune-footer">
+      <div class="fortune-container fortune-footer-inner">
+        <div>© {new Date().getFullYear()} 白音七</div>
+
+        <nav class="fortune-footer-links" aria-label="フッターナビゲーション">
+          <a href="/">TOP</a>
+          <a href="/members">会員ページ</a>
+          <a href="/history">履歴一覧</a>
+          <a href="/privacy">プライバシーポリシー</a>
+          <a href="/disclaimer">免責事項</a>
+          <a href="/contact">お問い合わせ</a>
+        </nav>
+
+        <p class="members-footer-note">
+          この占いは、日々の気持ちを整えるためのものです。<br />
+          医療・法律・投資などの専門的判断にはご利用いただけません。
+        </p>
+      </div>
+    </footer>
+
+    <script is:inline>
+      const memberHeaderAuth = document.getElementById("memberHeaderAuth");
+      const headerToken = localStorage.getItem("token");
+      const headerEmail =
+        localStorage.getItem("loginEmail") ||
+        localStorage.getItem("userEmail") ||
+        localStorage.getItem("user_email") ||
+        localStorage.getItem("userId") ||
+        localStorage.getItem("user_id") ||
+        "";
+
+      function escapeHeaderHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      if (headerToken && headerEmail) {
+        memberHeaderAuth.innerHTML = `
+          <span class="fortune-user">${escapeHeaderHtml(headerEmail)}</span>
+          <button id="memberLogoutBtn" class="fortune-nav-logout" type="button">
+            ⏻ ログアウト
+          </button>
+        `;
+
+        document.getElementById("memberLogoutBtn")?.addEventListener("click", () => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("loginEmail");
+          localStorage.removeItem("userEmail");
+          localStorage.removeItem("user_email");
+          localStorage.removeItem("userId");
+          localStorage.removeItem("user_id");
+          window.location.href = "/";
+        });
+      } else {
+        memberHeaderAuth.innerHTML = `
+          <a href="/login?redirect=/members" class="fortune-nav-pill">会員ログイン</a>
+        `;
+      }
+    </script>
+  </body>
+</html>
 
 <style>
+  :global(body.members-page-body) {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .members-shell {
+    flex: 1 0 auto;
+  }
+
+  .members-footer-note {
+    margin: 14px 0 0;
+    text-align: center;
+    color: rgba(255, 236, 179, 0.72);
+    font-size: 0.84rem;
+    line-height: 1.8;
+  }
+
   :global(body) {
     background:
       radial-gradient(circle at top left, rgba(101, 65, 255, 0.24), transparent 28%),
