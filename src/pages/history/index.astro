@@ -7,10 +7,10 @@ export const prerender = false;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>音声鑑定履歴 | 白音七</title>
-    <meta name="description" content="白音七の音声鑑定履歴一覧" />
+    <title>鑑定履歴 | 白音七</title>
+    <meta name="description" content="白音七の鑑定履歴一覧" />
 
-    <style>
+    <style is:global>
       :root {
         --bg-1: #050816;
         --bg-2: #0b1330;
@@ -80,7 +80,7 @@ export const prerender = false;
       }
 
       .header-inner {
-        min-height: 72px;
+        min-height: 82px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -114,21 +114,44 @@ export const prerender = false;
 
       .nav-link {
         color: var(--gold);
+        font-size: 0.95rem;
+        font-weight: 700;
+        transition: color 0.18s ease, transform 0.18s ease;
+      }
+
+      .nav-link:hover {
+        color: var(--gold-strong);
+        transform: translateY(-1px);
       }
 
       .nav-pill,
       .nav-logout {
+        appearance: none;
+        -webkit-appearance: none;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 40px;
-        padding: 0 16px;
+        min-height: 42px;
+        padding: 0 17px;
         border-radius: 999px;
-        border: 1px solid rgba(202, 168, 79, 0.24);
-        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(202, 168, 79, 0.38);
+        background:
+          linear-gradient(180deg, rgba(242, 221, 154, 0.12), rgba(202, 168, 79, 0.06)),
+          rgba(255, 255, 255, 0.02);
         color: var(--gold-strong);
         cursor: pointer;
         font: inherit;
+        font-weight: 700;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+      }
+
+      .nav-pill:hover,
+      .nav-logout:hover {
+        transform: translateY(-1px);
+        border-color: rgba(242, 221, 154, 0.62);
+        background:
+          linear-gradient(180deg, rgba(242, 221, 154, 0.2), rgba(202, 168, 79, 0.1)),
+          rgba(255, 255, 255, 0.03);
       }
 
       .nav-user {
@@ -407,8 +430,23 @@ export const prerender = false;
       }
 
       .history-card {
-        padding: 22px;
+        position: relative;
+        overflow: hidden;
+        padding: 24px;
+        background:
+          linear-gradient(135deg, rgba(182, 140, 255, 0.08), transparent 42%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
+          rgba(14, 18, 38, 0.92);
         transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      }
+
+      .history-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 72px;
+        height: 1px;
+        background: linear-gradient(90deg, rgba(242, 221, 154, 0.8), transparent);
       }
 
       .history-card.is-clickable {
@@ -480,24 +518,78 @@ export const prerender = false;
       }
 
       .history-action {
+        appearance: none;
+        -webkit-appearance: none;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 40px;
-        padding: 0 14px;
+        min-height: 46px;
+        padding: 0 18px;
         border-radius: 999px;
-        border: 1px solid rgba(202, 168, 79, 0.24);
-        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(202, 168, 79, 0.34);
+        background:
+          linear-gradient(180deg, rgba(242, 221, 154, 0.08), rgba(127, 181, 255, 0.03)),
+          rgba(255, 255, 255, 0.03);
         color: var(--gold-strong);
-        font-size: 0.9rem;
+        font-size: 0.92rem;
+        font-weight: 700;
         font-family: inherit;
         cursor: pointer;
+        transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
+      }
+
+      .history-action:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.08);
       }
 
       .history-action.primary {
-        background: linear-gradient(135deg, #7f5af0 0%, #b68cff 100%);
-        border-color: transparent;
-        color: #fff;
+        border: 1px solid rgba(255, 241, 193, 0.76);
+        background: linear-gradient(180deg, #fff0bf 0%, #d9b55a 56%, #b68a2a 100%);
+        box-shadow:
+          0 0 20px rgba(242, 221, 154, 0.18),
+          inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        color: #1a1202;
+      }
+
+
+      .footer {
+        border-top: 1px solid rgba(202, 168, 79, 0.22);
+        background: rgba(2, 3, 10, 0.92);
+      }
+
+      .footer-inner {
+        min-height: 96px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        flex-wrap: wrap;
+        color: #b99e48;
+        font-size: 0.92rem;
+      }
+
+      .footer-links {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      .footer-links a {
+        color: #b99e48;
+      }
+
+      .footer-links a:hover {
+        color: var(--gold-strong);
+      }
+
+      .footer-note {
+        width: 100%;
+        margin-top: -8px;
+        color: rgba(245, 232, 191, 0.62);
+        line-height: 1.8;
+        font-size: 0.86rem;
       }
 
       @media (max-width: 720px) {
@@ -513,13 +605,66 @@ export const prerender = false;
         }
 
         .header-inner {
-          padding: 12px 0;
-          align-items: flex-start;
+          min-height: auto;
+          padding: 14px 0;
+          align-items: stretch;
+          justify-content: center;
           flex-direction: column;
+          gap: 12px;
         }
 
         .logo {
-          font-size: 1.5rem;
+          width: 100%;
+          justify-content: center;
+          font-size: 1.65rem;
+        }
+
+        .nav {
+          width: 100%;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .nav-link {
+          font-size: 0.82rem;
+          padding: 7px 4px;
+        }
+
+        .nav-user {
+          width: 100%;
+          text-align: center;
+          overflow-wrap: anywhere;
+        }
+
+        .nav-pill,
+        .nav-logout {
+          min-height: 40px;
+          padding: 0 13px;
+          font-size: 0.82rem;
+          white-space: nowrap;
+        }
+
+        .btn-row,
+        .history-actions {
+          width: 100%;
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .btn,
+        .history-action {
+          width: 100%;
+        }
+
+        .history-card {
+          padding: 20px;
+        }
+
+        .footer-inner {
+          min-height: auto;
+          padding: 24px 0;
+          flex-direction: column;
+          align-items: flex-start;
         }
       }
     </style>
@@ -546,10 +691,10 @@ export const prerender = false;
       <div class="container">
         <section class="hero">
           <div class="badge">HISTORY</div>
-          <h1>音声鑑定履歴</h1>
+          <h1>鑑定履歴</h1>
           <p>
-            過去の音声鑑定を一覧で確認できます。<br />
-            前回の流れを見返すことで、今のあなたの立ち位置がよりはっきり見えてきます。
+            保存した鑑定結果を、新しい順に一覧で確認できます。<br />
+            過去の流れを振り返ることで、今の自分の変化が見えやすくなります。
           </p>
         </section>
 
@@ -595,9 +740,30 @@ export const prerender = false;
       </div>
     </main>
 
+
+    <footer class="footer">
+      <div class="container footer-inner">
+        <div>© {new Date().getFullYear()} 白音七</div>
+
+        <div class="footer-links">
+          <a href="/">TOP</a>
+          <a href="/members">会員ページ</a>
+          <a href="/history">履歴一覧</a>
+          <a href="/privacy">プライバシーポリシー</a>
+          <a href="/disclaimer">免責事項</a>
+          <a href="/contact">お問い合わせ</a>
+        </div>
+
+        <div class="footer-note">
+          この占いは、日々の気持ちを整えるためのものです。<br />
+          医療・法律・投資などの専門的判断にはご利用いただけません。
+        </div>
+      </div>
+    </footer>
+
     <script is:inline src="/js/billing.js"></script>
 
-    <script>
+    <script is:inline>
       const API_BASE = "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod";
       const HISTORY_API_BASE = API_BASE;
       const DEBUG_HISTORY = false;
