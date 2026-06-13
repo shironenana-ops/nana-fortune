@@ -11,7 +11,6 @@ import "../styles/global.css";
   </head>
 
   <body class="fortune-body">
-
     <!-- ヘッダー -->
     <header class="fortune-header">
       <div class="fortune-container fortune-header-inner">
@@ -29,111 +28,482 @@ import "../styles/global.css";
     </header>
 
     <!-- メイン -->
-    <main class="fortune-diagnosis">
-      <section class="fortune-container">
-
-        <div class="fortune-diagnosis-frame">
-
-          <h1 class="fortune-diagnosis-title">
-            あなたを、静かに読み解く
-          </h1>
-
-          <p class="fortune-diagnosis-lead">
-            名前と生年月日から、今日の流れと本質を導き出します。
-          </p>
-
-          <!-- フォーム -->
-          <form id="diagnosisForm" class="fortune-diagnosis-form">
-
-            <div class="fortune-form-group">
-              <label>お名前</label>
-              <input type="text" id="name" required placeholder="例：山田 太郎" />
-            </div>
-
-            <div class="fortune-form-group">
-              <label>生年月日</label>
-              <input type="date" id="birthday" required />
-            </div>
-
-            <div class="fortune-form-group">
-              <label>性別（任意）</label>
-              <select id="gender">
-                <option value="">選択しない</option>
-                <option value="male">男性</option>
-                <option value="female">女性</option>
-              </select>
-            </div>
-
-            <div class="fortune-diagnosis-actions">
-              <button type="submit" class="fortune-btn primary">
-                ✧ 占いを開始する
-              </button>
-            </div>
-
-          </form>
-
-          <!-- ローディング -->
-          <div id="loadingArea" class="fortune-loading hidden">
-            <div class="fortune-spinner"></div>
-            <p>運命を読み解いています...</p>
+    <main class="fortune-diagnosis-page">
+      <section class="fortune-container diagnosis-shell">
+        <section class="diagnosis-hero">
+          <div class="diagnosis-hero-copy">
+            <span class="fortune-label">TODAY'S READING</span>
+            <h1>今日のあなたを<br class="sp-only" />静かに読み解く</h1>
+            <p>
+              名前と生年月日から<br />
+              今日の流れと本質を導き出します
+            </p>
           </div>
 
-        </div>
+          <div class="diagnosis-hero-note">
+            <p class="diagnosis-note-title">迷ったときは まずここから</p>
+            <p>
+              気持ちを整え<br />
+              今日の一歩を選ぶための小さな鑑定です
+            </p>
+          </div>
+        </section>
 
+        <section class="diagnosis-layout">
+          <div class="fortune-diagnosis-frame" id="fortune-form">
+            <span class="fortune-label">INPUT</span>
+
+            <h2 class="fortune-diagnosis-title">
+              あなたを 静かに読み解く
+            </h2>
+
+            <p class="fortune-diagnosis-lead">
+              いまのあなたに必要な流れを<br class="sp-only" />
+              白音七メソッドで見ていきます
+            </p>
+
+            <!-- フォーム -->
+            <form id="diagnosisForm" class="fortune-diagnosis-form">
+              <div class="fortune-form-group">
+                <label for="name">お名前</label>
+                <input type="text" id="name" required placeholder="例：山田 太郎" />
+              </div>
+
+              <div class="fortune-form-group">
+                <label for="birthday">生年月日</label>
+                <input type="date" id="birthday" required />
+              </div>
+
+              <div class="fortune-form-group">
+                <label for="gender">性別 任意</label>
+                <select id="gender">
+                  <option value="">選択しない</option>
+                  <option value="male">男性</option>
+                  <option value="female">女性</option>
+                </select>
+              </div>
+
+              <div class="fortune-diagnosis-actions">
+                <button type="submit" class="fortune-btn primary">
+                  ✦ 占いを開始する
+                </button>
+              </div>
+            </form>
+
+            <!-- ローディング -->
+            <div id="loadingArea" class="fortune-loading hidden">
+              <div class="fortune-spinner"></div>
+              <p>運命を読み解いています</p>
+            </div>
+          </div>
+
+          <aside class="diagnosis-side">
+            <div class="diagnosis-mini-card">
+              <span>01</span>
+              <h3>今日の流れ</h3>
+              <p>いま意識したい方向を見ます</p>
+            </div>
+
+            <div class="diagnosis-mini-card">
+              <span>02</span>
+              <h3>本質の傾向</h3>
+              <p>あなたらしさの出方を見ます</p>
+            </div>
+
+            <div class="diagnosis-mini-card">
+              <span>03</span>
+              <h3>行動のヒント</h3>
+              <p>今日を過ごす一言を添えます</p>
+            </div>
+          </aside>
+        </section>
+
+        <nav class="diagnosis-bottom-actions" aria-label="診断ページ内リンク">
+          <a href="/members" class="fortune-btn ghost">会員ページへ戻る</a>
+          <a href="/history" class="fortune-btn ghost">履歴を見る</a>
+        </nav>
       </section>
     </main>
 
-    <script>
+    <script is:inline>
       // ログイン表示
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
       const email = localStorage.getItem("loginEmail");
 
-      if (token && email) {
-        authArea.innerHTML = `
-          <span class="fortune-user">${email}</span>
-          <button id="logoutBtn" class="fortune-nav-logout">⏻ ログアウト</button>
-        `;
+      if (authArea) {
+        if (token && email) {
+          authArea.innerHTML = `
+            <span class="fortune-user">${email}</span>
+            <button id="logoutBtn" class="fortune-nav-logout">⏻ ログアウト</button>
+          `;
 
-        document.getElementById("logoutBtn").onclick = () => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("loginEmail");
-          location.reload();
-        };
-      } else {
-        authArea.innerHTML = `
-          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
-        `;
+          const logoutBtn = document.getElementById("logoutBtn");
+          if (logoutBtn) {
+            logoutBtn.onclick = () => {
+              localStorage.removeItem("token");
+              localStorage.removeItem("loginEmail");
+              location.reload();
+            };
+          }
+        } else {
+          authArea.innerHTML = `
+            <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+          `;
+        }
       }
 
       // フォーム処理
       const form = document.getElementById("diagnosisForm");
       const loading = document.getElementById("loadingArea");
 
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
+      if (form && loading) {
+        form.addEventListener("submit", (e) => {
+          e.preventDefault();
 
-        const name = document.getElementById("name").value;
-        const birthday = document.getElementById("birthday").value;
-        const gender = document.getElementById("gender").value;
+          const nameInput = document.getElementById("name");
+          const birthdayInput = document.getElementById("birthday");
+          const genderInput = document.getElementById("gender");
 
-        // 入力保存
-        localStorage.setItem("fortuneInput", JSON.stringify({
-          name,
-          birthday,
-          gender
-        }));
+          const name = nameInput ? nameInput.value : "";
+          const birthday = birthdayInput ? birthdayInput.value : "";
+          const gender = genderInput ? genderInput.value : "";
 
-        // ローディング表示
-        form.classList.add("hidden");
-        loading.classList.remove("hidden");
+          localStorage.setItem("fortuneInput", JSON.stringify({
+            name,
+            birthday,
+            gender
+          }));
 
-        // 疑似演出
-        setTimeout(() => {
-          window.location.href = "/result";
-        }, 1800);
-      });
+          form.classList.add("hidden");
+          loading.classList.remove("hidden");
+
+          setTimeout(() => {
+            window.location.href = "/result";
+          }, 1800);
+        });
+      }
     </script>
 
+    <style is:global>
+      .fortune-diagnosis-page {
+        min-height: calc(100vh - 80px);
+        padding: 4.5rem 0 5rem;
+        background:
+          radial-gradient(circle at 25% 20%, rgba(144, 95, 255, 0.16), transparent 32%),
+          radial-gradient(circle at 70% 35%, rgba(229, 190, 74, 0.10), transparent 28%);
+      }
+
+      .diagnosis-shell {
+        max-width: 980px;
+      }
+
+      .diagnosis-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.8fr);
+        gap: 1.25rem;
+        align-items: stretch;
+        margin-bottom: 1.25rem;
+      }
+
+      .diagnosis-hero-copy,
+      .diagnosis-hero-note,
+      .fortune-diagnosis-frame,
+      .diagnosis-side,
+      .diagnosis-mini-card {
+        border: 1px solid rgba(224, 184, 72, 0.35);
+        background:
+          linear-gradient(145deg, rgba(15, 19, 42, 0.94), rgba(16, 14, 34, 0.92));
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+      }
+
+      .diagnosis-hero-copy {
+        border-radius: 24px;
+        padding: 2.1rem;
+      }
+
+      .diagnosis-hero-copy h1 {
+        margin: 1rem 0 0.8rem;
+        color: #fff0b8;
+        font-size: clamp(2rem, 4vw, 3.4rem);
+        line-height: 1.2;
+        letter-spacing: 0.04em;
+      }
+
+      .diagnosis-hero-copy p,
+      .diagnosis-hero-note p,
+      .fortune-diagnosis-lead,
+      .diagnosis-mini-card p {
+        color: rgba(255, 240, 190, 0.86);
+        line-height: 1.9;
+      }
+
+      .fortune-label {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        border: 1px solid rgba(224, 184, 72, 0.55);
+        border-radius: 999px;
+        padding: 0.38rem 0.85rem;
+        color: #ffe58f;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+
+      .diagnosis-hero-note {
+        border-radius: 24px;
+        padding: 1.7rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .diagnosis-note-title {
+        margin: 0 0 0.6rem;
+        color: #fff0b8 !important;
+        font-size: 1.1rem;
+        font-weight: 800;
+      }
+
+      .diagnosis-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 1.25rem;
+        align-items: stretch;
+      }
+
+      .fortune-diagnosis-frame {
+        border-radius: 24px;
+        padding: 2rem;
+      }
+
+      .fortune-diagnosis-title {
+        margin: 1rem 0 0.65rem;
+        color: #fff0b8;
+        font-size: clamp(1.7rem, 3vw, 2.4rem);
+        line-height: 1.35;
+      }
+
+      .fortune-diagnosis-form {
+        margin-top: 1.4rem;
+        display: grid;
+        gap: 1rem;
+      }
+
+      .fortune-form-group {
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .fortune-form-group label {
+        color: #ffe58f;
+        font-weight: 700;
+        font-size: 0.9rem;
+      }
+
+      .fortune-form-group input,
+      .fortune-form-group select {
+        width: 100%;
+        border: 1px solid rgba(224, 184, 72, 0.35);
+        border-radius: 12px;
+        background: rgba(4, 8, 25, 0.72);
+        color: #fff5c7;
+        padding: 0.85rem 1rem;
+        outline: none;
+        box-sizing: border-box;
+      }
+
+      .fortune-form-group input:focus,
+      .fortune-form-group select:focus {
+        border-color: rgba(255, 226, 133, 0.86);
+        box-shadow: 0 0 0 3px rgba(229, 190, 74, 0.16);
+      }
+
+      .fortune-diagnosis-actions {
+        margin-top: 0.4rem;
+        display: flex;
+        justify-content: center;
+      }
+
+      .diagnosis-side {
+        border-radius: 24px;
+        padding: 1rem;
+        display: grid;
+        gap: 0.85rem;
+      }
+
+      .diagnosis-mini-card {
+        border-radius: 18px;
+        padding: 1.05rem;
+        box-shadow: none;
+      }
+
+      .diagnosis-mini-card span {
+        display: inline-flex;
+        margin-bottom: 0.65rem;
+        color: #e5be4a;
+        font-weight: 800;
+        font-size: 0.8rem;
+      }
+
+      .diagnosis-mini-card h3 {
+        margin: 0 0 0.35rem;
+        color: #fff0b8;
+        font-size: 1.05rem;
+      }
+
+      .diagnosis-mini-card p {
+        margin: 0;
+        font-size: 0.86rem;
+      }
+
+      .diagnosis-bottom-actions {
+        margin-top: 1.25rem;
+        display: flex;
+        justify-content: center;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+      }
+
+      .fortune-loading {
+        margin-top: 1.6rem;
+        text-align: center;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .sp-only {
+        display: none;
+      }
+
+      @media (max-width: 860px) {
+        .fortune-diagnosis-page {
+          padding: 1.6rem 0 3rem;
+        }
+
+        .diagnosis-shell {
+          max-width: 100%;
+          padding-inline: 1rem;
+        }
+
+        .diagnosis-hero,
+        .diagnosis-layout {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+
+        .diagnosis-hero-note {
+          display: none;
+        }
+
+        .diagnosis-hero-copy,
+        .fortune-diagnosis-frame {
+          padding: 1.25rem;
+          border-radius: 20px;
+        }
+
+        .diagnosis-hero-copy h1 {
+          font-size: clamp(1.7rem, 8vw, 2.35rem);
+          line-height: 1.25;
+        }
+
+        .diagnosis-hero-copy p {
+          font-size: 0.9rem;
+        }
+
+        .fortune-diagnosis-title {
+          font-size: 1.55rem;
+        }
+
+        .fortune-diagnosis-lead {
+          font-size: 0.88rem;
+        }
+
+        .diagnosis-side {
+          display: grid;
+          grid-template-columns: 1fr;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
+        }
+
+        .diagnosis-mini-card {
+          padding: 0.95rem 1rem;
+          border-radius: 16px;
+        }
+
+        .diagnosis-mini-card span {
+          margin-bottom: 0.35rem;
+        }
+
+        .diagnosis-mini-card h3 {
+          font-size: 1rem;
+        }
+
+        .diagnosis-mini-card p {
+          font-size: 0.82rem;
+          line-height: 1.65;
+        }
+
+        .diagnosis-bottom-actions {
+          gap: 0.65rem;
+        }
+
+        .diagnosis-bottom-actions .fortune-btn {
+          width: 100%;
+          justify-content: center;
+        }
+
+        .sp-only {
+          display: inline;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .fortune-diagnosis-page {
+          padding-top: 1.1rem;
+        }
+
+        .diagnosis-shell {
+          padding-inline: 0.85rem;
+        }
+
+        .diagnosis-hero {
+          margin-bottom: 0.9rem;
+        }
+
+        .diagnosis-hero-copy {
+          padding: 1.15rem;
+        }
+
+        .diagnosis-hero-copy h1 {
+          margin-top: 0.85rem;
+          font-size: 1.9rem;
+        }
+
+        .fortune-diagnosis-frame {
+          padding: 1.1rem;
+        }
+
+        .fortune-diagnosis-form {
+          gap: 0.85rem;
+        }
+
+        .fortune-form-group input,
+        .fortune-form-group select {
+          min-height: 46px;
+          font-size: 16px;
+        }
+
+        .fortune-diagnosis-actions .fortune-btn {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+    </style>
   </body>
 </html>

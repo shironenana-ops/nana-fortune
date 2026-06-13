@@ -14,6 +14,736 @@ const pageTitle = "会員ページ | 白音七";
       name="description"
       content="白音七の会員ページです。会員状態、音声鑑定の利用回数、プラン情報を確認できます。"
     />
+
+    <style is:global>
+/* Dynamic plan cards are injected with innerHTML, so these rules must be global. */
+  #planCards.plan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 26px;
+  }
+
+  #planCards .plan-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border-radius: 24px;
+    padding: 24px;
+    background:
+      linear-gradient(180deg, rgba(17, 22, 48, 0.98), rgba(14, 18, 38, 0.96));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease;
+  }
+
+  #planCards .plan-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(214, 174, 64, 0.38);
+  }
+
+  #planCards .plan-card--premium {
+    border-color: rgba(177, 124, 255, 0.32);
+    background:
+      linear-gradient(145deg, rgba(118, 77, 215, 0.16), transparent 55%),
+      linear-gradient(180deg, rgba(21, 22, 53, 0.98), rgba(14, 18, 38, 0.96));
+  }
+
+  #planCards .plan-card.is-current {
+    border-color: rgba(243, 210, 93, 0.62);
+    box-shadow:
+      0 0 0 1px rgba(243, 210, 93, 0.2),
+      0 18px 42px rgba(220, 174, 60, 0.18);
+  }
+
+  #planCards .plan-card.is-pending {
+    border-color: rgba(177, 124, 255, 0.52);
+    box-shadow:
+      0 0 0 1px rgba(177, 124, 255, 0.22),
+      0 18px 42px rgba(127, 92, 255, 0.18);
+  }
+
+  #planCards .plan-card__tag {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    min-height: 32px;
+    padding: 6px 12px;
+    border: 1px solid rgba(214, 174, 64, 0.38);
+    border-radius: 999px;
+    color: #f5d97a;
+    background: rgba(255, 221, 120, 0.06);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  #planCards .plan-card h3 {
+    margin: 18px 0 10px;
+    color: #fff0bf;
+    font-size: clamp(1.55rem, 2.5vw, 2rem);
+    line-height: 1.35;
+  }
+
+  #planCards .plan-card p {
+    margin: 0 0 20px;
+    color: rgba(255, 236, 179, 0.78);
+    line-height: 1.85;
+    min-height: 88px;
+  }
+
+  #planCards .plan-card__price {
+    margin-top: auto;
+    margin-bottom: 18px;
+    color: #ffe18f;
+    font-size: clamp(1.7rem, 3vw, 2.2rem);
+    font-weight: 800;
+  }
+
+  #planCards .plan-card__price small {
+    font-size: 1rem;
+    opacity: 0.8;
+  }
+
+  #planCards .plan-card__button {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    min-height: 54px;
+    padding: 12px 18px;
+    border: 1px solid rgba(255, 241, 193, 0.72);
+    border-radius: 999px;
+    color: #171006;
+    background:
+      linear-gradient(180deg, #fff0bf 0%, #d9b55a 56%, #b68a2a 100%);
+    box-shadow:
+      0 0 24px rgba(242, 221, 154, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    font: inherit;
+    font-size: 0.98rem;
+    font-weight: 800;
+    line-height: 1.35;
+    cursor: pointer;
+    white-space: normal;
+    transition:
+      transform 0.18s ease,
+      filter 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  #planCards .plan-card--premium .plan-card__button {
+    border-color: rgba(203, 176, 255, 0.55);
+    color: #fff8e8;
+    background:
+      linear-gradient(180deg, #a67cff 0%, #7b57dc 58%, #5634aa 100%);
+    box-shadow:
+      0 0 24px rgba(145, 99, 255, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  }
+
+  #planCards .plan-card__button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    filter: brightness(1.06);
+  }
+
+  #planCards .plan-card__button:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 4px rgba(242, 221, 154, 0.14),
+      0 0 24px rgba(242, 221, 154, 0.22);
+  }
+
+  #planCards .plan-card__button:disabled {
+    cursor: default;
+    opacity: 0.62;
+    filter: grayscale(0.15);
+  }
+
+  @media (max-width: 980px) {
+    #planCards.plan-grid {
+      grid-template-columns: 1fr;
+    }
+
+    #planCards .plan-card p {
+      min-height: 0;
+    }
+  }
+
+  @media (max-width: 640px) {
+    #planCards .plan-card {
+      padding: 20px;
+      border-radius: 22px;
+    }
+
+    #planCards .plan-card__button {
+      min-height: 58px;
+      font-size: 1rem;
+    }
+  }
+
+body.members-page-body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .members-shell {
+    flex: 1 0 auto;
+  }
+
+  .members-footer-note {
+    margin: 14px 0 0;
+    text-align: center;
+    color: rgba(255, 236, 179, 0.72);
+    font-size: 0.84rem;
+    line-height: 1.8;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at top left, rgba(101, 65, 255, 0.24), transparent 28%),
+      radial-gradient(circle at top right, rgba(45, 111, 255, 0.18), transparent 24%),
+      linear-gradient(180deg, #050814 0%, #070b1f 45%, #140a29 100%);
+    color: #f6e7b8;
+  }
+
+  .members-shell {
+    width: min(1120px, calc(100% - 32px));
+    margin: 28px auto 64px;
+  }
+
+  .hero-card,
+  .status-card,
+  .plan-area,
+  .loading-box,
+  .error-box,
+  .plan-change-notice {
+    background: linear-gradient(180deg, rgba(14, 19, 42, 0.96), rgba(10, 14, 32, 0.92));
+    border: 1px solid rgba(214, 174, 64, 0.24);
+    border-radius: 28px;
+    box-shadow:
+      0 18px 60px rgba(0, 0, 0, 0.35),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  }
+
+  .hero-card {
+    padding: 32px;
+    margin-bottom: 22px;
+  }
+
+  .hero-badge,
+  .section-chip,
+  .status-chip,
+  .plan-card__tag,
+  .plan-change-notice__chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(214, 174, 64, 0.38);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: #f5d97a;
+    background: rgba(255, 221, 120, 0.06);
+  }
+
+  .hero-card h1 {
+    margin: 16px 0 10px;
+    font-size: clamp(30px, 4vw, 46px);
+    line-height: 1.2;
+    color: #ffe7a6;
+  }
+
+  .hero-card p {
+    margin: 0;
+    color: rgba(255, 236, 179, 0.82);
+    line-height: 1.8;
+  }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .status-card {
+    padding: 24px;
+  }
+
+  .status-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+
+  .status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #666;
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+
+  .status-dot.is-active {
+    background: #8bff9d;
+    box-shadow: 0 0 18px rgba(139, 255, 157, 0.7);
+  }
+
+  .status-dot.is-inactive {
+    background: #999;
+    box-shadow: 0 0 16px rgba(160, 160, 160, 0.45);
+  }
+
+  .status-dot.is-canceled {
+    background: #ff8e8e;
+    box-shadow: 0 0 18px rgba(255, 142, 142, 0.7);
+  }
+
+  .status-card h2,
+  .plan-change-notice h3 {
+    margin: 0 0 10px;
+    font-size: clamp(24px, 3vw, 34px);
+    color: #fff0bf;
+  }
+
+  .status-caption,
+  .plan-change-notice p {
+    margin: 0;
+    line-height: 1.8;
+    color: rgba(255, 236, 179, 0.74);
+  }
+
+  .status-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 22px;
+  }
+
+  .status-stat {
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .status-stat__label,
+  .submail-box__label {
+    display: block;
+    font-size: 12px;
+    color: rgba(255, 236, 179, 0.64);
+    margin-bottom: 8px;
+  }
+
+  .status-stat strong,
+  .submail-box strong {
+    color: #fff2c8;
+    font-size: 18px;
+  }
+
+  .meter-wrap {
+    margin-top: 20px;
+  }
+
+  .meter {
+    height: 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .meter__fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ffd66b 0%, #a46bff 100%);
+    transition: width 0.35s ease;
+  }
+
+  .meter-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    color: rgba(255, 236, 179, 0.78);
+    font-size: 14px;
+  }
+
+  .submail-box {
+    margin-top: 22px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    overflow-wrap: anywhere;
+  }
+
+  .plan-change-notice {
+    margin-bottom: 22px;
+    padding: 22px 24px;
+    border-color: rgba(139, 110, 255, 0.35);
+    box-shadow:
+      0 18px 60px rgba(0, 0, 0, 0.35),
+      inset 0 0 0 1px rgba(177, 124, 255, 0.08);
+  }
+
+  .plan-change-notice__chip {
+    border-color: rgba(177, 124, 255, 0.35);
+    color: #d5beff;
+    background: rgba(177, 124, 255, 0.08);
+  }
+
+  .action-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0 20px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  }
+
+  .action-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .action-btn--ghost {
+    color: #f4db8a;
+    border: 1px solid rgba(214, 174, 64, 0.35);
+    background: rgba(255, 220, 120, 0.05);
+  }
+
+  .action-btn--accent {
+    color: #fff;
+    background: linear-gradient(135deg, #7f5cff 0%, #b17cff 100%);
+    box-shadow: 0 12px 28px rgba(127, 92, 255, 0.35);
+  }
+
+  .action-btn--gold {
+    color: #241200;
+    background: linear-gradient(135deg, #f3d25d 0%, #dcae3c 100%);
+    box-shadow: 0 12px 28px rgba(220, 174, 60, 0.35);
+  }
+
+  .plan-area {
+    padding: 28px;
+  }
+
+  .section-head h2 {
+    margin: 14px 0 10px;
+    font-size: clamp(26px, 3vw, 36px);
+    color: #ffe7a6;
+  }
+
+  .section-head p {
+    margin: 0;
+    color: rgba(255, 236, 179, 0.74);
+    line-height: 1.8;
+  }
+
+  .billing-message {
+    margin-top: 18px;
+    margin-bottom: 4px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(202, 168, 79, 0.35);
+    background: rgba(202, 168, 79, 0.08);
+    color: #f5e8bf;
+    line-height: 1.8;
+  }
+
+  .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 26px;
+  }
+
+  .plan-card {
+    border-radius: 24px;
+    padding: 24px;
+    background: linear-gradient(180deg, rgba(17, 22, 48, 0.98), rgba(14, 18, 38, 0.96));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+
+  .plan-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(214, 174, 64, 0.38);
+  }
+
+  .plan-card.is-current {
+    border-color: rgba(243, 210, 93, 0.62);
+    box-shadow: 0 0 0 1px rgba(243, 210, 93, 0.2), 0 18px 42px rgba(220, 174, 60, 0.18);
+  }
+
+  .plan-card.is-pending {
+    border-color: rgba(177, 124, 255, 0.52);
+    box-shadow: 0 0 0 1px rgba(177, 124, 255, 0.22), 0 18px 42px rgba(127, 92, 255, 0.18);
+  }
+
+  .plan-card--premium {
+    box-shadow: inset 0 0 0 1px rgba(177, 124, 255, 0.22);
+  }
+
+  .plan-card h3 {
+    margin: 18px 0 10px;
+    color: #fff0bf;
+    font-size: 28px;
+  }
+
+  .plan-card p {
+    margin: 0 0 20px;
+    color: rgba(255, 236, 179, 0.74);
+    line-height: 1.8;
+    min-height: 88px;
+  }
+
+  .plan-card__price {
+    font-size: 34px;
+    font-weight: 800;
+    color: #ffe18f;
+    margin-bottom: 18px;
+  }
+
+  .plan-card__price small {
+    font-size: 18px;
+    opacity: 0.8;
+  }
+
+  .plan-card__button {
+    width: 100%;
+    min-height: 48px;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 800;
+    color: #101014;
+    background: linear-gradient(135deg, #f2d56b 0%, #d7a63d 100%);
+    box-shadow: 0 14px 30px rgba(220, 174, 60, 0.24);
+    transition: transform 0.18s ease, opacity 0.18s ease, filter 0.18s ease;
+  }
+
+  .plan-card--premium .plan-card__button {
+    color: #fff;
+    background: linear-gradient(135deg, #8461ff 0%, #b780ff 100%);
+    box-shadow: 0 14px 30px rgba(132, 97, 255, 0.3);
+  }
+
+  .plan-card__button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+  }
+
+  .plan-card__button:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  .loading-box,
+  .error-box {
+    margin-top: 22px;
+    padding: 18px 22px;
+  }
+
+  .loading-box p,
+  .error-box p {
+    margin: 0;
+    color: rgba(255, 236, 179, 0.82);
+  }
+
+  .error-box {
+    border-color: rgba(255, 128, 128, 0.26);
+    background: linear-gradient(180deg, rgba(47, 17, 24, 0.94), rgba(34, 12, 18, 0.9));
+  }
+
+  .reveal {
+    animation: fadeUp 0.35s ease both;
+  }
+
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 980px) {
+    .status-grid,
+    .plan-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .plan-card p {
+      min-height: auto;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .members-shell {
+      width: min(100% - 20px, 1120px);
+      margin-top: 18px;
+    }
+
+    .hero-card,
+    .status-card,
+    .plan-area,
+    .plan-change-notice {
+      padding: 20px;
+      border-radius: 22px;
+    }
+
+    .action-row {
+      flex-direction: column;
+    }
+
+    .action-btn {
+      width: 100%;
+    }
+
+    .status-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .meter-meta {
+      flex-direction: column;
+    }
+  }
+
+  .daily-fortune-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 46%);
+    gap: 28px;
+    align-items: center;
+    margin: 18px auto 22px;
+    padding: clamp(24px, 4vw, 34px);
+    border: 1px solid rgba(214, 174, 64, 0.34);
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at 85% 15%, rgba(242, 210, 93, 0.16), transparent 32%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(24, 19, 47, 0.62)),
+      rgba(8, 12, 30, 0.82);
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.32);
+  }
+
+  .daily-fortune-card__text h2 {
+    margin: 12px 0 12px;
+    color: #fff0bf;
+    font-size: clamp(1.75rem, 3vw, 2.55rem);
+    letter-spacing: 0.03em;
+  }
+
+  .daily-fortune-card__text p {
+    margin: 0;
+    max-width: 52em;
+    color: rgba(255, 236, 179, 0.78);
+    line-height: 1.9;
+  }
+
+  .daily-fortune-card__actions {
+    display: grid;
+    gap: 12px;
+  }
+
+  .daily-action {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    min-height: 72px;
+    padding: 14px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(214, 174, 64, 0.35);
+    text-decoration: none;
+    transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .daily-action:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.04);
+  }
+
+  .daily-action__icon {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.18);
+  }
+
+  .daily-action strong,
+  .daily-action small {
+    display: block;
+  }
+
+  .daily-action strong {
+    color: inherit;
+    font-size: 1.02rem;
+  }
+
+  .daily-action small {
+    margin-top: 2px;
+    opacity: 0.78;
+    font-size: 0.82rem;
+  }
+
+  .daily-action--gold {
+    color: #1c1307;
+    background: linear-gradient(180deg, #fff0bf 0%, #d9b55a 56%, #b68a2a 100%);
+    box-shadow: 0 14px 30px rgba(214, 174, 64, 0.22);
+  }
+
+  .daily-action--ghost {
+    color: #fff0bf;
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  .daily-action--accent {
+    color: #fff8ff;
+    border-color: rgba(181, 127, 255, 0.45);
+    background: linear-gradient(180deg, #a67cff 0%, #7b57dc 58%, #5634aa 100%);
+    box-shadow: 0 14px 30px rgba(127, 92, 255, 0.24);
+  }
+
+  @media (max-width: 820px) {
+    .daily-fortune-card {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .daily-fortune-card {
+      margin-top: 14px;
+      padding: 22px 18px;
+      border-radius: 22px;
+    }
+
+    .daily-action {
+      min-height: 68px;
+    }
+  }
+
+    </style>
+
   </head>
 
   <body class="fortune-body members-page-body">
@@ -40,6 +770,43 @@ const pageTitle = "会員ページ | 白音七";
       <p id="memberLead">
         あなたの現在の会員状態、音声利用回数、深掘り鑑定の状態を確認できます。
       </p>
+    </section>
+
+    <section class="daily-fortune-card reveal" aria-labelledby="dailyFortuneTitle">
+      <div class="daily-fortune-card__text">
+        <div class="section-chip">TODAY'S FORTUNE</div>
+        <h2 id="dailyFortuneTitle">今日の占い</h2>
+        <p>
+          今日の流れを確認して、気になった鑑定は履歴に残しておけます。
+          迷ったときは、まずここから一日の運気を整えていきましょう。
+        </p>
+      </div>
+
+      <div class="daily-fortune-card__actions" aria-label="今日の占いメニュー">
+        <a class="daily-action daily-action--gold" href="/diagnosis">
+          <span class="daily-action__icon">✦</span>
+          <span>
+            <strong>今日の占いへ</strong>
+            <small>今の流れを読み解く</small>
+          </span>
+        </a>
+
+        <a class="daily-action daily-action--ghost" href="/history">
+          <span class="daily-action__icon">☾</span>
+          <span>
+            <strong>履歴を見る</strong>
+            <small>過去の鑑定を振り返る</small>
+          </span>
+        </a>
+
+        <a class="daily-action daily-action--accent" href="/premium">
+          <span class="daily-action__icon">◆</span>
+          <span>
+            <strong>会員限定鑑定へ</strong>
+            <small>深掘りメニューを確認</small>
+          </span>
+        </a>
+      </div>
     </section>
 
     <section class="status-grid reveal">
@@ -111,10 +878,11 @@ const pageTitle = "会員ページ | 白音七";
     </section>
 
     <section class="action-row reveal">
+      <a class="action-btn action-btn--gold" href="/diagnosis">今日の占いへ</a>
       <a class="action-btn action-btn--ghost" href="/history">履歴を見る</a>
       <a class="action-btn action-btn--accent" href="/premium">会員限定鑑定へ</a>
       <a class="action-btn action-btn--ghost" href="/blog">占い日記を見る</a>
-      <a class="action-btn action-btn--gold" href="/">TOPへ戻る</a>
+      <a class="action-btn action-btn--ghost" href="/">TOPへ戻る</a>
     </section>
 
     <section class="plan-area reveal">
@@ -615,449 +1383,3 @@ const pageTitle = "会員ページ | 白音七";
     </script>
   </body>
 </html>
-
-<style>
-  :global(body.members-page-body) {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .members-shell {
-    flex: 1 0 auto;
-  }
-
-  .members-footer-note {
-    margin: 14px 0 0;
-    text-align: center;
-    color: rgba(255, 236, 179, 0.72);
-    font-size: 0.84rem;
-    line-height: 1.8;
-  }
-
-  :global(body) {
-    background:
-      radial-gradient(circle at top left, rgba(101, 65, 255, 0.24), transparent 28%),
-      radial-gradient(circle at top right, rgba(45, 111, 255, 0.18), transparent 24%),
-      linear-gradient(180deg, #050814 0%, #070b1f 45%, #140a29 100%);
-    color: #f6e7b8;
-  }
-
-  .members-shell {
-    width: min(1120px, calc(100% - 32px));
-    margin: 28px auto 64px;
-  }
-
-  .hero-card,
-  .status-card,
-  .plan-area,
-  .loading-box,
-  .error-box,
-  .plan-change-notice {
-    background: linear-gradient(180deg, rgba(14, 19, 42, 0.96), rgba(10, 14, 32, 0.92));
-    border: 1px solid rgba(214, 174, 64, 0.24);
-    border-radius: 28px;
-    box-shadow:
-      0 18px 60px rgba(0, 0, 0, 0.35),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-  }
-
-  .hero-card {
-    padding: 32px;
-    margin-bottom: 22px;
-  }
-
-  .hero-badge,
-  .section-chip,
-  .status-chip,
-  .plan-card__tag,
-  .plan-change-notice__chip {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid rgba(214, 174, 64, 0.38);
-    border-radius: 999px;
-    padding: 8px 14px;
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    color: #f5d97a;
-    background: rgba(255, 221, 120, 0.06);
-  }
-
-  .hero-card h1 {
-    margin: 16px 0 10px;
-    font-size: clamp(30px, 4vw, 46px);
-    line-height: 1.2;
-    color: #ffe7a6;
-  }
-
-  .hero-card p {
-    margin: 0;
-    color: rgba(255, 236, 179, 0.82);
-    line-height: 1.8;
-  }
-
-  .status-grid {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr 1fr;
-    gap: 18px;
-    margin-bottom: 22px;
-  }
-
-  .status-card {
-    padding: 24px;
-  }
-
-  .status-card__head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 18px;
-  }
-
-  .status-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 999px;
-    background: #666;
-    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
-  }
-
-  .status-dot.is-active {
-    background: #8bff9d;
-    box-shadow: 0 0 18px rgba(139, 255, 157, 0.7);
-  }
-
-  .status-dot.is-inactive {
-    background: #999;
-    box-shadow: 0 0 16px rgba(160, 160, 160, 0.45);
-  }
-
-  .status-dot.is-canceled {
-    background: #ff8e8e;
-    box-shadow: 0 0 18px rgba(255, 142, 142, 0.7);
-  }
-
-  .status-card h2,
-  .plan-change-notice h3 {
-    margin: 0 0 10px;
-    font-size: clamp(24px, 3vw, 34px);
-    color: #fff0bf;
-  }
-
-  .status-caption,
-  .plan-change-notice p {
-    margin: 0;
-    line-height: 1.8;
-    color: rgba(255, 236, 179, 0.74);
-  }
-
-  .status-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-top: 22px;
-  }
-
-  .status-stat {
-    padding: 14px 16px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-  }
-
-  .status-stat__label,
-  .submail-box__label {
-    display: block;
-    font-size: 12px;
-    color: rgba(255, 236, 179, 0.64);
-    margin-bottom: 8px;
-  }
-
-  .status-stat strong,
-  .submail-box strong {
-    color: #fff2c8;
-    font-size: 18px;
-  }
-
-  .meter-wrap {
-    margin-top: 20px;
-  }
-
-  .meter {
-    height: 14px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .meter__fill {
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #ffd66b 0%, #a46bff 100%);
-    transition: width 0.35s ease;
-  }
-
-  .meter-meta {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 12px;
-    color: rgba(255, 236, 179, 0.78);
-    font-size: 14px;
-  }
-
-  .submail-box {
-    margin-top: 22px;
-    padding: 16px 18px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    overflow-wrap: anywhere;
-  }
-
-  .plan-change-notice {
-    margin-bottom: 22px;
-    padding: 22px 24px;
-    border-color: rgba(139, 110, 255, 0.35);
-    box-shadow:
-      0 18px 60px rgba(0, 0, 0, 0.35),
-      inset 0 0 0 1px rgba(177, 124, 255, 0.08);
-  }
-
-  .plan-change-notice__chip {
-    border-color: rgba(177, 124, 255, 0.35);
-    color: #d5beff;
-    background: rgba(177, 124, 255, 0.08);
-  }
-
-  .action-row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 22px;
-  }
-
-  .action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 46px;
-    padding: 0 20px;
-    border-radius: 999px;
-    text-decoration: none;
-    font-weight: 700;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
-  }
-
-  .action-btn:hover {
-    transform: translateY(-1px);
-  }
-
-  .action-btn--ghost {
-    color: #f4db8a;
-    border: 1px solid rgba(214, 174, 64, 0.35);
-    background: rgba(255, 220, 120, 0.05);
-  }
-
-  .action-btn--accent {
-    color: #fff;
-    background: linear-gradient(135deg, #7f5cff 0%, #b17cff 100%);
-    box-shadow: 0 12px 28px rgba(127, 92, 255, 0.35);
-  }
-
-  .action-btn--gold {
-    color: #241200;
-    background: linear-gradient(135deg, #f3d25d 0%, #dcae3c 100%);
-    box-shadow: 0 12px 28px rgba(220, 174, 60, 0.35);
-  }
-
-  .plan-area {
-    padding: 28px;
-  }
-
-  .section-head h2 {
-    margin: 14px 0 10px;
-    font-size: clamp(26px, 3vw, 36px);
-    color: #ffe7a6;
-  }
-
-  .section-head p {
-    margin: 0;
-    color: rgba(255, 236, 179, 0.74);
-    line-height: 1.8;
-  }
-
-  .billing-message {
-    margin-top: 18px;
-    margin-bottom: 4px;
-    padding: 14px 16px;
-    border-radius: 16px;
-    border: 1px solid rgba(202, 168, 79, 0.35);
-    background: rgba(202, 168, 79, 0.08);
-    color: #f5e8bf;
-    line-height: 1.8;
-  }
-
-  .plan-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
-    margin-top: 26px;
-  }
-
-  .plan-card {
-    border-radius: 24px;
-    padding: 24px;
-    background: linear-gradient(180deg, rgba(17, 22, 48, 0.98), rgba(14, 18, 38, 0.96));
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-  }
-
-  .plan-card:hover {
-    transform: translateY(-2px);
-    border-color: rgba(214, 174, 64, 0.38);
-  }
-
-  .plan-card.is-current {
-    border-color: rgba(243, 210, 93, 0.62);
-    box-shadow: 0 0 0 1px rgba(243, 210, 93, 0.2), 0 18px 42px rgba(220, 174, 60, 0.18);
-  }
-
-  .plan-card.is-pending {
-    border-color: rgba(177, 124, 255, 0.52);
-    box-shadow: 0 0 0 1px rgba(177, 124, 255, 0.22), 0 18px 42px rgba(127, 92, 255, 0.18);
-  }
-
-  .plan-card--premium {
-    box-shadow: inset 0 0 0 1px rgba(177, 124, 255, 0.22);
-  }
-
-  .plan-card h3 {
-    margin: 18px 0 10px;
-    color: #fff0bf;
-    font-size: 28px;
-  }
-
-  .plan-card p {
-    margin: 0 0 20px;
-    color: rgba(255, 236, 179, 0.74);
-    line-height: 1.8;
-    min-height: 88px;
-  }
-
-  .plan-card__price {
-    font-size: 34px;
-    font-weight: 800;
-    color: #ffe18f;
-    margin-bottom: 18px;
-  }
-
-  .plan-card__price small {
-    font-size: 18px;
-    opacity: 0.8;
-  }
-
-  .plan-card__button {
-    width: 100%;
-    min-height: 48px;
-    border: none;
-    border-radius: 999px;
-    cursor: pointer;
-    font-weight: 800;
-    color: #101014;
-    background: linear-gradient(135deg, #f2d56b 0%, #d7a63d 100%);
-    box-shadow: 0 14px 30px rgba(220, 174, 60, 0.24);
-    transition: transform 0.18s ease, opacity 0.18s ease, filter 0.18s ease;
-  }
-
-  .plan-card--premium .plan-card__button {
-    color: #fff;
-    background: linear-gradient(135deg, #8461ff 0%, #b780ff 100%);
-    box-shadow: 0 14px 30px rgba(132, 97, 255, 0.3);
-  }
-
-  .plan-card__button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    filter: brightness(1.04);
-  }
-
-  .plan-card__button:disabled {
-    cursor: default;
-    opacity: 0.6;
-  }
-
-  .loading-box,
-  .error-box {
-    margin-top: 22px;
-    padding: 18px 22px;
-  }
-
-  .loading-box p,
-  .error-box p {
-    margin: 0;
-    color: rgba(255, 236, 179, 0.82);
-  }
-
-  .error-box {
-    border-color: rgba(255, 128, 128, 0.26);
-    background: linear-gradient(180deg, rgba(47, 17, 24, 0.94), rgba(34, 12, 18, 0.9));
-  }
-
-  .reveal {
-    animation: fadeUp 0.35s ease both;
-  }
-
-  @keyframes fadeUp {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @media (max-width: 980px) {
-    .status-grid,
-    .plan-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .plan-card p {
-      min-height: auto;
-    }
-  }
-
-  @media (max-width: 640px) {
-    .members-shell {
-      width: min(100% - 20px, 1120px);
-      margin-top: 18px;
-    }
-
-    .hero-card,
-    .status-card,
-    .plan-area,
-    .plan-change-notice {
-      padding: 20px;
-      border-radius: 22px;
-    }
-
-    .action-row {
-      flex-direction: column;
-    }
-
-    .action-btn {
-      width: 100%;
-    }
-
-    .status-stats {
-      grid-template-columns: 1fr;
-    }
-
-    .meter-meta {
-      flex-direction: column;
-    }
-  }
-</style>

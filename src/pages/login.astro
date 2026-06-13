@@ -83,14 +83,27 @@ const siteCatch = "ログインして鑑定結果を記録する";
                 />
 
                 <label class="fortune-login-label" for="password">パスワード</label>
-                <input
-                  class="fortune-login-input"
-                  type="password"
-                  id="password"
-                  name="password"
-                  placeholder="パスワードを入力"
-                  required
-                />
+                <div class="fortune-password-field">
+                  <input
+                    class="fortune-login-input"
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="パスワードを入力"
+                    autocomplete="current-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    class="fortune-password-toggle"
+                    data-password-toggle
+                    data-target="password"
+                    aria-label="パスワードを表示する"
+                    aria-pressed="false"
+                  >
+                    表示
+                  </button>
+                </div>
 
                 <p id="loginMessage" class="fortune-login-message"></p>
 
@@ -122,7 +135,100 @@ const siteCatch = "ログインして鑑定結果を記録する";
       </section>
     </main>
 
-    <script>
+
+    <style is:global>
+
+      /* 入力欄が横に間延びしすぎないように、ログイン/登録フォームそのものを整える */
+      .fortune-login-form {
+        width: 100%;
+        max-width: 360px;
+      }
+
+      .fortune-login-form .fortune-login-input {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .fortune-login-form .fortune-password-field {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .fortune-password-field {
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .fortune-password-field *,
+      .fortune-password-field *::before,
+      .fortune-password-field *::after {
+        box-sizing: border-box;
+      }
+
+      .fortune-password-field .fortune-login-input {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        padding-right: 5.8rem;
+      }
+
+      .fortune-password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 0.7rem;
+        transform: translateY(-50%);
+        border: 1px solid rgba(190, 148, 73, 0.55);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.86);
+        color: #6f5428;
+        font-size: 0.82rem;
+        font-weight: 700;
+        line-height: 1;
+        padding: 0.55rem 0.78rem;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(90, 62, 20, 0.08);
+        transition:
+          transform 0.18s ease,
+          background 0.18s ease,
+          color 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .fortune-password-toggle:hover {
+        background: linear-gradient(135deg, #f6dfa6, #c99a3c);
+        color: #2f220f;
+        box-shadow: 0 8px 18px rgba(150, 104, 26, 0.2);
+      }
+
+      .fortune-password-toggle:active {
+        transform: translateY(-50%) scale(0.97);
+      }
+
+      .fortune-password-toggle:focus-visible {
+        outline: 3px solid rgba(201, 154, 60, 0.35);
+        outline-offset: 2px;
+      }
+
+      @media (max-width: 480px) {
+        .fortune-password-field .fortune-login-input {
+          padding-right: 4.7rem;
+        }
+
+        .fortune-password-toggle {
+          right: 0.55rem;
+          padding: 0.5rem 0.65rem;
+          font-size: 0.78rem;
+        }
+      }
+    </style>
+
+
+    <script is:inline>
       const API_BASE = "https://i3fn2xgcrl.execute-api.ap-northeast-1.amazonaws.com";
 
       const authArea = document.getElementById("authArea");
@@ -143,6 +249,29 @@ const siteCatch = "ログインして鑑定結果を記録する";
           .replaceAll('"', "&quot;")
           .replaceAll("'", "&#39;");
       }
+
+
+      function initPasswordToggles() {
+        const toggleButtons = document.querySelectorAll("[data-password-toggle]");
+
+        toggleButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            const targetId = button.getAttribute("data-target");
+            if (!targetId) return;
+
+            const input = document.getElementById(targetId);
+            if (!input) return;
+
+            const shouldShow = input.type === "password";
+            input.type = shouldShow ? "text" : "password";
+            button.textContent = shouldShow ? "非表示" : "表示";
+            button.setAttribute("aria-label", shouldShow ? "パスワードを非表示にする" : "パスワードを表示する");
+            button.setAttribute("aria-pressed", String(shouldShow));
+          });
+        });
+      }
+
+      initPasswordToggles();
 
       function buildSignupHref() {
         return `/signup?redirect=${encodeURIComponent(redirect)}`;
