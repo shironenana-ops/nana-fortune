@@ -41,8 +41,8 @@ import "../styles/global.css";
           <h1 class="fortune-result-title">お問い合わせ</h1>
 
           <p class="fortune-result-message">
-            白音七をご覧いただき、ありがとうございます。<br />
-            ご意見・ご要望・不具合報告などがありましたら、こちらからお知らせください。
+            白音七をご覧いただきありがとうございます<br />
+            ご意見 ご要望 不具合報告などはこちらからお知らせください
           </p>
 
           <div class="fortune-result-card highlight">
@@ -74,14 +74,28 @@ import "../styles/global.css";
             </p>
           </div>
 
-          <div class="fortune-result-card">
-            <h2>お問い合わせフォーム</h2>
+          <div class="fortune-result-card highlight contact-main-card">
+            <h2>お問い合わせ先</h2>
             <p>
-              現在、お問い合わせフォームは準備中です。<br />
-              β版期間中は、運営側で確認しながら順次整備していきます。
+              β版期間中のお問い合わせは<br />
+              XのDMまたは投稿への返信でお知らせください
             </p>
-            <p>
-              フォーム公開後は、このページから直接お問い合わせいただけるようになります。
+
+            <div class="contact-actions">
+              <a
+                href="https://x.com/Kurone46847"
+                class="fortune-btn primary"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Xで問い合わせる
+              </a>
+              <a href="/history" class="fortune-btn secondary">履歴を見る</a>
+            </div>
+
+            <p class="contact-small-note">
+              フォームは正式版に向けて準備中です<br />
+              緊急性の高い内容や個別鑑定の詳細相談には対応できない場合があります
             </p>
           </div>
 
@@ -94,29 +108,62 @@ import "../styles/global.css";
       </section>
     </main>
 
-    <script>
+    <script is:inline>
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
       const email = localStorage.getItem("loginEmail");
 
-      if (token && email) {
-        authArea.innerHTML = `
-          <span class="fortune-user">${email}</span>
-          <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
-        `;
+      if (authArea) {
+        if (token && email) {
+          authArea.innerHTML = `
+            <span class="fortune-user">${email}</span>
+            <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+          `;
 
-        document.getElementById("logoutBtn").addEventListener("click", () => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("loginEmail");
-          localStorage.removeItem("user_id");
-          localStorage.removeItem("userId");
-          window.location.href = "/";
-        });
-      } else {
-        authArea.innerHTML = `
-          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
-        `;
+          const logoutBtn = document.getElementById("logoutBtn");
+          if (logoutBtn) {
+            logoutBtn.addEventListener("click", () => {
+              localStorage.removeItem("token");
+              localStorage.removeItem("loginEmail");
+              localStorage.removeItem("user_id");
+              localStorage.removeItem("userId");
+              window.location.href = "/";
+            });
+          }
+        } else {
+          authArea.innerHTML = `
+            <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+          `;
+        }
       }
     </script>
+
+    <style is:global>
+      .contact-main-card {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .contact-actions {
+        margin-top: 1.15rem;
+        display: flex;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+      }
+
+      .contact-small-note {
+        margin-top: 1rem;
+        color: rgba(255, 240, 190, 0.76);
+        font-size: 0.92rem;
+      }
+
+      @media (max-width: 760px) {
+        .contact-actions .fortune-btn {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+    </style>
+
   </body>
 </html>

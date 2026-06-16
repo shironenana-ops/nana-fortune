@@ -742,7 +742,77 @@ body.members-page-body {
     }
   }
 
-    </style>
+    
+      /* スマホでは導線を絞って、主要3ボタンを見せる */
+      @media (max-width: 760px) {
+        .member-quick-actions,
+        .member-actions,
+        .member-action-row,
+        .fortune-member-actions {
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: 0.7rem !important;
+        }
+
+        .member-quick-actions a,
+        .member-actions a,
+        .member-action-row a,
+        .fortune-member-actions a {
+          width: 100% !important;
+          justify-content: center !important;
+          text-align: center !important;
+        }
+
+        .member-quick-actions a[href="/blog"],
+        .member-actions a[href="/blog"],
+        .member-action-row a[href="/blog"],
+        .fortune-member-actions a[href="/blog"],
+        .member-quick-actions a[href="/"],
+        .member-actions a[href="/"],
+        .member-action-row a[href="/"],
+        .fortune-member-actions a[href="/"] {
+          display: none !important;
+        }
+      }
+
+    
+      /* スマホ下部の会員ページ導線は主要3つに絞る */
+      @media (max-width: 760px) {
+        .action-row {
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: 0.7rem !important;
+        }
+
+        .action-row .action-btn {
+          width: 100% !important;
+          justify-content: center !important;
+          text-align: center !important;
+        }
+
+        .action-row .action-btn[href="/blog"],
+        .action-row .action-btn[href="/"] {
+          display: none !important;
+        }
+      }
+
+
+      /* 会員ページ下部の導線は主要3つに整理 */
+      @media (max-width: 760px) {
+        .action-row {
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: 0.7rem !important;
+        }
+
+        .action-row .action-btn {
+          width: 100% !important;
+          justify-content: center !important;
+          text-align: center !important;
+        }
+      }
+
+</style>
 
   </head>
 
@@ -881,8 +951,6 @@ body.members-page-body {
       <a class="action-btn action-btn--gold" href="/diagnosis">今日の占いへ</a>
       <a class="action-btn action-btn--ghost" href="/history">履歴を見る</a>
       <a class="action-btn action-btn--accent" href="/premium">会員限定鑑定へ</a>
-      <a class="action-btn action-btn--ghost" href="/blog">占い日記を見る</a>
-      <a class="action-btn action-btn--ghost" href="/">TOPへ戻る</a>
     </section>
 
     <section class="plan-area reveal">
