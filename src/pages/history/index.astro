@@ -51,13 +51,41 @@ export const prerender = false;
       }
 
       body {
+        position: relative;
         min-height: 100vh;
         font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif;
         color: var(--text);
+        background: #050816;
+        isolation: isolate;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -2;
+        pointer-events: none;
+        opacity: 0.9;
         background:
-          radial-gradient(circle at 15% 20%, rgba(90, 50, 180, 0.22), transparent 32%),
-          radial-gradient(circle at 82% 24%, rgba(60, 110, 255, 0.12), transparent 30%),
+          url("/images/bg-cosmic-luxury.png") center top / cover no-repeat,
           linear-gradient(135deg, var(--bg-1) 0%, #07112a 50%, #020615 100%);
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at 16% 12%, rgba(182, 140, 255, 0.12), transparent 28%),
+          radial-gradient(circle at 84% 18%, rgba(242, 221, 154, 0.08), transparent 24%),
+          linear-gradient(
+            180deg,
+            rgba(2, 3, 10, 0.22) 0%,
+            rgba(4, 7, 20, 0.38) 45%,
+            rgba(10, 7, 32, 0.60) 100%
+          );
       }
 
       a {
@@ -165,10 +193,15 @@ export const prerender = false;
       .hero,
       .panel,
       .history-wrap {
-        border: 1px solid var(--line);
+        border: 1px solid rgba(242, 221, 154, 0.24);
         border-radius: 28px;
-        background: linear-gradient(180deg, rgba(10, 14, 34, 0.96), rgba(16, 11, 40, 0.9));
+        background:
+          radial-gradient(circle at 18% 8%, rgba(255, 240, 191, 0.035), transparent 34%),
+          radial-gradient(circle at 82% 18%, rgba(182, 140, 255, 0.05), transparent 38%),
+          linear-gradient(180deg, rgba(8, 12, 28, 0.88), rgba(8, 9, 26, 0.84));
         box-shadow: var(--shadow);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
       }
 
       .hero {
@@ -667,7 +700,39 @@ export const prerender = false;
           align-items: flex-start;
         }
       }
-    </style>
+
+      .history-action.danger {
+        border-color: rgba(239, 154, 154, 0.42);
+        background: rgba(198, 40, 40, 0.12);
+        color: #ffd6d6;
+      }
+
+      .history-action.danger:hover {
+        border-color: rgba(239, 154, 154, 0.72);
+        background: rgba(198, 40, 40, 0.22);
+        color: #ffffff;
+      }
+
+      .history-action[disabled] {
+        opacity: 0.58;
+        cursor: not-allowed;
+        transform: none !important;
+      }
+
+
+      @media (max-width: 768px) {
+        body::before,
+        body::after {
+          position: absolute;
+          min-height: 100%;
+        }
+
+        body::before {
+          opacity: 0.82;
+        }
+      }
+
+</style>
   </head>
 
   <body>
@@ -954,6 +1019,9 @@ export const prerender = false;
               '<a class="history-action primary" href="/history/' +
               encodeURIComponent(historyId) +
               '">結果を見る</a>' +
+              '<button class="history-action danger" type="button" data-delete-history-id="' +
+              escapeHtml(historyId) +
+              '">削除する</button>' +
             '</div>'
           );
         }
@@ -973,19 +1041,40 @@ export const prerender = false;
               encodeURIComponent(historyId) +
               '">処理画面を開く</a>' +
               '<button class="history-action" type="button" onclick="window.location.reload()">再読み込み</button>' +
+              '<button class="history-action danger" type="button" data-delete-history-id="' +
+              escapeHtml(historyId) +
+              '">削除する</button>' +
             '</div>'
           );
         }
 
         if (normalized === "error" || normalized === "failed") {
+          if (!historyId) {
+            return (
+              '<div class="history-actions">' +
+                '<a class="history-action primary" href="/premium/voice">再鑑定する</a>' +
+              '</div>'
+            );
+          }
+
           return (
             '<div class="history-actions">' +
               '<a class="history-action primary" href="/premium/voice">再鑑定する</a>' +
+              '<button class="history-action danger" type="button" data-delete-history-id="' +
+              escapeHtml(historyId) +
+              '">削除する</button>' +
             '</div>'
           );
         }
 
-        return "";
+        if (!historyId) return "";
+        return (
+          '<div class="history-actions">' +
+            '<button class="history-action danger" type="button" data-delete-history-id="' +
+            escapeHtml(historyId) +
+            '">削除する</button>' +
+          '</div>'
+        );
       }
 
       function renderHistory(items) {
@@ -1319,6 +1408,113 @@ export const prerender = false;
         }
       }
 
+
+      function removeHistoryCard(historyId) {
+        const button = document.querySelector('[data-delete-history-id="' + CSS.escape(historyId) + '"]');
+        const card = button ? button.closest(".history-card") : null;
+
+        if (card) {
+          card.style.opacity = "0";
+          card.style.transform = "translateY(8px)";
+          setTimeout(function () {
+            card.remove();
+
+            const list = document.getElementById("historyList");
+            if (list && !list.querySelector(".history-card")) {
+              list.innerHTML = '<div class="empty-card">まだ履歴がありません。</div>';
+            }
+          }, 180);
+        }
+      }
+
+      async function deleteHistoryItem(historyId, button) {
+        const token = localStorage.getItem("token") || "";
+
+        if (!token) {
+          showNotice("ログイン情報が見つかりません。もう一度ログインしてください。", true);
+          return;
+        }
+
+        if (!historyId) {
+          showNotice("削除対象の履歴IDが見つかりません。", true);
+          return;
+        }
+
+        const ok = window.confirm(
+          "この鑑定履歴を削除しますか？\nこの操作は取り消せません。"
+        );
+
+        if (!ok) return;
+
+        const originalText = button ? button.textContent : "";
+
+        if (button) {
+          button.disabled = true;
+          button.textContent = "削除中...";
+        }
+
+        try {
+          const response = await fetch(HISTORY_API_BASE + "/history/delete", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token
+            },
+            body: JSON.stringify({
+              history_id: historyId
+            })
+          });
+
+          const rawText = await response.text();
+
+          let data = null;
+          try {
+            data = rawText ? JSON.parse(rawText) : null;
+          } catch (parseError) {
+            throw new Error("APIレスポンスがJSONではありません: " + rawText);
+          }
+
+          if (!response.ok || (data && data.ok === false)) {
+            const apiMessage =
+              (data && data.error) ||
+              (data && data.message) ||
+              ("HTTP " + response.status);
+            throw new Error(apiMessage);
+          }
+
+          showNotice("鑑定履歴を削除しました。", false);
+          removeHistoryCard(historyId);
+        } catch (error) {
+          console.error("history delete error:", error);
+          showNotice("履歴の削除に失敗しました。\n" + String(error && error.message ? error.message : error), true);
+
+          if (button) {
+            button.disabled = false;
+            button.textContent = originalText || "削除する";
+          }
+        }
+      }
+
+      function setupHistoryDeleteHandler() {
+        const list = document.getElementById("historyList");
+        if (!list) return;
+
+        list.addEventListener("click", function (event) {
+          const button = event.target && event.target.closest
+            ? event.target.closest("[data-delete-history-id]")
+            : null;
+
+          if (!button) return;
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          const historyId = button.getAttribute("data-delete-history-id");
+          deleteHistoryItem(historyId, button);
+        });
+      }
+
+
       async function loadHistory() {
         const list = document.getElementById("historyList");
         const userId = getUserId();
@@ -1394,6 +1590,7 @@ export const prerender = false;
 
       document.addEventListener("DOMContentLoaded", function () {
         setupAuthNav();
+        setupHistoryDeleteHandler();
 
         const reloadButton = document.getElementById("reloadHistoryButton");
         if (reloadButton) {
