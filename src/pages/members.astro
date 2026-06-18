@@ -812,6 +812,78 @@ body.members-page-body {
         }
       }
 
+
+      /* 会員ページ内ボタンの文字色ルールを整理 */
+      .daily-action--gold,
+      .action-btn--gold,
+      .plan-button--gold,
+      .plan-card .fortune-btn.primary,
+      #planCards .plan-card:not(.plan-card--premium) .plan-card__button {
+        color: #221805 !important;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+      }
+
+      .daily-action--gold *,
+      .action-btn--gold *,
+      .plan-button--gold *,
+      .plan-card .fortune-btn.primary *,
+      #planCards .plan-card:not(.plan-card--premium) .plan-card__button * {
+        color: #221805 !important;
+      }
+
+      .daily-action--gold small,
+      .daily-action--gold .daily-action-sub {
+        color: rgba(34, 24, 5, 0.78) !important;
+      }
+
+      .daily-action--gold strong {
+        color: #221805 !important;
+      }
+
+      .daily-action--gold .daily-action__icon {
+        color: #221805 !important;
+        background: rgba(34, 24, 5, 0.16);
+      }
+
+      .daily-action--accent,
+      .action-btn--accent,
+      .plan-button--accent,
+      #planCards .plan-card--premium .plan-card__button {
+        color: #fff8e8;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.34);
+      }
+
+      .daily-action--ghost,
+      .action-btn--ghost {
+        color: #fff0bf;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.38);
+      }
+
+      .daily-action--ghost small,
+      .daily-action--accent small {
+        color: rgba(255, 240, 191, 0.82);
+      }
+
+      .daily-action strong,
+      .action-btn,
+      .plan-button {
+        font-weight: 700;
+      }
+
+      @media (max-width: 760px) {
+        .daily-action,
+        .action-btn {
+          font-size: 0.95rem;
+          letter-spacing: 0.02em;
+        }
+      }
+
 </style>
 
   </head>
