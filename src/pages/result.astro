@@ -103,213 +103,262 @@ import "../styles/global.css";
     </main>
 
     <script>
+      // @ts-nocheck
+      import { buildDailyFortune } from "../lib/fortuneEngine";
+
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
       const email = localStorage.getItem("loginEmail");
 
-      if (token && email) {
-        authArea.innerHTML = `
-          <span class="fortune-user">${email}</span>
-          <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
-        `;
+      if (authArea) {
+        if (token && email) {
+          authArea.innerHTML = `
+            <span class="fortune-user">${email}</span>
+            <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+          `;
 
-        document.getElementById("logoutBtn").addEventListener("click", () => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("loginEmail");
-          window.location.href = "/";
-        });
-      } else {
-        authArea.innerHTML = `
-          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
-        `;
+          document.getElementById("logoutBtn")?.addEventListener("click", () => {
+            localStorage.removeItem("token");
+            localStorage.removeItem("loginEmail");
+            window.location.href = "/";
+          });
+        } else {
+          authArea.innerHTML = `
+            <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+          `;
+        }
       }
 
       const input = JSON.parse(localStorage.getItem("fortuneInput") || "null");
       const resultHeadArea = document.getElementById("resultHeadArea");
       const resultBodyArea = document.getElementById("resultBodyArea");
+      const saveBtn = document.getElementById("saveBtn");
+      const saveMessage = document.getElementById("saveMessage");
+      const resultActions = document.getElementById("resultActions");
+      const premiumBtn = document.getElementById("premiumBtn");
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function toHtmlLines(value) {
+        return escapeHtml(value).replaceAll("\n", "<br />");
+      }
 
       if (!input || !input.name || !input.birthday) {
-        resultHeadArea.innerHTML = `
-          <h1 class="fortune-result-title">鑑定結果が見つかりません</h1>
-          <p class="fortune-result-message">
-            先に診断ページで入力してください。
-          </p>
-        `;
+        if (resultHeadArea) {
+          resultHeadArea.innerHTML = `
+            <h1 class="fortune-result-title">鑑定結果が見つかりません</h1>
+            <p class="fortune-result-message">
+              先に診断ページで入力してください。
+            </p>
+          `;
+        }
 
-        resultBodyArea.innerHTML = `
-          <div class="fortune-result-actions">
-            <a href="/diagnosis" class="fortune-btn primary">占い入力へ進む</a>
-          </div>
-        `;
+        if (resultBodyArea) {
+          resultBodyArea.innerHTML = `
+            <div class="fortune-result-actions">
+              <a href="/diagnosis" class="fortune-btn primary">占い入力へ進む</a>
+            </div>
+          `;
+        }
 
-        document.getElementById("saveBtn").style.display = "none";
-        document.getElementById("premiumBtn").style.display = "none";
+        if (saveBtn) saveBtn.style.display = "none";
+        if (premiumBtn) premiumBtn.style.display = "none";
       } else {
-        const name = input.name.trim();
-        const birthday = input.birthday;
+        const name = String(input.name || "").trim();
+        const birthday = String(input.birthday || "");
         const gender = input.gender || "";
+        let fortune = null;
 
-        const date = new Date(birthday);
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
+        try {
+          fortune = buildDailyFortune({ name, birthday, gender });
+        } catch (error) {
+          console.error(error);
 
-        function digitSum(value) {
-          return String(value)
-            .replace(/\D/g, "")
-            .split("")
-            .reduce((sum, n) => sum + Number(n), 0);
-        }
-
-        function reduceNumber(num) {
-          let n = num;
-          while (n > 9) {
-            n = String(n)
-              .split("")
-              .reduce((sum, v) => sum + Number(v), 0);
+          if (resultHeadArea) {
+            resultHeadArea.innerHTML = `
+              <h1 class="fortune-result-title">入力内容を確認してください</h1>
+              <p class="fortune-result-message">
+                もう一度、鑑定情報を入力してください。
+              </p>
+            `;
           }
-          return n;
+
+          if (resultBodyArea) {
+            resultBodyArea.innerHTML = `
+              <div class="fortune-result-actions">
+                <a href="/diagnosis" class="fortune-btn primary">鑑定情報を入力する</a>
+              </div>
+            `;
+          }
+
+          if (saveBtn) saveBtn.style.display = "none";
+          if (premiumBtn) premiumBtn.style.display = "none";
         }
 
-        const currentYear = new Date().getFullYear();
-        const yearNumber = reduceNumber(digitSum(month) + digitSum(day) + digitSum(currentYear));
-
-        const yearThemes = {
-          1: "始まり直しと決断",
-          2: "調整と対人バランス",
-          3: "表現と広がり",
-          4: "整備と安定",
-          5: "変化と挑戦",
-          6: "愛情と責任",
-          7: "内省と見直し",
-          8: "結果と実行",
-          9: "完了と手放し"
-        };
-
-        const yearActions = {
-          1: "新しく始めたいことを一つ決めて、最初の一歩だけでも踏み出してみましょう。",
-          2: "急いで答えを出すより、人との距離感や流れを整えることが運を呼びます。",
-          3: "思っていることを言葉にしてみることで、停滞がほどけやすくなります。",
-          4: "生活や仕事の足元を整えるほど、あとから安心感がついてきます。",
-          5: "いつもと違う選択肢を一つ試すことで、流れが大きく動き始めます。",
-          6: "大切な人や自分の居場所に目を向けることで、心の軸が戻ってきます。",
-          7: "無理に外へ広げるより、今は内側を整える時間を持つことが大切です。",
-          8: "決めたことを実行に移し、結果につなげる意識が運気を押し上げます。",
-          9: "抱え込みすぎているものを一つ手放すことで、次の流れが入りやすくなります。"
-        };
-
-        function getZodiac(month, day) {
-          if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return "牡羊座";
-          if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return "牡牛座";
-          if ((month === 5 && day >= 21) || (month === 6 && day <= 21)) return "双子座";
-          if ((month === 6 && day >= 22) || (month === 7 && day <= 22)) return "蟹座";
-          if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return "獅子座";
-          if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return "乙女座";
-          if ((month === 9 && day >= 23) || (month === 10 && day <= 23)) return "天秤座";
-          if ((month === 10 && day >= 24) || (month === 11 && day <= 22)) return "蠍座";
-          if ((month === 11 && day >= 23) || (month === 12 && day <= 21)) return "射手座";
-          if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return "山羊座";
-          if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return "水瓶座";
-          return "魚座";
-        }
-
-        const zodiac = getZodiac(month, day);
-
-        const zodiacMessages = {
-          "牡羊座": "勢いはある日ですが、先走りすぎるよりも一呼吸置くことで評価が安定します。",
-          "牡牛座": "無理に動かすより、今あるものを大切に整えることで流れが良くなります。",
-          "双子座": "情報や会話が鍵になる日です。軽やかなやり取りが運をつないでくれます。",
-          "蟹座": "安心できる場所を整えることで、本来の力が発揮しやすくなります。",
-          "獅子座": "自分らしさを出すことが追い風になりますが、押しつけすぎない柔らかさも大切です。",
-          "乙女座": "細かな気づきが武器になります。小さな修正が大きな安定につながります。",
-          "天秤座": "人とのバランスを丁寧に取るほど、今日の運気は味方になってくれます。",
-          "蠍座": "一つのことに深く向き合うほど、見えていなかった本音が浮かび上がります。",
-          "射手座": "前向きな視点が運を動かします。少し先を見る意識が流れを明るくします。",
-          "山羊座": "着実さが力になる日です。派手さよりも確実さを優先すると良いでしょう。",
-          "水瓶座": "いつもと違う発想が生きる日です。固まったやり方を少し崩すと風通しが良くなります。",
-          "魚座": "感受性が高まりやすい日です。優しさを向ける相手を選ぶことが大切です。"
-        };
-
-        const strippedName = name.replace(/\s/g, "");
-        const nameScore = reduceNumber(
-          Array.from(strippedName).reduce((sum, ch) => sum + ch.charCodeAt(0), 0)
-        );
-
-        const nameTendencies = {
-          1: "外からは意志の強い人、先頭に立てる人として見られやすい傾向があります。",
-          2: "外からは穏やかで気配りができる人として受け取られやすい傾向があります。",
-          3: "外からは明るく話しやすい人、場を和ませる人として映りやすいです。",
-          4: "外からは堅実で信用できる人、任せやすい人として見られやすいです。",
-          5: "外からは柔軟で変化に強い人、動きのある人として映りやすいです。",
-          6: "外からは面倒見が良く、責任感のある人として見られやすいです。",
-          7: "外からは落ち着いていて、物事を深く考える人として見られやすいです。",
-          8: "外からは結果に強い人、頼れる人として認識されやすいです。",
-          9: "外からは包容力があり、広い視点を持つ人として映りやすいです。"
-        };
-
-        const displayName = `${name}さん`;
-
-        const todayResult =
-          `${displayName}の今年のイヤーナンバーは「${yearNumber}」。` +
-          `今は「${yearThemes[yearNumber]}」の流れにあります。` +
-          `今日は無理に大きく動かすより、今の流れに合った一手を選ぶことで、運が自然に開いていきます。`;
-
-        const outerResult =
-          `${displayName}は星の配置で見ると「${zodiac}」の気質を持っています。` +
-          `${zodiacMessages[zodiac]} ` +
-          `${nameTendencies[nameScore]}`;
-
-        const actionResult = yearActions[yearNumber];
+        if (fortune) {
 
         const resultPayload = {
-          name: name,
-          birthday: birthday,
-          gender: gender,
-          yearNumber: yearNumber,
-          zodiac: zodiac,
-          nameScore: nameScore,
-          today: todayResult,
-          outer: outerResult,
-          action: actionResult
+          name,
+          birthday,
+          gender,
+          engineVersion: fortune.engineVersion,
+          fortuneDate: fortune.fortuneDate,
+          lifePathNumber: fortune.lifePathNumber,
+          personalDayNumber: fortune.personalDayNumber,
+          nameNumber: fortune.nameNumber,
+          zodiac: fortune.zodiac,
+          theme: fortune.theme,
+          keyword: fortune.keyword,
+          today: fortune.flow,
+          mind: fortune.mind,
+          outer: fortune.outer,
+          action: fortune.action,
+          caution: fortune.caution,
+          summary: fortune.summary,
+          luckyAction: fortune.luckyAction
         };
 
-        resultHeadArea.innerHTML = `
-          <h1 class="fortune-result-title">${displayName}の鑑定結果</h1>
-          <p class="fortune-result-message">
-            イヤーナンバー・占星術・姓名診断をもとに、今日の流れを読み解きました。
-          </p>
-        `;
+        if (resultHeadArea) {
+          resultHeadArea.innerHTML = `
+            <div class="fortune-detail-kicker">TODAY'S READING</div>
+            <h1 class="fortune-result-title">${escapeHtml(fortune.displayName)}の鑑定結果</h1>
+            <p class="fortune-result-message">
+              ${escapeHtml(fortune.summary)}<br />
+              同じ人でも 日付が変われば流れも変わります
+            </p>
+          `;
+        }
 
-        resultBodyArea.innerHTML = `
-          <div class="fortune-result-card">
-            <h2>入力情報</h2>
-            <p><strong>お名前：</strong>${name}</p>
-            <p><strong>生年月日：</strong>${birthday}</p>
-            <p><strong>星座：</strong>${zodiac}</p>
-            <p><strong>イヤーナンバー：</strong>${yearNumber}</p>
-          </div>
+        if (resultBodyArea) {
+          resultBodyArea.innerHTML = `
+            <div class="fortune-result-card">
+              <h2>今日の鍵</h2>
+              <p><strong>鑑定日：</strong>${escapeHtml(fortune.fortuneDate)}</p>
+              <p><strong>星座：</strong>${escapeHtml(fortune.zodiac)}</p>
+              <p><strong>ライフパス：</strong>${fortune.lifePathNumber}</p>
+              <p><strong>パーソナルデイ：</strong>${fortune.personalDayNumber}</p>
+              <p><strong>名前ナンバー：</strong>${fortune.nameNumber}</p>
+              <p><strong>キーワード：</strong>${escapeHtml(fortune.keyword)}</p>
+            </div>
 
-          <div class="fortune-result-card">
-            <h2>今日の流れ</h2>
-            <p>${todayResult}</p>
-          </div>
+            <div class="fortune-result-card highlight">
+              <h2>今日のテーマ</h2>
+              <p>${escapeHtml(fortune.theme)}</p>
+            </div>
 
-          <div class="fortune-result-card">
-            <h2>外側から見える傾向</h2>
-            <p>${outerResult}</p>
-          </div>
+            <div class="fortune-result-card">
+              <h2>今日の流れ</h2>
+              <p>${toHtmlLines(fortune.flow)}</p>
+            </div>
 
-          <div class="fortune-result-card highlight">
-            <h2>今日の行動ヒント</h2>
-            <p>${actionResult}</p>
-          </div>
-        `;
+            <div class="fortune-result-card">
+              <h2>心の向き</h2>
+              <p>${toHtmlLines(fortune.mind)}</p>
+            </div>
 
-        const saveBtn = document.getElementById("saveBtn");
-        const saveMessage = document.getElementById("saveMessage");
-        const resultActions = document.getElementById("resultActions");
+            <div class="fortune-result-card">
+              <h2>外から見えるあなた</h2>
+              <p>${toHtmlLines(fortune.outer)}</p>
+            </div>
 
-        function renderSavedState() {
-          saveMessage.textContent = "鑑定結果を記録しました。";
+            <div class="fortune-result-card highlight">
+              <h2>今日の行動ヒント</h2>
+              <p>${escapeHtml(fortune.action)}</p>
+            </div>
+
+            <div class="fortune-result-card">
+              <h2>避けたいこと</h2>
+              <p>${escapeHtml(fortune.caution)}</p>
+            </div>
+          `;
+        }
+
+        function normalizeForKey(value) {
+          return String(value || "")
+            .trim()
+            .replace(/\s+/g, "")
+            .toLowerCase();
+        }
+
+        function getCurrentUserId() {
+          return (
+            localStorage.getItem("user_id") ||
+            localStorage.getItem("userId") ||
+            localStorage.getItem("loginEmail") ||
+            ""
+          );
+        }
+
+        function getDedupeKey(userId) {
+          return [
+            "daily_engine_v1",
+            normalizeForKey(userId),
+            fortune.fortuneDate,
+            normalizeForKey(resultPayload.name),
+            normalizeForKey(resultPayload.birthday),
+            normalizeForKey(resultPayload.engineVersion)
+          ].join(":");
+        }
+
+        function getSavedStorageKey(userId) {
+          return `shirone7_saved_today:${getDedupeKey(userId)}`;
+        }
+
+        function getSavedRecord(userId) {
+          const key = getSavedStorageKey(userId);
+          const raw = localStorage.getItem(key);
+
+          if (!raw) return null;
+
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return { saved: true };
+          }
+        }
+
+        function setSavedRecord(userId, record) {
+          const key = getSavedStorageKey(userId);
+          localStorage.setItem(key, JSON.stringify(record));
+        }
+
+        function isSameResult(a, b) {
+          return (
+            a &&
+            b &&
+            normalizeForKey(a.name) === normalizeForKey(b.name) &&
+            normalizeForKey(a.birthday) === normalizeForKey(b.birthday) &&
+            a.fortuneDate === b.fortuneDate &&
+            a.engineVersion === b.engineVersion
+          );
+        }
+
+        function alreadySavedByLegacyList() {
+          const savedItems = JSON.parse(localStorage.getItem("savedFortunes") || "[]");
+          return savedItems.some((item) => isSameResult(item, resultPayload));
+        }
+
+        function alreadySaved(userId) {
+          if (!userId) return false;
+          return Boolean(getSavedRecord(userId)) || alreadySavedByLegacyList();
+        }
+
+        function renderSavedState(options = {}) {
+          const mode = options.mode || "saved";
+
+          if (saveMessage) {
+            saveMessage.textContent =
+              mode === "already"
+                ? "今日の鑑定はすでに記録されています。履歴から確認できます。"
+                : "鑑定結果を記録しました。";
+          }
 
           if (saveBtn) {
             saveBtn.textContent = "✓ 記録済み";
@@ -317,7 +366,7 @@ import "../styles/global.css";
             saveBtn.classList.add("fortune-btn-disabled");
           }
 
-          if (!document.getElementById("historyBtn")) {
+          if (resultActions && !document.getElementById("historyBtn")) {
             const historyBtn = document.createElement("a");
             historyBtn.href = "/history";
             historyBtn.id = "historyBtn";
@@ -327,29 +376,14 @@ import "../styles/global.css";
           }
         }
 
-        function isSameResult(a, b) {
-          return (
-            a &&
-            b &&
-            a.name === b.name &&
-            a.birthday === b.birthday &&
-            a.today === b.today &&
-            a.outer === b.outer &&
-            a.action === b.action
-          );
+        const currentUserIdForSavedCheck = getCurrentUserId();
+
+        if (currentUserIdForSavedCheck && alreadySaved(currentUserIdForSavedCheck)) {
+          renderSavedState({ mode: "already" });
         }
 
-        function alreadySaved() {
-          const savedItems = JSON.parse(localStorage.getItem("savedFortunes") || "[]");
-          return savedItems.some((item) => isSameResult(item, resultPayload));
-        }
-
-        if (alreadySaved()) {
-          renderSavedState();
-        }
-
-        saveBtn.addEventListener("click", async () => {
-          saveMessage.textContent = "";
+        saveBtn?.addEventListener("click", async () => {
+          if (saveMessage) saveMessage.textContent = "";
 
           const token = localStorage.getItem("token");
 
@@ -359,77 +393,117 @@ import "../styles/global.css";
             return;
           }
 
-          if (alreadySaved()) {
-            renderSavedState();
+          const userId = getCurrentUserId();
+
+          if (!userId) {
+            if (saveMessage) {
+              saveMessage.textContent = "ログイン情報が見つかりません。もう一度ログインしてください。";
+            }
+            window.location.href = "/login?redirect=/result";
             return;
           }
 
+          const dedupeKey = getDedupeKey(userId);
+
+          if (alreadySaved(userId)) {
+            renderSavedState({ mode: "already" });
+            return;
+          }
+
+          if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = "記録中...";
+          }
+
           try {
-  const userId =
-    localStorage.getItem("user_id") ||
-    localStorage.getItem("userId") ||
-    localStorage.getItem("loginEmail") ||
-    "";
+            const historyId = crypto.randomUUID();
+            const createdAt = new Date().toISOString();
 
-  if (!userId) {
-    saveMessage.textContent = "ログイン情報が見つかりません。もう一度ログインしてください。";
-    window.location.href = "/login?redirect=/result";
-    return;
-  }
+            const savePayload = {
+              user_id: userId,
+              history_id: historyId,
+              type: "normal",
+              source: "daily_engine_v1",
+              dedupe_key: dedupeKey,
+              title: `今日の鑑定 ${fortune.fortuneDate}`,
+              input_title: `今日の鑑定 ${fortune.fortuneDate}`,
+              name: resultPayload.name,
+              birth_date: resultPayload.birthday,
+              gender: resultPayload.gender,
+              category: "general",
+              status: "completed",
+              created_at: createdAt,
+              updated_at: createdAt,
+              result_preview: resultPayload.summary,
+              summary: resultPayload.summary,
+              result_text: [
+                resultPayload.summary,
+                resultPayload.theme,
+                resultPayload.today,
+                resultPayload.mind,
+                resultPayload.outer,
+                resultPayload.action,
+                resultPayload.caution
+              ].filter(Boolean).join("\n\n"),
+              result: {
+                ...resultPayload,
+                dedupeKey
+              }
+            };
 
-  const historyId = crypto.randomUUID();
-  const createdAt = new Date().toISOString();
+            const res = await fetch(
+              "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod/history",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify(savePayload)
+              }
+            );
 
-  const res = await fetch(
-    "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod/history",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        user_id: userId,
-        history_id: historyId,
-        type: "normal",
-        source: "free_result",
-        title: "今日の鑑定",
-        name: resultPayload.name,
-        birth_date: resultPayload.birthday,
-        gender: resultPayload.gender,
-        category: "general",
-        status: "completed",
-        created_at: createdAt,
-        updated_at: createdAt,
-        result: resultPayload
-      })
-    }
-  );
+            const data = await res.json().catch(() => ({}));
 
-  const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              throw new Error(data?.message || data?.error || "履歴保存に失敗しました。");
+            }
 
-  if (!res.ok) {
-    throw new Error(data?.message || data?.error || "履歴保存に失敗しました。");
-  }
+            const savedItems = JSON.parse(localStorage.getItem("savedFortunes") || "[]");
 
-  const savedItems = JSON.parse(localStorage.getItem("savedFortunes") || "[]");
+            savedItems.unshift({
+              id: historyId,
+              createdAt,
+              dedupeKey,
+              ...resultPayload
+            });
 
-  savedItems.unshift({
-    id: historyId,
-    createdAt: createdAt,
-    ...resultPayload
-  });
+            localStorage.setItem("savedFortunes", JSON.stringify(savedItems.slice(0, 100)));
 
-  localStorage.setItem("savedFortunes", JSON.stringify(savedItems));
+            setSavedRecord(userId, {
+              saved: true,
+              historyId,
+              createdAt,
+              dedupeKey,
+              name: resultPayload.name,
+              birthday: resultPayload.birthday,
+              fortuneDate: resultPayload.fortuneDate,
+              engineVersion: resultPayload.engineVersion
+            });
 
-  renderSavedState();
-} catch (error) {
-  console.error(error);
-  saveMessage.textContent = error?.message || "保存に失敗しました。";
-}
+            renderSavedState({ mode: "saved" });
+          } catch (error) {
+            console.error(error);
+
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.textContent = "この結果を記録する";
+            }
+
+            if (saveMessage) saveMessage.textContent = error?.message || "保存に失敗しました。";
+          }
         });
 
-        const premiumBtn = document.getElementById("premiumBtn");
-        premiumBtn.addEventListener("click", () => {
+        premiumBtn?.addEventListener("click", () => {
           const currentToken = localStorage.getItem("token");
 
           if (currentToken) {
@@ -438,6 +512,7 @@ import "../styles/global.css";
             window.location.href = "/login?redirect=/premium";
           }
         });
+        }
       }
     </script>
   </body>

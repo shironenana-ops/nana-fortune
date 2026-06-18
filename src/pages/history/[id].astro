@@ -182,14 +182,26 @@ export const prerender = false;
         const result = item?.result && typeof item.result === "object" ? item.result : {};
 
         return {
-          today: result.today || result.todayResult || result.today_flow || result.todayFlow || "",
+          engineVersion: result.engineVersion || result.engine_version || item?.engineVersion || item?.engine_version || "",
+          fortuneDate: result.fortuneDate || result.fortune_date || item?.fortuneDate || item?.fortune_date || "",
+          theme: result.theme || result.todayTheme || result.today_theme || "",
+          keyword: result.keyword || result.keyWord || "",
+          summary: result.summary || item?.summary || item?.result_preview || "",
+          today: result.today || result.flow || result.todayResult || result.today_flow || result.todayFlow || "",
+          mind: result.mind || result.mindset || result.heart || "",
           outer: result.outer || result.outerResult || result.outer_impression || result.outerImpression || "",
-          action: result.action || result.actionResult || result.action_hint || result.actionHint || "",
+          action: result.action || result.luckyAction || result.actionResult || result.action_hint || result.actionHint || "",
+          caution: result.caution || result.avoid || result.warning || "",
+          luckyAction: result.luckyAction || result.lucky_action || "",
           yearNumber: result.yearNumber || result.year_number || item?.yearNumber || "",
+          lifePathNumber: result.lifePathNumber || result.life_path_number || "",
+          personalDayNumber: result.personalDayNumber || result.personal_day_number || "",
+          nameNumber: result.nameNumber || result.name_number || "",
           zodiac: result.zodiac || item?.zodiac || "",
           nameScore: result.nameScore || result.name_score || "",
           name: item?.name || result.name || "",
-          birthday: item?.birth_date || result.birthday || result.birth_date || ""
+          birthday: item?.birth_date || result.birthday || result.birth_date || "",
+          gender: item?.gender || result.gender || ""
         };
       }
 
@@ -274,10 +286,13 @@ export const prerender = false;
         const result = extractNormalResult(item);
         const title = item?.title || "今日の鑑定";
         const displayName = result.name ? `${result.name}さん` : "あなた";
+        const isEngineV1 = String(result.engineVersion || item?.source || "").includes("v1") || Boolean(result.theme || result.mind || result.caution || result.personalDayNumber);
 
         document.getElementById("detailTitle").textContent = `${displayName}の鑑定履歴`;
         document.getElementById("detailLead").textContent =
-          "保存された通常鑑定の結果を、今日の流れとして振り返るページです。";
+          isEngineV1
+            ? "白音七 今日の占いエンジンで読み解いた結果です。"
+            : "保存された通常鑑定の結果を、今日の流れとして振り返るページです。";
 
         let html = `
           <div class="fortune-detail-status-row">
@@ -287,33 +302,44 @@ export const prerender = false;
           ${renderMeta(item, title, "通常鑑定")}
 
           <section class="fortune-detail-section">
-            <h2 class="fortune-detail-section-title">入力情報</h2>
+            <h2 class="fortune-detail-section-title">今日の鍵</h2>
             <div class="fortune-detail-main-card">
               <p class="fortune-detail-main-text">
-                ${
-                  result.name
-                    ? `<strong>お名前：</strong>${escapeHtml(result.name)}<br>`
-                    : ""
-                }
-                ${
-                  result.birthday
-                    ? `<strong>生年月日：</strong>${escapeHtml(result.birthday)}<br>`
-                    : ""
-                }
-                ${
-                  result.zodiac
-                    ? `<strong>星座：</strong>${escapeHtml(result.zodiac)}<br>`
-                    : ""
-                }
-                ${
-                  result.yearNumber
-                    ? `<strong>イヤーナンバー：</strong>${escapeHtml(result.yearNumber)}`
-                    : ""
-                }
+                ${result.name ? `<strong>お名前：</strong>${escapeHtml(result.name)}<br>` : ""}
+                ${result.birthday ? `<strong>生年月日：</strong>${escapeHtml(result.birthday)}<br>` : ""}
+                ${result.fortuneDate ? `<strong>鑑定日：</strong>${escapeHtml(result.fortuneDate)}<br>` : ""}
+                ${result.zodiac ? `<strong>星座：</strong>${escapeHtml(result.zodiac)}<br>` : ""}
+                ${result.lifePathNumber ? `<strong>ライフパス：</strong>${escapeHtml(result.lifePathNumber)}<br>` : ""}
+                ${result.personalDayNumber ? `<strong>パーソナルデイ：</strong>${escapeHtml(result.personalDayNumber)}<br>` : ""}
+                ${result.nameNumber ? `<strong>名前ナンバー：</strong>${escapeHtml(result.nameNumber)}<br>` : ""}
+                ${result.keyword ? `<strong>キーワード：</strong>${escapeHtml(result.keyword)}<br>` : ""}
+                ${result.yearNumber ? `<strong>イヤーナンバー：</strong>${escapeHtml(result.yearNumber)}` : ""}
               </p>
             </div>
           </section>
         `;
+
+        if (result.summary) {
+          html += `
+            <section class="fortune-detail-section">
+              <h2 class="fortune-detail-section-title">今日のまとめ</h2>
+              <div class="fortune-detail-main-card highlight">
+                <p class="fortune-detail-main-text">${nl2br(result.summary)}</p>
+              </div>
+            </section>
+          `;
+        }
+
+        if (result.theme) {
+          html += `
+            <section class="fortune-detail-section">
+              <h2 class="fortune-detail-section-title">今日のテーマ</h2>
+              <div class="fortune-detail-main-card highlight">
+                <p class="fortune-detail-main-text">${nl2br(result.theme)}</p>
+              </div>
+            </section>
+          `;
+        }
 
         if (result.today) {
           html += `
@@ -326,10 +352,21 @@ export const prerender = false;
           `;
         }
 
+        if (result.mind) {
+          html += `
+            <section class="fortune-detail-section">
+              <h2 class="fortune-detail-section-title">心の向き</h2>
+              <div class="fortune-detail-main-card">
+                <p class="fortune-detail-main-text">${nl2br(result.mind)}</p>
+              </div>
+            </section>
+          `;
+        }
+
         if (result.outer) {
           html += `
             <section class="fortune-detail-section">
-              <h2 class="fortune-detail-section-title">外側から見える傾向</h2>
+              <h2 class="fortune-detail-section-title">外から見えるあなた</h2>
               <div class="fortune-detail-main-card">
                 <p class="fortune-detail-main-text">${nl2br(result.outer)}</p>
               </div>
@@ -337,18 +374,29 @@ export const prerender = false;
           `;
         }
 
-        if (result.action) {
+        if (result.action || result.luckyAction) {
           html += `
             <section class="fortune-detail-section">
               <h2 class="fortune-detail-section-title">今日の行動ヒント</h2>
               <div class="fortune-detail-main-card">
-                <p class="fortune-detail-main-text">${nl2br(result.action)}</p>
+                <p class="fortune-detail-main-text">${nl2br(result.action || result.luckyAction)}</p>
               </div>
             </section>
           `;
         }
 
-        if (!result.today && !result.outer && !result.action) {
+        if (result.caution) {
+          html += `
+            <section class="fortune-detail-section">
+              <h2 class="fortune-detail-section-title">避けたいこと</h2>
+              <div class="fortune-detail-main-card">
+                <p class="fortune-detail-main-text">${nl2br(result.caution)}</p>
+              </div>
+            </section>
+          `;
+        }
+
+        if (!result.summary && !result.theme && !result.today && !result.mind && !result.outer && !result.action && !result.caution) {
           html += `
             <section class="fortune-detail-section">
               <h2 class="fortune-detail-section-title">鑑定結果</h2>
