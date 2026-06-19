@@ -97,6 +97,10 @@ export const prerender = false;
         );
       }
 
+      function getAuthToken() {
+        return localStorage.getItem("token") || "";
+      }
+
       function getHistoryIdFromPath() {
         const pathParts = window.location.pathname.split("/");
         const rawHistoryId = pathParts[pathParts.length - 1] || "";
@@ -663,10 +667,10 @@ export const prerender = false;
       }
 
       async function loadDetail() {
-        const userId = getUserId();
+        const token = getAuthToken();
         const historyId = getHistoryIdFromPath();
 
-        if (!userId) {
+        if (!token) {
           renderSimpleError("ログインしてください。");
           return;
         }
@@ -678,7 +682,13 @@ export const prerender = false;
 
         try {
           const res = await fetch(
-            `${API_BASE}/history/detail?user_id=${encodeURIComponent(userId)}&history_id=${encodeURIComponent(historyId)}`
+            `${API_BASE}/history/detail?history_id=${encodeURIComponent(historyId)}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: "Bearer " + token
+              }
+            }
           );
 
           if (!res.ok) {

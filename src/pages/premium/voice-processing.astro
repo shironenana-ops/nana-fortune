@@ -39,28 +39,29 @@ export const prerender = false;
     <script>
       const API_BASE = "https://i3fn2xgcrl.execute-api.ap-northeast-1.amazonaws.com";
       const token = localStorage.getItem("token");
-      const userId =
-        localStorage.getItem("userId") ||
-        localStorage.getItem("user_id") ||
-        "";
       const params = new URLSearchParams(window.location.search);
-      const historyId = params.get("history_id");
+      const historyId = params.get("history_id") || params.get("id") || "";
       const statusText = document.getElementById("statusText");
       const processingText = document.getElementById("processingText");
 
       async function pollStatus() {
-        if (!historyId || !userId) {
-          statusText.textContent = "history_id または userId が取得できません。";
+        if (!token) {
+          statusText.textContent = "ログインしてください。";
+          return;
+        }
+
+        if (!historyId) {
+          statusText.textContent = "history_id が取得できません。";
           return;
         }
 
         try {
           const response = await fetch(
-            `${API_BASE}/history/detail?user_id=${encodeURIComponent(userId)}&history_id=${encodeURIComponent(historyId)}`,
+            `${API_BASE}/history/detail?history_id=${encodeURIComponent(historyId)}`,
             {
               method: "GET",
               headers: {
-                Authorization: `Bearer ${token || ""}`
+                Authorization: `Bearer ${token}`
               }
             }
           );
