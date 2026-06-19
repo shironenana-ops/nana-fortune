@@ -333,7 +333,11 @@ const siteCatch = "ログインして鑑定結果を記録する";
             throw new Error(data?.message || "ログイン失敗");
           }
 
-          localStorage.setItem("token", data.token || "token");
+          if (!data.token) {
+            throw new Error("ログイン情報の取得に失敗しました。もう一度お試しください。");
+          }
+
+          localStorage.setItem("token", data.token);
           localStorage.setItem("loginEmail", data.user_id || email);
           localStorage.setItem("userId", data.user_id || email);
           localStorage.setItem("user_id", data.user_id || email);
