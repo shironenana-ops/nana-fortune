@@ -585,6 +585,12 @@ export const prerender = false;
         color: #1a1202;
       }
 
+      .history-action.danger {
+        border-color: rgba(210, 105, 105, 0.42);
+        background: rgba(84, 28, 36, 0.24);
+        color: #f0b8b8;
+      }
+
 
       .footer {
         border-top: 1px solid rgba(202, 168, 79, 0.22);
@@ -892,6 +898,14 @@ export const prerender = false;
         return localStorage.getItem("user_id") || localStorage.getItem("userId") || "";
       }
 
+      function getAuthToken() {
+        return localStorage.getItem("token") || "";
+      }
+
+      function redirectToLogin() {
+        window.location.href = "/login?redirect=/history";
+      }
+
       function setupAuthNav() {
         const authNav = document.getElementById("authNav");
         const token = localStorage.getItem("token");
@@ -1012,16 +1026,21 @@ export const prerender = false;
             ? String(item.history_id || item.id)
             : "";
 
+        const deleteAction = historyId
+          ? '<button class="history-action danger" type="button" data-delete-history-id="' +
+            escapeHtml(historyId) +
+            '">削除する</button>'
+          : "";
+
         if (normalized === "completed") {
           if (!historyId) return "";
+
           return (
             '<div class="history-actions">' +
               '<a class="history-action primary" href="/history/' +
               encodeURIComponent(historyId) +
               '">結果を見る</a>' +
-              '<button class="history-action danger" type="button" data-delete-history-id="' +
-              escapeHtml(historyId) +
-              '">削除する</button>' +
+              deleteAction +
             '</div>'
           );
         }
@@ -1041,40 +1060,25 @@ export const prerender = false;
               encodeURIComponent(historyId) +
               '">処理画面を開く</a>' +
               '<button class="history-action" type="button" onclick="window.location.reload()">再読み込み</button>' +
-              '<button class="history-action danger" type="button" data-delete-history-id="' +
-              escapeHtml(historyId) +
-              '">削除する</button>' +
+              deleteAction +
             '</div>'
           );
         }
 
         if (normalized === "error" || normalized === "failed") {
-          if (!historyId) {
-            return (
-              '<div class="history-actions">' +
-                '<a class="history-action primary" href="/premium/voice">再鑑定する</a>' +
-              '</div>'
-            );
-          }
-
           return (
             '<div class="history-actions">' +
               '<a class="history-action primary" href="/premium/voice">再鑑定する</a>' +
-              '<button class="history-action danger" type="button" data-delete-history-id="' +
-              escapeHtml(historyId) +
-              '">削除する</button>' +
+              deleteAction +
             '</div>'
           );
         }
 
-        if (!historyId) return "";
-        return (
-          '<div class="history-actions">' +
-            '<button class="history-action danger" type="button" data-delete-history-id="' +
-            escapeHtml(historyId) +
-            '">削除する</button>' +
-          '</div>'
-        );
+        if (deleteAction) {
+          return '<div class="history-actions">' + deleteAction + '</div>';
+        }
+
+        return "";
       }
 
       function renderHistory(items) {
@@ -1147,6 +1151,78 @@ export const prerender = false;
 
           list.appendChild(card);
         });
+      }
+
+      async function deleteHistory(historyId, button) {
+        if (!historyId) {
+          showNotice("削除対象の履歴が見つかりません。", true);
+          return;
+        }
+
+        const token = getAuthToken();
+        if (!token) {
+          showNotice("削除するにはログインしてください。", true);
+          redirectToLogin();
+          return;
+        }
+
+        if (!window.confirm("この履歴を削除しますか？")) {
+          return;
+        }
+
+        const originalText = button ? button.textContent : "";
+        if (button) {
+          button.disabled = true;
+          button.textContent = "削除中...";
+        }
+
+        try {
+          const response = await fetch(HISTORY_API_BASE + "/history/delete", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token
+            },
+            body: JSON.stringify({ history_id: historyId })
+          });
+
+          const rawText = await response.text();
+          let data = null;
+          try {
+            data = rawText ? JSON.parse(rawText) : null;
+          } catch (parseError) {
+            throw new Error("APIレスポンスがJSONではありません");
+          }
+
+          if (!response.ok || (data && data.ok === false)) {
+            const apiMessage =
+              (data && data.message) ||
+              (data && data.error) ||
+              ("HTTP " + response.status);
+            throw new Error(apiMessage);
+          }
+
+          const card = button && button.closest ? button.closest(".history-card") : null;
+          if (card) {
+            card.remove();
+          } else {
+            await loadHistory();
+          }
+
+          const list = document.getElementById("historyList");
+          if (list && !list.querySelector(".history-card")) {
+            list.innerHTML = '<div class="empty-card">まだ履歴がありません。</div>';
+          }
+
+          showNotice("履歴を削除しました。", false);
+        } catch (error) {
+          console.error("history delete error:", error);
+          showNotice("履歴の削除に失敗しました。\n" + String(error && error.message ? error.message : error), true);
+          if (button) {
+            button.disabled = false;
+            button.textContent = originalText || "削除する";
+          }
+        }
       }
 
       function extractUserStatusPayload(data) {
@@ -1321,9 +1397,9 @@ export const prerender = false;
       }
 
       async function loadUserStatus() {
-        const userId = getUserId();
+        const token = getAuthToken();
 
-        if (!userId) {
+        if (!token) {
           renderPlanCards(null);
           showBillingMessage("ログイン情報が見つからないため、申込み表示を制限しています。", true);
           return;
@@ -1331,8 +1407,13 @@ export const prerender = false;
 
         try {
           const res = await fetch(
-         `${API_BASE}/history/list?user_id=${encodeURIComponent(userId)}`,
-          { method: "GET" }
+            `${HISTORY_API_BASE}/history/list`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: "Bearer " + token
+              }
+            }
           );
 
           const rawText = await res.text();
@@ -1517,28 +1598,31 @@ export const prerender = false;
 
       async function loadHistory() {
         const list = document.getElementById("historyList");
-        const userId = getUserId();
+        const token = getAuthToken();
 
         list.innerHTML = '<div class="loading-card">読み込み中...</div>';
         hideNotice();
         showDebug("");
 
-        if (!userId) {
+        if (!token) {
           list.innerHTML = '<div class="empty-card">ログインしてください。</div>';
           showNotice("localStorage に user_id / userId が見つかりません。ログイン後に再度お試しください。", true);
           showDebug(
             "確認ポイント:\n" +
-            "localStorage.user_id = " + String(localStorage.getItem("user_id")) + "\n" +
-            "localStorage.userId = " + String(localStorage.getItem("userId"))
+            "localStorage.token = " + String(Boolean(localStorage.getItem("token")))
           );
+          redirectToLogin();
           return;
         }
 
-        const url = HISTORY_API_BASE + "/history/list?user_id=" + encodeURIComponent(userId);
+        const url = HISTORY_API_BASE + "/history/list";
 
         try {
           const response = await fetch(url, {
-            method: "GET"
+            method: "GET",
+            headers: {
+              Authorization: "Bearer " + token
+            }
           });
 
           const rawText = await response.text();
@@ -1582,7 +1666,6 @@ export const prerender = false;
           showNotice("履歴の読み込みに失敗しました。\n" + String(error && error.message ? error.message : error), true);
           showDebug(
             "API URL:\n" + url + "\n\n" +
-            "user_id:\n" + userId + "\n\n" +
             "error:\n" + String(error && error.stack ? error.stack : error)
           );
         }
@@ -1599,8 +1682,7 @@ export const prerender = false;
             loadUserStatus();
           });
         }
-
-        loadUserStatus();
+loadUserStatus();
         loadHistory();
       });
     </script>
