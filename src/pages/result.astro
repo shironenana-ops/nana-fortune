@@ -420,7 +420,6 @@ import "../styles/global.css";
             const createdAt = new Date().toISOString();
 
             const savePayload = {
-              user_id: userId,
               history_id: historyId,
               type: "normal",
               source: "daily_engine_v1",
@@ -456,7 +455,8 @@ import "../styles/global.css";
               {
                 method: "POST",
                 headers: {
-                  "Content-Type": "application/json"
+                  "Content-Type": "application/json",
+                  Authorization: "Bearer " + token
                 },
                 body: JSON.stringify(savePayload)
               }
