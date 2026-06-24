@@ -1212,7 +1212,8 @@ export const prerender = false;
           try {
             data = rawText ? JSON.parse(rawText) : null;
           } catch (parseError) {
-            throw new Error("APIレスポンスがJSONではありません");
+            console.error("history delete parse error:", parseError, rawText);
+            throw new Error("履歴を削除できませんでした。少し時間を置いて、もう一度お試しください。");
           }
 
           if (!response.ok || (data && data.ok === false)) {
@@ -1238,7 +1239,7 @@ export const prerender = false;
           showNotice("履歴を削除しました。", false);
         } catch (error) {
           console.error("history delete error:", error);
-          showNotice("履歴の削除に失敗しました。\n" + String(error && error.message ? error.message : error), true);
+          showNotice("履歴を削除できませんでした。\n少し時間を置いて、もう一度お試しください。", true);
           if (button) {
             button.disabled = false;
             button.textContent = originalText || "削除する";
@@ -1443,7 +1444,8 @@ export const prerender = false;
           try {
             data = rawText ? JSON.parse(rawText) : null;
           } catch (error) {
-            throw new Error("user/status のレスポンスがJSONではありません");
+            console.error("user status parse error:", error, rawText);
+            throw new Error("会員状態を確認できませんでした。");
           }
 
           if (!res.ok) {
@@ -1503,7 +1505,7 @@ export const prerender = false;
         } catch (error) {
           console.error("user status load error:", error);
           showBillingMessage(
-            "会員状態の確認に失敗したため、安全のため月額申込みを非表示にしました。",
+            "会員状態を確認できませんでした。安全のため、月額申込みは表示していません。",
             true
           );
           renderPlanCards(null);
@@ -1573,7 +1575,8 @@ export const prerender = false;
           try {
             data = rawText ? JSON.parse(rawText) : null;
           } catch (parseError) {
-            throw new Error("APIレスポンスがJSONではありません: " + rawText);
+            console.error("history delete parse error:", parseError, rawText);
+            throw new Error("履歴を削除できませんでした。少し時間を置いて、もう一度お試しください。");
           }
 
           if (!response.ok || (data && data.ok === false)) {
@@ -1588,7 +1591,7 @@ export const prerender = false;
           removeHistoryCard(historyId);
         } catch (error) {
           console.error("history delete error:", error);
-          showNotice("履歴の削除に失敗しました。\n" + String(error && error.message ? error.message : error), true);
+          showNotice("履歴を削除できませんでした。\n少し時間を置いて、もう一度お試しください。", true);
 
           if (button) {
             button.disabled = false;
@@ -1650,7 +1653,8 @@ export const prerender = false;
           try {
             data = rawText ? JSON.parse(rawText) : null;
           } catch (parseError) {
-            throw new Error("APIレスポンスがJSONではありません: " + rawText);
+            console.error("history load parse error:", parseError, rawText);
+            throw new Error("履歴を読み込めませんでした。少し時間を置いて、もう一度お試しください。");
           }
 
           if (!response.ok) {
@@ -1697,8 +1701,8 @@ export const prerender = false;
             return;
           }
 
-          list.innerHTML = '<div class="empty-card">履歴の取得に失敗しました。</div>';
-          showNotice("履歴の読み込みに失敗しました。\n" + String(error && error.message ? error.message : error), true);
+          list.innerHTML = '<div class="empty-card">履歴を読み込めませんでした。<br />少し時間を置いて、もう一度お試しください。</div>';
+          showNotice("履歴を読み込めませんでした\n\n少し時間を置いて\nもう一度お試しください", true);
           showDebug(
             "API URL:\n" + url + "\n\n" +
             "error:\n" + String(error && error.stack ? error.stack : error)
