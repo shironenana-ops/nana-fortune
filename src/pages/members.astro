@@ -466,6 +466,109 @@ body.members-page-body {
     line-height: 1.8;
   }
 
+  .plan-guide {
+    position: relative;
+    overflow: hidden;
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid rgba(214, 174, 64, 0.28);
+    border-radius: 20px;
+    background:
+      radial-gradient(circle at 92% 12%, rgba(214, 174, 64, 0.14), transparent 26%),
+      radial-gradient(circle at 10% 20%, rgba(177, 124, 255, 0.1), transparent 32%),
+      rgba(255, 255, 255, 0.035);
+  }
+
+  .plan-guide::before {
+    content: "";
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    width: 86px;
+    height: 86px;
+    border: 1px solid rgba(255, 236, 179, 0.14);
+    border-radius: 999px;
+    box-shadow:
+      inset 12px -10px 0 rgba(255, 236, 179, 0.05),
+      0 0 32px rgba(214, 174, 64, 0.08);
+    pointer-events: none;
+  }
+
+  .plan-guide::after {
+    content: "✦";
+    position: absolute;
+    top: 24px;
+    right: 118px;
+    color: rgba(255, 236, 179, 0.28);
+    font-size: 1.05rem;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .plan-guide__title {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 14px;
+    color: #ffe8a8;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .plan-guide__title::before {
+    content: "☾";
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    border: 1px solid rgba(214, 174, 64, 0.3);
+    color: #f5d97a;
+    background: rgba(8, 12, 30, 0.42);
+    font-size: 0.9rem;
+  }
+
+  .plan-guide__grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .plan-guide__item {
+    padding: 14px 15px;
+    border-radius: 16px;
+    background: rgba(8, 12, 30, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.055);
+  }
+
+  .plan-guide__item strong {
+    display: block;
+    margin-bottom: 8px;
+    color: #fff0bf;
+    font-size: 0.98rem;
+  }
+
+  .plan-guide__item p,
+  .plan-guide__safe {
+    margin: 0;
+    color: rgba(255, 236, 179, 0.78);
+    line-height: 1.85;
+  }
+
+  .plan-guide__safe {
+    position: relative;
+    z-index: 1;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(214, 174, 64, 0.18);
+    color: rgba(255, 240, 191, 0.88);
+  }
+
   .plan-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -588,7 +691,8 @@ body.members-page-body {
 
   @media (max-width: 980px) {
     .status-grid,
-    .plan-grid {
+    .plan-grid,
+    .plan-guide__grid {
       grid-template-columns: 1fr;
     }
 
@@ -625,6 +729,22 @@ body.members-page-body {
 
     .meter-meta {
       flex-direction: column;
+    }
+
+    .plan-guide {
+      padding: 18px;
+    }
+
+    .plan-guide::before {
+      top: 14px;
+      right: 14px;
+      width: 64px;
+      height: 64px;
+    }
+
+    .plan-guide::after {
+      top: 20px;
+      right: 90px;
     }
   }
 
@@ -1030,6 +1150,31 @@ body.members-page-body {
         <div class="section-chip">PLAN SELECT</div>
         <h2>必要に応じて、次の一手へ</h2>
         <p>現在の会員状態に応じて、アップグレードや単発追加を選べます。</p>
+      </div>
+
+      <div class="plan-guide" aria-label="無料版、有料版、音声鑑定の違い">
+        <h3 class="plan-guide__title">あなたに合う受け取り方</h3>
+
+        <div class="plan-guide__grid">
+          <div class="plan-guide__item">
+            <strong>無料版では</strong>
+            <p>今日の流れを短く確認できます</p>
+          </div>
+
+          <div class="plan-guide__item">
+            <strong>有料版では</strong>
+            <p>詳しい鑑定と履歴保存を利用できます</p>
+          </div>
+
+          <div class="plan-guide__item">
+            <strong>音声鑑定では</strong>
+            <p>文字を打つのがつらい日にも<br />声で相談内容を伝えられます</p>
+          </div>
+        </div>
+
+        <p class="plan-guide__safe">
+          確認画面なしに料金が発生することはありません
+        </p>
       </div>
 
       <div id="billingMessage" class="billing-message" style="display:none;"></div>
