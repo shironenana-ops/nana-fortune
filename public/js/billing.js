@@ -35,7 +35,7 @@ function showBillingMessage(message, isError = false) {
 
 async function startCheckout(arg1, arg2 = location.pathname) {
   if (BILLING_DISABLED) {
-    alert("β版では課金機能を停止しています。正式版で公開予定です。");
+    alert("ただいま申込み前の確認画面を準備しています。\n確認なしに料金が発生することはありません。");
     return;
   }
 
@@ -102,7 +102,7 @@ async function startCheckout(arg1, arg2 = location.pathname) {
     window.location.href = data.url;
   } catch (error) {
     console.error("checkout error:", error);
-    showBillingMessage(`決済画面への接続に失敗しました: ${error.message}`, true);
+    showBillingMessage("申込み画面を開けませんでした。\n少し時間を置いて、もう一度お試しください。", true);
     throw error;
   }
 }

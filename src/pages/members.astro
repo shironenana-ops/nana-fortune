@@ -1510,7 +1510,7 @@ body.members-page-body {
           }
 
           if (!window.startCheckout) {
-            alert("決済機能の読み込みに失敗しました。");
+            alert("申込み画面の準備が整いませんでした。\n少し時間を置いてお試しください。");
             return;
           }
 
@@ -1522,7 +1522,8 @@ body.members-page-body {
               source_path: sourcePath,
             });
           } catch (e) {
-            alert(e.message || "決済開始に失敗しました。");
+            console.error(e);
+            alert("申込み画面へ進めませんでした。\nもう一度お試しください。");
           }
         });
       });
