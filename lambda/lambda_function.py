@@ -3,6 +3,7 @@
 
 import json
 import os
+import re
 import time
 import urllib.parse
 from datetime import datetime, timezone
@@ -537,6 +538,26 @@ def parse_bedrock_result_json(text: str) -> Optional[Dict[str, Any]]:
     return parsed
 
 
+def normalize_result_text(value: str) -> str:
+    return re.sub(r"<br\s*/?>", "\n", value, flags=re.IGNORECASE)
+
+
+def normalize_result_strings(value: Any) -> Any:
+    if isinstance(value, str):
+        return normalize_result_text(value)
+
+    if isinstance(value, list):
+        return [normalize_result_strings(item) for item in value]
+
+    if isinstance(value, dict):
+        return {
+            key: normalize_result_strings(item)
+            for key, item in value.items()
+        }
+
+    return value
+
+
 def build_result_json(tier: str, transcript: str, fortune_text: str) -> dict:
     parsed_result = parse_bedrock_result_json(fortune_text)
     if parsed_result:
@@ -553,7 +574,7 @@ def build_result_json(tier: str, transcript: str, fortune_text: str) -> dict:
             "type": tier,
             "transcript": transcript,
             "summary": summary,
-            "full_text": full_text.replace("\n", "<br>"),
+            "full_text": full_text,
             "today_flow": today_flow,
             "outer_impression": outer_impression,
             "action_hint": action_hint,
@@ -571,7 +592,7 @@ def build_result_json(tier: str, transcript: str, fortune_text: str) -> dict:
         "transcript": transcript,
         "message": message,
         "advice": advice,
-        "full_text": cleaned_text.replace("\n", "<br>"),
+        "full_text": cleaned_text,
         "tag": tag,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -631,6 +652,7 @@ def lambda_handler(event, context):
         "voice_fortune_v0": voice_context,
     }
     result_json["user_profile"] = voice_context["user_profile"]
+    result_json = normalize_result_strings(result_json)
 
     out_key = result_key_from_transcript_key(key, history_item)
     print(f"saving result to {out_key}")
