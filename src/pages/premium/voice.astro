@@ -68,12 +68,6 @@ export const prerender = false;
   const email = localStorage.getItem("loginEmail");
   const input = JSON.parse(localStorage.getItem("fortuneInput") || "null");
 
-  // ここ重要: email fallback をやめて canonical user_id を使う
-  const userId =
-    localStorage.getItem("userId") ||
-    localStorage.getItem("user_id") ||
-    "";
-
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -742,12 +736,6 @@ export const prerender = false;
         return;
       }
 
-      if (!userId) {
-        setStatus("error", "userId が未設定です。ログイン処理を確認してください。");
-        showToast("userId が未設定です。", "error");
-        return;
-      }
-
       const activeFile = getActiveFile();
       const sourceType = getActiveSourceType();
 
@@ -767,8 +755,6 @@ export const prerender = false;
         formData.append("title", title);
         formData.append("category", category);
         formData.append("memo", memoText);
-        formData.append("user_id", userId);
-        formData.append("email", email || "");
         formData.append("source", "premium_voice");
         formData.append("audio_source_type", sourceType || "unknown");
         formData.append("mime_type", activeFile.type || "");
