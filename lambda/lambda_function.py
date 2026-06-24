@@ -11,10 +11,6 @@ from typing import Dict, Any, Optional
 import boto3
 from botocore.exceptions import ClientError
 
-from engines.numerology import run_numerology
-from integration.integrator import integrate_shirone7
-
-
 # =========================
 # AWS Clients / Resources
 # =========================
@@ -27,12 +23,23 @@ dynamodb = boto3.resource("dynamodb")
 # =========================
 # Environment Variables
 # =========================
-BUCKET_NAME = os.environ["BUCKET_NAME"]
-METHOD_KEY = os.environ["METHOD_KEY"]
+RESULT_BUCKET = (
+    os.environ.get("RESULT_BUCKET")
+    or os.environ.get("VOICE_BUCKET")
+    or os.environ.get("BUCKET_NAME")
+    or ""
+)
+METHOD_KEY = os.environ.get("METHOD_KEY", "")
 
-MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0"
-USERS_TABLE_NAME = "shirone7_users"
+MODEL_ID = os.environ.get("MODEL_ID", "anthropic.claude-3-5-sonnet-20240620-v1:0")
+HISTORY_TABLE_NAME = (
+    os.environ.get("HISTORY_TABLE")
+    or os.environ.get("HISTORY_TABLE_NAME")
+    or "shirone7_history"
+)
+USERS_TABLE_NAME = os.environ.get("USERS_TABLE_NAME", "shirone7_users")
 
+history_table = dynamodb.Table(HISTORY_TABLE_NAME)
 users_table = dynamodb.Table(USERS_TABLE_NAME)
 
 
@@ -54,7 +61,7 @@ ALLOWED_MEDIA_FORMATS = {"mp3", "mp4", "wav", "flac", "ogg", "amr", "webm", "m4a
 # =========================
 def get_tier_from_key(key: str) -> str:
     parts = key.split("/")
-    if len(parts) >= 2 and parts[0] == "raw":
+    if len(parts) >= 2 and parts[0] in {"raw", "transcript", "result"}:
         tier = parts[1]
         if tier in TIERS:
             return tier
@@ -62,8 +69,18 @@ def get_tier_from_key(key: str) -> str:
 
 
 def read_method_text() -> str:
-    obj = s3.get_object(Bucket=BUCKET_NAME, Key=METHOD_KEY)
-    return obj["Body"].read().decode("utf-8")
+    default_method = "白音七として、相談者の言葉を静かに受け止め、今日の流れと次の一歩をやさしく示してください。"
+
+    if not RESULT_BUCKET or not METHOD_KEY:
+        return default_method
+
+    try:
+        obj = s3.get_object(Bucket=RESULT_BUCKET, Key=METHOD_KEY)
+        return obj["Body"].read().decode("utf-8")
+    except ClientError as exc:
+        error_code = exc.response.get("Error", {}).get("Code", "")
+        print(f"method text unavailable: {error_code}")
+        return default_method
 
 
 def wait_transcribe(job_name: str, timeout_sec: int = 600) -> dict:
@@ -87,6 +104,227 @@ def fetch_transcript_text_from_s3(bucket: str, key: str) -> str:
     obj = s3.get_object(Bucket=bucket, Key=key)
     data = json.loads(obj["Body"].read().decode("utf-8"))
     return data["results"]["transcripts"][0]["transcript"]
+
+
+def load_json_from_s3(bucket: str, key: str) -> Dict[str, Any]:
+    obj = s3.get_object(Bucket=bucket, Key=key)
+    data = json.loads(obj["Body"].read().decode("utf-8"))
+
+    if not isinstance(data, dict):
+        raise ValueError("json object is required")
+
+    return data
+
+
+def extract_transcript_text(data: Dict[str, Any]) -> str:
+    try:
+        text = data["results"]["transcripts"][0]["transcript"]
+    except (KeyError, IndexError, TypeError):
+        text = ""
+
+    text = str(text or "").strip()
+    if not text:
+        raise ValueError("transcript text is empty")
+
+    return text
+
+
+def extract_transcribe_job_name(data: Dict[str, Any]) -> str:
+    return str(data.get("jobName") or data.get("job_name") or "").strip()
+
+
+def is_target_transcript_key(key: str) -> bool:
+    return key.startswith("transcript/member/") and key.endswith(".json")
+
+
+def result_key_from_transcript_key(key: str, item: Optional[Dict[str, Any]] = None) -> str:
+    if item:
+        result_s3_key = str(item.get("result_s3_key") or "").strip()
+        if result_s3_key:
+            return result_s3_key
+
+    return key.replace("transcript/", "result/", 1)
+
+
+def scan_first_history_item(label: str, filter_expression: str, values: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    scan_kwargs = {
+        "FilterExpression": filter_expression,
+        "ExpressionAttributeValues": values,
+    }
+    page = 0
+    total_scanned = 0
+    total_count = 0
+
+    while True:
+        page += 1
+        response = history_table.scan(**scan_kwargs)
+        scanned_count = response.get("ScannedCount", 0)
+        count = response.get("Count", 0)
+        total_scanned += scanned_count
+        total_count += count
+        print(f"history lookup {label} scan page={page} scanned={scanned_count} count={count}")
+
+        items = response.get("Items") or []
+
+        if items:
+            print(f"history lookup {label} scan total_scanned={total_scanned} total_count={total_count}")
+            return items[0]
+
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
+            print(f"history lookup {label} scan total_scanned={total_scanned} total_count={total_count}")
+            return None
+
+        scan_kwargs["ExclusiveStartKey"] = last_key
+
+
+def find_history_item_by_transcript_key(
+    transcript_key: str,
+    transcribe_job_name: str = "",
+) -> Optional[Dict[str, Any]]:
+    basename_with_ext = transcript_key.rsplit("/", 1)[-1]
+    basename = basename_with_ext.rsplit(".", 1)[0]
+
+    print(f"history lookup table={HISTORY_TABLE_NAME}")
+    print(f"history lookup transcript_key={transcript_key}")
+    print(f"history lookup basename={basename}")
+    print("history lookup transcribe_job_name_present=" + ("yes" if transcribe_job_name else "no"))
+
+    item = scan_first_history_item(
+        "exact",
+        "transcript_s3_key = :transcript_s3_key",
+        {
+            ":transcript_s3_key": transcript_key,
+        },
+    )
+
+    if item:
+        print("history lookup exact=found")
+        return item
+
+    print("history lookup exact=not_found")
+
+    item = scan_first_history_item(
+        "basename",
+        "contains(transcript_s3_key, :basename) OR contains(result_s3_key, :basename)",
+        {
+            ":basename": basename,
+        },
+    )
+
+    if item:
+        print("history lookup fallback_basename=found")
+        return item
+
+    print("history lookup fallback_basename=not_found")
+
+    if transcribe_job_name:
+        item = scan_first_history_item(
+            "transcribe_job_name",
+            "transcribe_job_name = :transcribe_job_name",
+            {
+                ":transcribe_job_name": transcribe_job_name,
+            },
+        )
+
+        if item:
+            print("history lookup fallback_transcribe_job=found")
+            return item
+
+        print("history lookup fallback_transcribe_job=not_found")
+
+    return None
+
+
+def update_history_completed(item: Dict[str, Any], result_json: Dict[str, Any], result_key: str) -> None:
+    user_id = str(item.get("user_id") or "").strip()
+    history_id = str(item.get("history_id") or "").strip()
+
+    if not user_id or not history_id:
+        raise ValueError("history key is missing")
+
+    now = datetime.now(timezone.utc).isoformat()
+    summary = str(result_json.get("summary") or result_json.get("message") or "").strip()
+    full_text = str(result_json.get("full_text") or "").strip()
+
+    history_table.update_item(
+        Key={
+            "user_id": user_id,
+            "history_id": history_id,
+        },
+        UpdateExpression=(
+            "SET #status = :status, updated_at = :updated_at, completed_at = :completed_at, "
+            "result_s3_key = :result_s3_key, history_s3_key = :history_s3_key, "
+            "history_bucket = :history_bucket, #result = :result, summary = :summary, "
+            "result_preview = :summary, result_text = :result_text"
+        ),
+        ExpressionAttributeNames={
+            "#status": "status",
+            "#result": "result",
+        },
+        ExpressionAttributeValues={
+            ":status": "completed",
+            ":updated_at": now,
+            ":completed_at": now,
+            ":result_s3_key": result_key,
+            ":history_s3_key": result_key,
+            ":history_bucket": RESULT_BUCKET,
+            ":result": result_json,
+            ":summary": summary,
+            ":result_text": full_text,
+        },
+    )
+
+
+def to_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def consume_voice_quota(item: Dict[str, Any]) -> None:
+    user_id = str(item.get("user_id") or "").strip()
+    if not user_id:
+        return
+
+    try:
+        response = users_table.get_item(Key={"user_id": user_id})
+        user = response.get("Item") or {}
+        monthly_voice_limit = to_int(user.get("monthly_voice_limit"), 0)
+        monthly_voice_used = to_int(user.get("monthly_voice_used"), 0)
+        extra_voice_remaining = to_int(user.get("extra_voice_remaining"), 0)
+
+        if monthly_voice_used < monthly_voice_limit:
+            users_table.update_item(
+                Key={"user_id": user_id},
+                UpdateExpression=(
+                    "SET monthly_voice_used = if_not_exists(monthly_voice_used, :zero) + :one, "
+                    "updated_at = :updated_at"
+                ),
+                ExpressionAttributeValues={
+                    ":zero": 0,
+                    ":one": 1,
+                    ":updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            return
+
+        if extra_voice_remaining > 0:
+            users_table.update_item(
+                Key={"user_id": user_id},
+                UpdateExpression=(
+                    "SET extra_voice_remaining = extra_voice_remaining - :one, "
+                    "updated_at = :updated_at"
+                ),
+                ExpressionAttributeValues={
+                    ":one": 1,
+                    ":updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+    except ClientError as exc:
+        error_code = exc.response.get("Error", {}).get("Code", "")
+        print(f"voice quota consume skipped: {error_code}")
 
 
 def invoke_bedrock_text(
@@ -138,8 +376,39 @@ def invoke_bedrock_text(
     raise RuntimeError(f"Bedrock invoke failed after retries: {last_error}")
 
 
-def build_prompt(method_text: str, transcript: str, tier: str) -> str:
+def build_voice_fortune_context(
+    transcript_text: str,
+    title: str = "",
+    category: str = "",
+    memo: str = "",
+    name: str = "",
+    birth_date: str = "",
+    gender: str = "",
+) -> Dict[str, Any]:
+    return {
+        "engine_version": "voice_fortune_v0",
+        "title": title,
+        "category": category,
+        "user_profile": {
+            "name": name,
+            "birth_date": birth_date,
+            "gender": gender,
+        },
+        "transcript_text": transcript_text,
+        "memo": memo,
+        "reading_axes": [
+            "今日の流れ",
+            "内面の声",
+            "今の選択",
+            "次の一歩",
+        ],
+    }
+
+
+def build_prompt(method_text: str, transcript: str, tier: str, context: Optional[Dict[str, Any]] = None) -> str:
     rule = TIERS[tier]
+    voice_context = context or build_voice_fortune_context(transcript_text=transcript)
+    voice_context_json = json.dumps(voice_context, ensure_ascii=False, indent=2)
 
     return f"""
 あなたは占い師「白音七」です。以下の白音七メソッドと、ユーザーの音声文字起こしを元に占い文を作ってください。
@@ -149,6 +418,9 @@ def build_prompt(method_text: str, transcript: str, tier: str) -> str:
 
 # ユーザーの相談（文字起こし）
 {transcript}
+
+# voice_fortune_v0 コンテキスト
+{voice_context_json}
 
 # 出力条件
 - 日本語
@@ -181,6 +453,15 @@ def build_prompt(method_text: str, transcript: str, tier: str) -> str:
 - 占い本文を書いたあと、最後の1行に必ず次の形式でタグを書く
 タグ：候補の中から1つだけ
 - タグ行以外に説明は書かない
+
+# JSON出力の厳守
+- 以下のJSONオブジェクトだけを返す
+- Markdownコードブロックは禁止
+- ```jsonは禁止
+- ```は禁止
+- JSONの前後に説明文を書かない
+- キーは summary, full_text, today_flow, outer_impression, action_hint の5つ
+- すべて文字列で返す
 """.strip()
 
 
@@ -212,7 +493,75 @@ def pick_message_and_advice(text: str) -> tuple[str, str]:
     return message, advice
 
 
+def strip_markdown_json_fence(text: str) -> str:
+    cleaned = text.strip()
+
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].strip().lower() in {"```json", "```"}:
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+
+    return cleaned
+
+
+def extract_json_object_text(text: str) -> str:
+    cleaned = strip_markdown_json_fence(text)
+
+    try:
+        json.loads(cleaned)
+        return cleaned
+    except json.JSONDecodeError:
+        pass
+
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("json object not found")
+
+    return cleaned[start:end + 1].strip()
+
+
+def parse_bedrock_result_json(text: str) -> Optional[Dict[str, Any]]:
+    try:
+        parsed = json.loads(extract_json_object_text(text))
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return None
+
+    if not isinstance(parsed, dict):
+        return None
+
+    return parsed
+
+
 def build_result_json(tier: str, transcript: str, fortune_text: str) -> dict:
+    parsed_result = parse_bedrock_result_json(fortune_text)
+    if parsed_result:
+        summary = str(parsed_result.get("summary") or "").strip()
+        full_text = str(parsed_result.get("full_text") or "").strip()
+        today_flow = str(parsed_result.get("today_flow") or "").strip()
+        outer_impression = str(parsed_result.get("outer_impression") or "").strip()
+        action_hint = str(parsed_result.get("action_hint") or "").strip()
+        message = summary or full_text or today_flow
+        advice = action_hint or today_flow or summary
+
+        return {
+            "status": "ok",
+            "type": tier,
+            "transcript": transcript,
+            "summary": summary,
+            "full_text": full_text.replace("\n", "<br>"),
+            "today_flow": today_flow,
+            "outer_impression": outer_impression,
+            "action_hint": action_hint,
+            "message": message,
+            "advice": advice,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
     tag, cleaned_text = extract_tag_and_clean_text(fortune_text)
     message, advice = pick_message_and_advice(cleaned_text)
 
@@ -229,124 +578,73 @@ def build_result_json(tier: str, transcript: str, fortune_text: str) -> dict:
 
 
 # =========================
-# DynamoDB
-# =========================
-def get_user(user_id: str) -> Optional[Dict[str, Any]]:
-    response = users_table.get_item(Key={"user_id": user_id})
-    item = response.get("Item")
-    print(f"user fetched: {item}")
-    return item
-
-
-def build_engine_input_from_user(user: Dict[str, Any], tier: str) -> Dict[str, Any]:
-    return {
-        "name": user["name"],
-        "birth_date": user["birth_date"],
-        "target_date": datetime.now().strftime("%Y-%m-%d"),
-        "tier": tier,
-    }
-
-
-def build_engine_result(engine_input: Dict[str, Any]) -> Dict[str, Any]:
-    numerology_result = run_numerology(engine_input)
-
-    integrated_result = integrate_shirone7(
-        numerology_result=numerology_result,
-        plan=engine_input.get("tier", "free"),
-        user_context=engine_input,
-    )
-
-    return {
-        "numerology": numerology_result,
-        "integrated": integrated_result,
-    }
-
-
-# =========================
 # Main
 # =========================
 def lambda_handler(event, context):
     record = event["Records"][0]
     bucket = record["s3"]["bucket"]["name"]
     key = urllib.parse.unquote_plus(record["s3"]["object"]["key"])
-
-    print(f"event bucket={bucket}, key={key}")
-
-    if bucket != BUCKET_NAME:
-        raise ValueError("Unexpected bucket")
-
-    if not key.startswith("raw/"):
-        return {"statusCode": 200, "body": "ignored"}
-
-    tier = get_tier_from_key(key)
     base_name = key.split("/")[-1].rsplit(".", 1)[0]
 
-    print(f"tier={tier}, base_name={base_name}")
+    print(f"processing s3 object basename={base_name}")
 
-    ext = key.rsplit(".", 1)[-1].lower()
-    if ext not in ALLOWED_MEDIA_FORMATS:
-        raise ValueError(f"Unsupported media format: {ext}")
+    if not RESULT_BUCKET:
+        raise RuntimeError("voice result configuration error")
 
-    media_format = "mp4" if ext == "m4a" else ext
-    transcript_key = f"transcript/{tier}/{base_name}.json"
+    if not is_target_transcript_key(key):
+        print("skipped: not transcript member json")
+        return {"statusCode": 200, "body": "skipped"}
 
-    job_name = f"shirone7-{int(time.time())}-{base_name}".replace("_", "-")[:200]
+    tier = get_tier_from_key(key)
 
-    print(f"starting transcribe job: {job_name}")
-    print(f"transcript_key={transcript_key}")
+    print(f"processing transcript tier={tier}, basename={base_name}")
 
-    transcribe.start_transcription_job(
-        TranscriptionJobName=job_name,
-        LanguageCode="ja-JP",
-        MediaFormat=media_format,
-        Media={"MediaFileUri": f"s3://{bucket}/{key}"},
-        OutputBucketName=bucket,
-        OutputKey=transcript_key,
-    )
+    transcript_json = load_json_from_s3(bucket, key)
+    transcript_text = extract_transcript_text(transcript_json)
+    transcribe_job_name = extract_transcribe_job_name(transcript_json)
+    print("transcript json loaded")
 
-    job_res = wait_transcribe(job_name)
-    status = job_res["TranscriptionJob"]["TranscriptionJobStatus"]
+    history_item = find_history_item_by_transcript_key(key, transcribe_job_name)
+    if not history_item:
+        raise ValueError("history item not found")
 
-    if status == "FAILED":
-        reason = job_res["TranscriptionJob"].get("FailureReason", "unknown")
-        raise RuntimeError(f"Transcribe failed: {reason}")
-
-    transcript_text = fetch_transcript_text_from_s3(bucket, transcript_key)
-    print("transcript fetched from s3")
+    print("history item found")
 
     method_text = read_method_text()
 
-    prompt = build_prompt(method_text, transcript_text, tier)
+    voice_context = build_voice_fortune_context(
+        transcript_text=transcript_text,
+        title=str(history_item.get("title") or history_item.get("input_title") or ""),
+        category=str(history_item.get("category") or tier),
+        memo=str(history_item.get("memo") or ""),
+        name=str(history_item.get("name") or ""),
+        birth_date=str(history_item.get("birth_date") or ""),
+        gender=str(history_item.get("gender") or ""),
+    )
+    prompt = build_prompt(method_text, transcript_text, tier, voice_context)
     print("starting fortune generation")
     fortune_text = invoke_bedrock_text(prompt, max_tokens=1200, temperature=0.7)
     print("fortune generation completed")
 
     result_json = build_result_json(tier, transcript_text, fortune_text)
-
-    user_id = "user_001"
-    user = get_user(user_id)
-
-    if not user:
-        raise ValueError(f"user not found: {user_id}")
-
-    engine_input = build_engine_input_from_user(user, tier)
-    result_json["engine_results"] = build_engine_result(engine_input)
-    result_json["user_profile"] = {
-        "user_id": user_id,
-        "name": user["name"],
-        "birth_date": user["birth_date"],
-        "plan": user.get("plan", tier),
+    result_json["engine_results"] = {
+        "voice_fortune_v0": voice_context,
     }
+    result_json["user_profile"] = voice_context["user_profile"]
 
-    out_key = f"result/{tier}/{base_name}.json"
+    out_key = result_key_from_transcript_key(key, history_item)
     print(f"saving result to {out_key}")
 
     s3.put_object(
-        Bucket=bucket,
+        Bucket=RESULT_BUCKET,
         Key=out_key,
         Body=json.dumps(result_json, ensure_ascii=False, indent=2).encode("utf-8"),
         ContentType="application/json; charset=utf-8",
     )
+
+    update_history_completed(history_item, result_json, out_key)
+    consume_voice_quota(history_item)
+    print("history completed")
 
     return {
         "statusCode": 200,

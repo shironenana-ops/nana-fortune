@@ -1,9 +1,7 @@
 import base64
 import binascii
-import cgi
 import hashlib
 import hmac
-import io
 import json
 import logging
 import os
@@ -12,6 +10,8 @@ import time
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
+from email.parser import BytesParser
+from email.policy import default
 
 import boto3
 from botocore.exceptions import ClientError
@@ -193,36 +193,39 @@ def parse_multipart(event):
         raise ValueError("multipart/form-data is required")
 
     body_bytes = get_request_body_bytes(event)
-    environ = {
-        "REQUEST_METHOD": "POST",
-        "CONTENT_TYPE": content_type,
-        "CONTENT_LENGTH": str(len(body_bytes)),
-    }
-
-    form = cgi.FieldStorage(
-        fp=io.BytesIO(body_bytes),
-        environ=environ,
-        keep_blank_values=True,
-    )
+    message_bytes = (
+        f"Content-Type: {content_type}\r\n"
+        "MIME-Version: 1.0\r\n"
+        "\r\n"
+    ).encode("utf-8") + body_bytes
+    message = BytesParser(policy=default).parsebytes(message_bytes)
 
     fields = {}
     file_info = None
 
-    for key in form.keys():
-        value = form[key]
-        field = value[0] if isinstance(value, list) else value
+    for part in message.iter_parts():
+        if part.get_content_disposition() != "form-data":
+            continue
 
-        if key == "file":
-            filename = safe_str(field.filename)
-            file_bytes = field.file.read() if field.file else b""
-            content_type_value = safe_str(field.type)
+        name = part.get_param("name", header="content-disposition")
+        if not name:
+            continue
+
+        payload = part.get_payload(decode=True) or b""
+        filename = safe_str(part.get_filename())
+
+        if name == "file" and filename:
             file_info = {
                 "filename": filename,
-                "content_type": content_type_value,
-                "bytes": file_bytes,
+                "content_type": safe_str(part.get_content_type()),
+                "bytes": payload,
             }
         else:
-            fields[key] = field.value if hasattr(field, "value") else ""
+            charset = part.get_content_charset() or "utf-8"
+            try:
+                fields[name] = payload.decode(charset)
+            except UnicodeDecodeError:
+                fields[name] = payload.decode("utf-8", errors="replace")
 
     if not file_info or not file_info["bytes"]:
         raise ValueError("file is required")
@@ -409,8 +412,8 @@ def lambda_handler(event, context):
         user_segment = safe_key_segment(user_id)
 
         audio_s3_key = f"raw/member/{date_prefix}/{user_segment}/{short_id}.{ext}"
-        transcript_s3_key = f"transcript/member/{date_prefix}/{user_segment}/{short_id}.json"
-        result_s3_key = f"result/member/{date_prefix}/{user_segment}/{short_id}.json"
+        transcript_s3_key = f"transcript/member/{short_id}.json"
+        result_s3_key = f"result/member/{short_id}.json"
 
         s3.put_object(
             Bucket=VOICE_BUCKET,
