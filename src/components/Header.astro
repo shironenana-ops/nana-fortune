@@ -1,96 +1,304 @@
 ---
-import { SITE_TITLE } from '../consts';
-import HeaderLink from './HeaderLink.astro';
 ---
 
-<header>
-	<nav>
-		<h2><a href="/">🌙 白音七 - nana-fortune.com</a></h2>
-		<div class="internal-links">
-			<HeaderLink href="/">ホーム</HeaderLink>
-			<HeaderLink href="/blog">占い日記</HeaderLink>
-			<HeaderLink href="/about">白音七とは</HeaderLink>
-			<HeaderLink href="/compat">相性占い</HeaderLink>
-			<a href="/contact">お問い合わせ</a>
-		</div>
-		<div class="social-links">
-			<a href="https://m.webtoo.ls/@astro" target="_blank">
-				<span class="sr-only">Follow Astro on Mastodon</span>
-				<svg viewBox="0 0 16 16" aria-hidden="true" width="32" height="32"
-					><path
-						fill="currentColor"
-						d="M11.19 12.195c2.016-.24 3.77-1.475 3.99-2.603.348-1.778.32-4.339.32-4.339 0-3.47-2.286-4.488-2.286-4.488C12.062.238 10.083.017 8.027 0h-.05C5.92.017 3.942.238 2.79.765c0 0-2.285 1.017-2.285 4.488l-.002.662c-.004.64-.007 1.35.011 2.091.083 3.394.626 6.74 3.78 7.57 1.454.383 2.703.463 3.709.408 1.823-.1 2.847-.647 2.847-.647l-.06-1.317s-1.303.41-2.767.36c-1.45-.05-2.98-.156-3.215-1.928a3.614 3.614 0 0 1-.033-.496s1.424.346 3.228.428c1.103.05 2.137-.064 3.188-.189zm1.613-2.47H11.13v-4.08c0-.859-.364-1.295-1.091-1.295-.804 0-1.207.517-1.207 1.541v2.233H7.168V5.89c0-1.024-.403-1.541-1.207-1.541-.727 0-1.091.436-1.091 1.296v4.079H3.197V5.522c0-.859.22-1.541.66-2.046.456-.505 1.052-.764 1.793-.764.856 0 1.504.328 1.933.983L8 4.39l.417-.695c.429-.655 1.077-.983 1.934-.983.74 0 1.336.259 1.791.764.442.505.661 1.187.661 2.046v4.203z"
-					></path></svg
-				>
-			</a>
-			<a href="https://twitter.com/astrodotbuild" target="_blank">
-				<span class="sr-only">Follow Astro on Twitter</span>
-				<svg viewBox="0 0 16 16" aria-hidden="true" width="32" height="32"
-					><path
-						fill="currentColor"
-						d="M5.026 15c6.038 0 9.341-5.003 9.341-9.334 0-.14 0-.282-.006-.422A6.685 6.685 0 0 0 16 3.542a6.658 6.658 0 0 1-1.889.518 3.301 3.301 0 0 0 1.447-1.817 6.533 6.533 0 0 1-2.087.793A3.286 3.286 0 0 0 7.875 6.03a9.325 9.325 0 0 1-6.767-3.429 3.289 3.289 0 0 0 1.018 4.382A3.323 3.323 0 0 1 .64 6.575v.045a3.288 3.288 0 0 0 2.632 3.218 3.203 3.203 0 0 1-.865.115 3.23 3.23 0 0 1-.614-.057 3.283 3.283 0 0 0 3.067 2.277A6.588 6.588 0 0 1 .78 13.58a6.32 6.32 0 0 1-.78-.045A9.344 9.344 0 0 0 5.026 15z"
-					></path></svg
-				>
-			</a>
-			<a href="https://github.com/withastro/astro" target="_blank">
-				<span class="sr-only">Go to Astro's GitHub repo</span>
-				<svg viewBox="0 0 16 16" aria-hidden="true" width="32" height="32"
-					><path
-						fill="currentColor"
-						d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
-					></path></svg
-				>
-			</a>
-		</div>
-	</nav>
-</header>
-<style>
-	header {
-		margin: 0;
-		padding: 0.8em 1em;
-		background: rgba(0, 0, 0, 0.7);
-		backdrop-filter: blur(6px);
-		color: #ffd700;
-		border-bottom: 1px solid rgba(255, 215, 0, 0.15);
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-		position: sticky;
-		top: 0;
-		z-index: 100;
-	}
-	h2 {
-		margin: 0;
-		font-size: 1.1em;
-		color: #ffd700;
-	}
-	h2 a {
-		text-decoration: none;
-		color: #ffd700;
-	}
-	nav {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-	nav a {
-		padding: 1em 0.5em;
-		color: #ffec8b;
-		text-decoration: none;
-		border-bottom: 2px solid transparent;
-		transition: all 0.2s ease;
-	}
-	nav a:hover {
-		color: #fff2b0;
-		border-bottom-color: #ffd700;
-	}
-	.social-links,
-	.social-links a {
-		display: flex;
-		color: #ffd700;
-	}
-	@media (max-width: 720px) {
-		.social-links {
-			display: none;
-		}
-	}
-</style>
+<header class="site-header">
+  <nav class="site-header-nav" aria-label="メインメニュー">
+    <a href="/" class="site-header-logo">白音七</a>
 
+    <div class="site-header-links">
+      <a href="/">TOP</a>
+      <a href="/diagnosis">今日の鑑定</a>
+      <a href="/compat">相性占い</a>
+      <a href="/history">履歴一覧</a>
+      <a href="/members">会員ページ</a>
+      <span id="desktopHeaderAuth" class="site-header-auth"></span>
+    </div>
+
+    <button
+      id="mobileHeaderToggle"
+      class="site-header-menu-button"
+      type="button"
+      aria-controls="mobileHeaderMenu"
+      aria-expanded="false"
+      aria-label="メニューを開く"
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </nav>
+
+  <div id="mobileHeaderMenu" class="site-header-mobile-menu" hidden>
+    <a href="/">TOP</a>
+    <a href="/diagnosis">今日の鑑定</a>
+    <a href="/compat">相性占い</a>
+    <a href="/history">履歴一覧</a>
+    <a href="/members">会員ページ</a>
+    <div id="mobileHeaderAuth" class="site-header-mobile-auth"></div>
+  </div>
+</header>
+
+<script>
+  const headerToggle = document.getElementById("mobileHeaderToggle");
+  const mobileMenu = document.getElementById("mobileHeaderMenu");
+  const desktopAuth = document.getElementById("desktopHeaderAuth");
+  const mobileAuth = document.getElementById("mobileHeaderAuth");
+
+  function escapeHeaderHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function getHeaderEmail() {
+    return (
+      localStorage.getItem("loginEmail") ||
+      localStorage.getItem("userEmail") ||
+      localStorage.getItem("user_email") ||
+      localStorage.getItem("userId") ||
+      localStorage.getItem("user_id") ||
+      ""
+    );
+  }
+
+  function logoutFromHeader() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("loginEmail");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("user_id");
+    window.location.href = "/";
+  }
+
+  function renderHeaderAuth() {
+    const token = localStorage.getItem("token");
+    const email = getHeaderEmail();
+
+    if (token && email) {
+      const safeEmail = escapeHeaderHtml(email);
+
+      if (desktopAuth) {
+        desktopAuth.innerHTML = `
+          <span class="site-header-user">${safeEmail}</span>
+          <button id="desktopHeaderLogout" class="site-header-logout" type="button">ログアウト</button>
+        `;
+      }
+
+      if (mobileAuth) {
+        mobileAuth.innerHTML = `
+          <span class="site-header-mobile-user">${safeEmail}</span>
+          <button id="mobileHeaderLogout" class="site-header-mobile-logout" type="button">ログアウト</button>
+        `;
+      }
+
+      document.getElementById("desktopHeaderLogout")?.addEventListener("click", logoutFromHeader);
+      document.getElementById("mobileHeaderLogout")?.addEventListener("click", logoutFromHeader);
+      return;
+    }
+
+    if (desktopAuth) {
+      desktopAuth.innerHTML = `<a href="/login" class="site-header-login">ログイン</a>`;
+    }
+
+    if (mobileAuth) {
+      mobileAuth.innerHTML = `<a href="/login" class="site-header-mobile-login">ログイン</a>`;
+    }
+  }
+
+  headerToggle?.addEventListener("click", () => {
+    if (!mobileMenu) return;
+
+    const isOpen = headerToggle.getAttribute("aria-expanded") === "true";
+    headerToggle.setAttribute("aria-expanded", String(!isOpen));
+    headerToggle.setAttribute("aria-label", isOpen ? "メニューを開く" : "メニューを閉じる");
+    mobileMenu.hidden = isOpen;
+  });
+
+  mobileMenu?.addEventListener("click", (event) => {
+    if (!(event.target instanceof HTMLAnchorElement)) return;
+    headerToggle?.setAttribute("aria-expanded", "false");
+    headerToggle?.setAttribute("aria-label", "メニューを開く");
+    mobileMenu.hidden = true;
+  });
+
+  renderHeaderAuth();
+</script>
+
+<style>
+  .site-header {
+    margin: 0;
+    padding: 0.8em 1em;
+    background: rgba(8, 6, 20, 0.82);
+    backdrop-filter: blur(8px);
+    color: #ffd700;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .site-header-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  .site-header-logo {
+    color: #ffd700;
+    font-size: 1.12rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .site-header-links {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .site-header-links a,
+  .site-header-login,
+  .site-header-logout {
+    color: #ffec8b;
+    text-decoration: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    padding: 0.85em 0.5em;
+    font: inherit;
+    cursor: pointer;
+    transition:
+      color 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .site-header-links a:hover,
+  .site-header-login:hover,
+  .site-header-logout:hover {
+    color: #fff2b0;
+    border-bottom-color: #ffd700;
+  }
+
+  .site-header-auth {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .site-header-user {
+    color: #fff2b0;
+    font-size: 0.9rem;
+    max-width: 18ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .site-header-menu-button {
+    display: none;
+    width: 44px;
+    height: 44px;
+    border: 1px solid rgba(255, 215, 0, 0.34);
+    border-radius: 999px;
+    background: rgba(255, 215, 0, 0.08);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 5px;
+    cursor: pointer;
+  }
+
+  .site-header-menu-button span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    border-radius: 999px;
+    background: #ffec8b;
+  }
+
+  .site-header-mobile-menu {
+    max-width: 1120px;
+    margin: 12px auto 0;
+    padding: 12px;
+    border: 1px solid rgba(255, 215, 0, 0.18);
+    border-radius: 8px;
+    background: rgba(13, 10, 31, 0.96);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  }
+
+  .site-header-mobile-menu[hidden] {
+    display: none !important;
+  }
+
+  .site-header-mobile-menu a,
+  .site-header-mobile-logout,
+  .site-header-mobile-login {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    width: 100%;
+    padding: 10px 8px;
+    color: #ffec8b;
+    text-decoration: none;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.12);
+    background: transparent;
+    font: inherit;
+    text-align: left;
+  }
+
+  .site-header-mobile-menu a:last-child,
+  .site-header-mobile-auth > :last-child {
+    border-bottom: 0;
+  }
+
+  .site-header-mobile-auth {
+    padding-top: 8px;
+  }
+
+  .site-header-mobile-user {
+    display: block;
+    padding: 10px 8px 6px;
+    color: #fff2b0;
+    font-size: 0.88rem;
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 768px) {
+    .site-header {
+      padding: 0.7em 0.9em !important;
+    }
+
+    .site-header-nav {
+      min-height: 48px;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+    }
+
+    .site-header-links {
+      display: none !important;
+    }
+
+    .site-header-logo {
+      font-size: 1.08rem;
+    }
+
+    .site-header-menu-button {
+      display: inline-flex !important;
+      flex: 0 0 auto;
+    }
+  }
+</style>
