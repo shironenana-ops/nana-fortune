@@ -1,8 +1,11 @@
+export type ShironePlan = "free" | "light" | "deep";
+
 export type ShironeEngineInput = {
   birthDate: string;
   name?: string;
   question?: string;
   today?: string;
+  plan?: ShironePlan;
 };
 
 export type ShironeNumerologyResult = {
@@ -31,13 +34,56 @@ export type ShironeEngineContext = {
   biorhythm: ShironeBiorhythmHint;
 };
 
+export type ShironeLengthRange = {
+  min: number;
+  max: number;
+  label: string;
+};
+
+export type ShironeReadingSection = {
+  id: string;
+  title: string;
+  summary: string;
+  body: string;
+};
+
+export type ShironeKnowledgePayload = {
+  plan: ShironePlan;
+  inputSummary: {
+    hasName: boolean;
+    hasQuestion: boolean;
+    questionTheme: string;
+  };
+  context: ShironeEngineContext;
+  resultSummary: {
+    title: string;
+    todayMessage: string;
+    oneStep: string;
+    avoidHint: string;
+  };
+  tags: string[];
+};
+
+export type ShironeIconHint = {
+  key: string;
+  label: string;
+  value: string;
+  icon: string;
+  tone: "gold" | "purple" | "blue" | "green" | "gray";
+};
+
 export type ShironeEngineResult = {
+  plan: ShironePlan;
+  lengthRange: ShironeLengthRange;
   title: string;
   todayMessage: string;
   marginMessage: string;
   oneStep: string;
   avoidHint: string;
   audioScript: string;
+  sections: ShironeReadingSection[];
+  knowledgePayload: ShironeKnowledgePayload;
+  iconHints: ShironeIconHint[];
   context: ShironeEngineContext;
 };
 
@@ -50,6 +96,24 @@ type DateParts = {
 type WaveLevel = ShironeBiorhythmHint["physical"];
 
 const MASTER_NUMBERS = new Set([11, 22, 33]);
+
+const LENGTH_RANGES: Record<ShironePlan, ShironeLengthRange> = {
+  free: {
+    min: 300,
+    max: 800,
+    label: "1分ほどで読める短い鑑定"
+  },
+  light: {
+    min: 2000,
+    max: 4000,
+    label: "少し深く受け取る軽めの有料鑑定"
+  },
+  deep: {
+    min: 10000,
+    max: 30000,
+    label: "多面的に読み解く深掘り鑑定"
+  }
+};
 
 const NUMBER_THEMES: Record<number, string> = {
   1: "小さな始まり",
@@ -130,6 +194,11 @@ const ELEMENT_HINTS: Record<ShironeAstrologyHint["element"], string> = {
   water: "感情を急がせず、静かに受け止めると整いやすい空気です",
   unknown: "今日は自分の感覚をゆっくり確かめるとよさそうです"
 };
+
+function normalizePlan(plan: ShironeEngineInput["plan"]): ShironePlan {
+  if (plan === "light" || plan === "deep") return plan;
+  return "free";
+}
 
 function assertValidDate(value: string, fieldName: string): DateParts {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -274,7 +343,213 @@ function biorhythmMarginMessage(biorhythm: ShironeBiorhythmHint): string {
   return "今の余白は、広すぎなくても大丈夫です。\n短い休憩や、ひと呼吸を置く時間が今日のあなたを支えてくれます。";
 }
 
+function detectQuestionTheme(question?: string): string {
+  const text = question?.trim() ?? "";
+
+  if (!text) return "none";
+  if (/恋|愛|結婚|夫婦|相性|パートナー/.test(text)) return "relationship";
+  if (/仕事|転職|職場|副業|働|キャリア/.test(text)) return "work";
+  if (/お金|収入|支出|投資|家計/.test(text)) return "money";
+  if (/体|健康|疲|眠|休/.test(text)) return "care";
+  return "daily-flow";
+}
+
+function buildSections(params: {
+  plan: ShironePlan;
+  title: string;
+  todayMessage: string;
+  marginMessage: string;
+  oneStep: string;
+  avoidHint: string;
+  context: ShironeEngineContext;
+  question?: string;
+}): ShironeReadingSection[] {
+  const { plan, title, todayMessage, marginMessage, oneStep, avoidHint, context, question } = params;
+  const lifePath = context.numerology.lifePathNumber;
+  const dayNumber = cycleNumber(context.numerology.personalDayNumber);
+  const lifeTheme = NUMBER_THEMES[lifePath] ?? NUMBER_THEMES[cycleNumber(lifePath)];
+  const dayTheme = NUMBER_THEMES[dayNumber];
+  const questionText = question?.trim();
+
+  if (plan === "free") {
+    return [
+      {
+        id: "today-line",
+        title: "今日の一文",
+        summary: title,
+        body: todayMessage
+      },
+      {
+        id: "margin",
+        title: "今の余白",
+        summary: "今日の波に合わせて、休む幅を少し整えます",
+        body: marginMessage
+      },
+      {
+        id: "one-step",
+        title: "無理しない一歩",
+        summary: oneStep,
+        body: `今日できることは「${oneStep}」。\n大きく動かなくても、ここから流れを整えられそうです。`
+      }
+    ];
+  }
+
+  if (plan === "light") {
+    return [
+      {
+        id: "daily-flow",
+        title: "今日の流れ",
+        summary: `${dayTheme}の流れを短く整理します`,
+        body: todayMessage
+      },
+      {
+        id: "essence",
+        title: "あなたの本質",
+        summary: `ライフパス${lifePath}の気配`,
+        body: `数秘では、あなたの背骨に${lifeTheme}が流れています。\n今日はそれを強く使うより、扱いやすい形まで小さくするのがよさそうです。`
+      },
+      {
+        id: "current-theme",
+        title: "今のテーマ",
+        summary: `${context.astrology.zodiacSign}の空気と今日の波`,
+        body: `${ELEMENT_HINTS[context.astrology.element]}\nバイオリズムは、体・心・思考の波を見ながら無理のない配分を探すための目安です。`
+      },
+      {
+        id: "action-hint",
+        title: "行動ヒント",
+        summary: oneStep,
+        body: `今日の一歩は「${oneStep}」。\n迷ったら、いちばん小さく始められる形を選んでみてください。`
+      },
+      {
+        id: "avoid-hint",
+        title: "避けたいこと",
+        summary: avoidHint,
+        body: `今日は「${avoidHint}」を少しだけ避けると、心の余白が残りやすくなります。`
+      }
+    ];
+  }
+
+  return [
+    {
+      id: "numerology-essence",
+      title: "数秘術から見る本質",
+      summary: `ライフパス${lifePath}と個人日${context.numerology.personalDayNumber}`,
+      body: `ライフパス${lifePath}には、${lifeTheme}という背骨があります。\n今日の個人日は${context.numerology.personalDayNumber}。${dayTheme}の流れを重ねて読むと、無理に広げるより今扱える形へ整えることが鍵になりそうです。`
+    },
+    {
+      id: "astrology-air",
+      title: "星から見る今の空気",
+      summary: `${context.astrology.zodiacSign} / ${context.astrology.element} / ${context.astrology.mode}`,
+      body: `${context.astrology.zodiacSign}の簡易ヒントでは、${ELEMENT_HINTS[context.astrology.element]}\n出生時刻や出生地を使わないため、ここでは空気と光のような補助線として扱います。`
+    },
+    {
+      id: "today-wave",
+      title: "今日の波",
+      summary: `体 ${context.biorhythm.physical} / 心 ${context.biorhythm.emotional} / 思考 ${context.biorhythm.intellectual}`,
+      body: `${marginMessage}\nこの波は断定ではなく、今日の力の配分をやさしく見るための目安です。`
+    },
+    {
+      id: "question-layer",
+      title: "相談内容との重ね読み",
+      summary: questionText ? "相談内容を今日の流れに重ねます" : "相談内容がない場合は日々の流れを中心に読みます",
+      body: questionText
+        ? `相談内容「${questionText}」は、すぐに結論へ押し込まなくて大丈夫です。\n今日の流れに重ねるなら、まずは自分の感覚を失わない大きさまで問いを小さくしてみてください。`
+        : "今日は具体的な相談内容がなくても、日々の流れを見ながら、心に残るところだけ受け取れば大丈夫です。"
+    },
+    {
+      id: "release",
+      title: "手放すこと",
+      summary: avoidHint,
+      body: `手放す候補は「${avoidHint}」。\n完全にやめる必要はありません。気づいた時に少し距離を置くだけでも、流れは静かに変わります。`
+    },
+    {
+      id: "next-action",
+      title: "これからの行動",
+      summary: oneStep,
+      body: `これからの一歩は「${oneStep}」。\n今日の自分にできる大きさで選ぶことが、次の安心につながりそうです。`
+    },
+    {
+      id: "audio-summary",
+      title: "音声で受け取るためのまとめ",
+      summary: "短く読み上げやすい形に整えます",
+      body: `今日の灯りは${dayTheme}。\n余白を残しながら、${oneStep}。\nあなたのペースで大丈夫です。`
+    }
+  ];
+}
+
+function buildIconHints(context: ShironeEngineContext): ShironeIconHint[] {
+  const biorhythmFocus =
+    context.biorhythm.emotional !== "middle"
+      ? `感情 ${context.biorhythm.emotional}`
+      : `思考 ${context.biorhythm.intellectual}`;
+
+  return [
+    {
+      key: "numerology",
+      label: "数秘",
+      value: `LP${context.numerology.lifePathNumber}`,
+      icon: "月",
+      tone: "gold"
+    },
+    {
+      key: "astrology",
+      label: "星",
+      value: context.astrology.zodiacSign,
+      icon: "星",
+      tone: "purple"
+    },
+    {
+      key: "biorhythm",
+      label: "波",
+      value: biorhythmFocus,
+      icon: "波",
+      tone: "blue"
+    }
+  ];
+}
+
+function buildKnowledgePayload(params: {
+  plan: ShironePlan;
+  input: ShironeEngineInput;
+  context: ShironeEngineContext;
+  title: string;
+  todayMessage: string;
+  oneStep: string;
+  avoidHint: string;
+}): ShironeKnowledgePayload {
+  const { plan, input, context, title, todayMessage, oneStep, avoidHint } = params;
+  const questionTheme = detectQuestionTheme(input.question);
+
+  return {
+    plan,
+    inputSummary: {
+      hasName: Boolean(input.name?.trim()),
+      hasQuestion: Boolean(input.question?.trim()),
+      questionTheme
+    },
+    context,
+    resultSummary: {
+      title,
+      todayMessage,
+      oneStep,
+      avoidHint
+    },
+    tags: [
+      `plan:${plan}`,
+      `question:${questionTheme}`,
+      `lifePath:${context.numerology.lifePathNumber}`,
+      `personalDay:${context.numerology.personalDayNumber}`,
+      `zodiac:${context.astrology.zodiacSign}`,
+      `element:${context.astrology.element}`,
+      `bio:physical:${context.biorhythm.physical}`,
+      `bio:emotional:${context.biorhythm.emotional}`,
+      `bio:intellectual:${context.biorhythm.intellectual}`
+    ]
+  };
+}
+
 function buildResult(input: ShironeEngineInput, context: ShironeEngineContext): ShironeEngineResult {
+  const plan = normalizePlan(input.plan);
   const name = input.name?.trim();
   const numerologyDay = cycleNumber(context.numerology.personalDayNumber);
   const lifeTheme = NUMBER_THEMES[context.numerology.lifePathNumber] ?? NUMBER_THEMES[cycleNumber(context.numerology.lifePathNumber)];
@@ -302,14 +577,39 @@ function buildResult(input: ShironeEngineInput, context: ShironeEngineContext): 
     `今日は、${avoidHint}を少しだけ避けてみてください。`,
     "あなたのペースで大丈夫です。"
   ].join("\n");
+  const sections = buildSections({
+    plan,
+    title,
+    todayMessage,
+    marginMessage,
+    oneStep,
+    avoidHint,
+    context,
+    question: input.question
+  });
+  const knowledgePayload = buildKnowledgePayload({
+    plan,
+    input,
+    context,
+    title,
+    todayMessage,
+    oneStep,
+    avoidHint
+  });
+  const iconHints = buildIconHints(context);
 
   return {
+    plan,
+    lengthRange: LENGTH_RANGES[plan],
     title,
     todayMessage,
     marginMessage,
     oneStep,
     avoidHint,
     audioScript,
+    sections,
+    knowledgePayload,
+    iconHints,
     context
   };
 }
