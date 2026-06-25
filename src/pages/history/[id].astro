@@ -154,16 +154,16 @@ export const prerender = false;
 
         if (normalized === "error" || normalized === "failed") {
           return {
-            label: "❌ エラー",
+            label: "確認が必要です",
             className: "fortune-detail-status error",
-            lead: "鑑定処理でエラーが発生しました。内容を確認し、必要であれば再鑑定してください。"
+            lead: "鑑定を確認できませんでした。少し時間を置いて、もう一度お試しください。"
           };
         }
 
         return {
           label: "・状態不明",
           className: "fortune-detail-status unknown",
-          lead: "状態の判定ができませんでした。"
+          lead: "鑑定の状態を確認しています。少し時間を置いて再読み込みしてください。"
         };
       }
 
@@ -566,26 +566,23 @@ export const prerender = false;
         const statusInfo = getStatusInfo(item?.status);
         const title = item?.title || item?.input_title || item?.category || "鑑定";
 
-        document.getElementById("detailTitle").textContent = "鑑定エラー";
+        document.getElementById("detailTitle").textContent = "鑑定を確認できませんでした";
         document.getElementById("detailLead").textContent =
-          "鑑定処理でエラーが発生しました。内容を確認してください。";
+          "少し時間を置いて、もう一度お試しください。";
 
-        const transcribeError =
-          item?.transcribe_error?.error ||
-          item?.transcribe_error ||
-          item?.error ||
-          "エラー内容は取得できませんでした。";
+        const gentleErrorMessage =
+          "鑑定を確認できませんでした。少し時間を置いて、もう一度お試しください。";
 
         return `
           <div class="fortune-detail-status-row">
             <span class="${statusInfo.className}">${escapeHtml(statusInfo.label)}</span>
           </div>
 
-          ${renderMeta(item, title, "エラー")}
+          ${renderMeta(item, title, "確認が必要")}
 
           <section class="fortune-detail-section">
-            <h2 class="fortune-detail-section-title">エラー内容</h2>
-            <div class="fortune-detail-error-box">${nl2br(transcribeError)}</div>
+            <h2 class="fortune-detail-section-title">確認のご案内</h2>
+            <div class="fortune-detail-error-box">${nl2br(gentleErrorMessage)}</div>
           </section>
 
           <div class="fortune-history-detail-actions fortune-detail-actions">
@@ -652,9 +649,9 @@ export const prerender = false;
       function renderSimpleError(message) {
         const target = document.getElementById("detail");
 
-        document.getElementById("detailTitle").textContent = "鑑定詳細を表示できません";
+        document.getElementById("detailTitle").textContent = "鑑定を確認できませんでした";
         document.getElementById("detailLead").textContent =
-          "履歴情報の取得中に問題が発生しました。";
+          "少し時間を置いて、もう一度お試しください。";
 
         target.className = "fortune-detail-error-state";
         target.innerHTML = `
@@ -676,7 +673,7 @@ export const prerender = false;
         }
 
         if (!historyId) {
-          renderSimpleError("history_id が取得できません。");
+          renderSimpleError("鑑定の受付情報を確認できませんでした。もう一度、音声鑑定ページからお試しください。");
           return;
         }
 
@@ -705,7 +702,7 @@ export const prerender = false;
           renderDetail(item);
         } catch (err) {
           console.error(err);
-          renderSimpleError("鑑定詳細の取得に失敗しました。時間を空けて再度お試しください。");
+          renderSimpleError("鑑定を確認できませんでした。少し時間を置いて、もう一度お試しください。");
         }
       }
 
