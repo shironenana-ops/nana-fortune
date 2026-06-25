@@ -342,7 +342,7 @@ export const prerender = false;
         supported: false,
         mimeType: "",
         ext: "",
-        message: "この端末・ブラウザでは録音機能を利用できません。ファイルアップロードをご利用ください。"
+        message: "この端末では録音の準備が整いません。ファイルアップロードをご利用ください。"
       };
     }
 
@@ -365,7 +365,7 @@ export const prerender = false;
       supported: true,
       mimeType: "",
       ext: "webm",
-      message: "録音形式の明示指定はできませんが、ブラウザ標準形式で録音を試みます。"
+      message: "録音形式は端末に合わせて自動で整えます。"
     };
   }
 
@@ -404,8 +404,9 @@ export const prerender = false;
 
     if (!recordingSupport.supported) {
       startRecordingBtn.disabled = true;
-      recordingBadge.textContent = "録音不可";
-      recordingStatusText.textContent = "この端末では録音できないため、アップロード方式をご利用ください。";
+      recordingBadge.textContent = "確認が必要です";
+      recordingStatusText.textContent =
+        "この端末では録音の準備が整いません。ファイルアップロードをご利用ください。";
     }
 
     function setStatus(state, text) {
@@ -414,7 +415,7 @@ export const prerender = false;
         checking: "確認中",
         uploading: "送信中",
         success: "受付完了",
-        error: "送信失敗"
+        error: "確認が必要です"
       };
 
       const safeText = escapeHtml(text || "");
@@ -531,7 +532,7 @@ export const prerender = false;
 
     async function startRecording() {
       if (!recordingSupport.supported) {
-        showToast("この端末では録音できません。", "error");
+        showToast("この端末では録音の準備が整いません。ファイルアップロードをご利用ください。", "error");
         return;
       }
 
@@ -553,9 +554,10 @@ export const prerender = false;
 
         mediaRecorder.onerror = (event) => {
           console.error("MediaRecorder error:", event);
-          showToast("録音中にエラーが発生しました。", "error");
-          recordingBadge.textContent = "録音エラー";
-          recordingStatusText.textContent = "録音に失敗しました。もう一度お試しください。";
+          showToast("録音を確認できませんでした。もう一度、静かな場所でお試しください。", "error");
+          recordingBadge.textContent = "確認が必要です";
+          recordingStatusText.textContent =
+            "録音を確認できませんでした。もう一度、静かな場所でお試しください。";
           resetRecordingUi();
           stopMediaTracks();
         };
@@ -573,9 +575,13 @@ export const prerender = false;
           const blob = new Blob(recordedChunks, { type: blobType });
 
           if (blob.size === 0) {
-            recordingBadge.textContent = "録音失敗";
-            recordingStatusText.textContent = "録音データが作成できませんでした。";
-            setStatus("error", "録音データが空でした。もう一度録音してください。");
+            recordingBadge.textContent = "確認が必要です";
+            recordingStatusText.textContent =
+              "録音を保存できませんでした。もう一度、静かな場所でお試しください。";
+            setStatus(
+              "error",
+              "録音を保存できませんでした。もう一度、静かな場所でお試しください。"
+            );
             resetRecordingUi();
             return;
           }
@@ -624,14 +630,14 @@ export const prerender = false;
         console.error(error);
         stopMediaTracks();
 
-        let message = "マイクを使用できませんでした。";
+        let message = "マイクの準備が整いませんでした。";
         if (error?.name === "NotAllowedError") {
-          message = "マイクの使用が許可されていません。ブラウザで許可してください。";
+          message = "マイクの許可を確認してから、もう一度お試しください。";
         } else if (error?.name === "NotFoundError") {
-          message = "利用できるマイクが見つかりませんでした。";
+          message = "マイクを確認できませんでした。ファイルアップロードもご利用いただけます。";
         }
 
-        recordingBadge.textContent = "録音不可";
+        recordingBadge.textContent = "確認が必要です";
         recordingStatusText.textContent = message;
         setStatus("error", message);
         showToast(message, "error");
@@ -814,7 +820,7 @@ export const prerender = false;
   const errorMessage =
     data?.message ||
     data?.error ||
-    `送信に失敗しました（${response.status}）`;
+    "音声を受け付けられませんでした。少し時間を置いて、もう一度お試しください。";
   throw new Error(errorMessage);
 }
 
@@ -840,8 +846,10 @@ export const prerender = false;
         }, 900);
       } catch (error) {
         console.error(error);
-        setStatus("error", error.message || "送信に失敗しました。時間を置いて再試行してください。");
-        showToast(error.message || "送信に失敗しました。", "error");
+        const voiceSubmitMessage =
+          "音声を受け付けられませんでした。少し時間を置いて、もう一度お試しください。";
+        setStatus("error", voiceSubmitMessage);
+        showToast(voiceSubmitMessage, "error");
       } finally {
         submitVoiceBtn.disabled = false;
         submitVoiceBtn.textContent = "音声鑑定を送信する";
