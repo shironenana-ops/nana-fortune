@@ -3021,3 +3021,100 @@
 .fortune-pill-link::after {
   pointer-events: none;
 }
+
+.fortune-mobile-menu-button {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .fortune-header-inner {
+    min-height: 58px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+  }
+
+  .fortune-logo {
+    width: auto;
+    justify-content: flex-start;
+    font-size: 1.28rem;
+  }
+
+  .fortune-mobile-menu-button {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 5px;
+    border: 1px solid rgba(242, 221, 154, 0.34);
+    border-radius: 999px;
+    background: rgba(242, 221, 154, 0.08);
+    cursor: pointer;
+  }
+
+  .fortune-mobile-menu-button span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--fortune-gold-light);
+  }
+
+  .fortune-nav {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(242, 221, 154, 0.18);
+    border-radius: 8px;
+    background: rgba(8, 10, 24, 0.98);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+  }
+
+  .fortune-nav.is-open {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .fortune-nav a,
+  .fortune-nav-pill,
+  .fortune-nav-logout {
+    width: 100%;
+    min-height: 44px;
+    justify-content: flex-start;
+    padding: 10px 8px;
+    border-radius: 0;
+    border: 0;
+    border-bottom: 1px solid rgba(242, 221, 154, 0.12);
+    background: transparent;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .fortune-user {
+    width: 100%;
+    padding: 10px 8px 6px;
+    text-align: left;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .fortune-nav-logout {
+    font-size: 0;
+  }
+
+  .fortune-nav-logout::after {
+    content: "ログアウト";
+    font-size: 0.88rem;
+  }
+}

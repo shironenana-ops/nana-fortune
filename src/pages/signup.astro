@@ -22,6 +22,18 @@ const siteCatch = "白音七の新規登録";
           <span>白音七</span>
         </a>
 
+        <button
+          class="fortune-mobile-menu-button"
+          type="button"
+          aria-label="メニューを開く"
+          aria-expanded="false"
+          onclick="const nav=this.parentElement.querySelector('.fortune-nav'); const open=!nav.classList.contains('is-open'); nav.classList.toggle('is-open', open); this.setAttribute('aria-expanded', String(open)); this.setAttribute('aria-label', open ? 'メニューを閉じる' : 'メニューを開く');"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
         <nav class="fortune-nav" id="navArea">
           <a href="/">TOP</a>
           <a href="/join">会員案内</a>
@@ -299,7 +311,7 @@ const siteCatch = "白音七の新規登録";
       if (token && savedEmail) {
         authArea.innerHTML = `
           <span class="fortune-user">${escapeHtml(savedEmail)}</span>
-          <button id="logoutBtn" class="fortune-nav-logout" type="button">⏻ ログアウト</button>
+          <button id="logoutBtn" class="fortune-nav-logout" type="button">ログアウト</button>
         `;
 
         document.getElementById("logoutBtn").addEventListener("click", () => {
