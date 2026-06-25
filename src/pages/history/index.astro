@@ -456,6 +456,20 @@ export const prerender = false;
         gap: 16px;
       }
 
+      .history-more-wrap {
+        display: none;
+        justify-content: center;
+        margin-top: 18px;
+      }
+
+      .history-more-wrap.is-show {
+        display: flex;
+      }
+
+      .history-more-button {
+        min-width: min(100%, 280px);
+      }
+
       .loading-card,
       .empty-card {
         padding: 24px;
@@ -807,6 +821,12 @@ export const prerender = false;
           <div id="historyList" class="history-list">
             <div class="loading-card">読み込み中...</div>
           </div>
+
+          <div id="historyMoreWrap" class="history-more-wrap">
+            <button id="historyMoreButton" class="history-action history-more-button" type="button">
+              もう少し見る
+            </button>
+          </div>
         </section>
       </div>
     </main>
@@ -838,6 +858,9 @@ export const prerender = false;
       const API_BASE = "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod";
       const HISTORY_API_BASE = API_BASE;
       const DEBUG_HISTORY = false;
+      const HISTORY_PAGE_SIZE = 5;
+      let allHistoryItems = [];
+      let visibleHistoryCount = HISTORY_PAGE_SIZE;
 
       function escapeHtml(value) {
         return String(value ?? "")
@@ -1102,11 +1125,12 @@ export const prerender = false;
         return "";
       }
 
-      function renderHistory(items) {
-        const list = document.getElementById("historyList");
-        list.innerHTML = "";
+      function getHistoryItemId(item) {
+        return String((item && (item.history_id || item.id)) || "");
+      }
 
-        items.sort(function (a, b) {
+      function sortHistoryItems(items) {
+        return items.slice().sort(function (a, b) {
           const ta =
             a && (a.created_at || a.timestamp || a.createdAt)
               ? (a.created_at || a.timestamp || a.createdAt)
@@ -1117,8 +1141,30 @@ export const prerender = false;
               : "";
           return String(tb).localeCompare(String(ta));
         });
+      }
 
-        items.forEach(function (item) {
+      function updateHistoryMoreButton() {
+        const wrap = document.getElementById("historyMoreWrap");
+        if (!wrap) return;
+
+        if (allHistoryItems.length > visibleHistoryCount) {
+          wrap.classList.add("is-show");
+        } else {
+          wrap.classList.remove("is-show");
+        }
+      }
+
+      function renderVisibleHistory() {
+        const list = document.getElementById("historyList");
+        list.innerHTML = "";
+
+        if (!allHistoryItems.length) {
+          list.innerHTML = '<div class="empty-card">まだ履歴がありません。</div>';
+          updateHistoryMoreButton();
+          return;
+        }
+
+        allHistoryItems.slice(0, visibleHistoryCount).forEach(function (item) {
           const rawDate =
             (item && (item.created_at || item.timestamp || item.createdAt)) ||
             (item && item.history_id && String(item.history_id).includes("#")
@@ -1172,6 +1218,19 @@ export const prerender = false;
 
           list.appendChild(card);
         });
+
+        updateHistoryMoreButton();
+      }
+
+      function renderHistory(items) {
+        allHistoryItems = sortHistoryItems(items);
+        visibleHistoryCount = HISTORY_PAGE_SIZE;
+        renderVisibleHistory();
+      }
+
+      function showMoreHistory() {
+        visibleHistoryCount += HISTORY_PAGE_SIZE;
+        renderVisibleHistory();
       }
 
       async function deleteHistory(historyId, button) {
@@ -1514,21 +1573,19 @@ export const prerender = false;
 
 
       function removeHistoryCard(historyId) {
-        const button = document.querySelector('[data-delete-history-id="' + CSS.escape(historyId) + '"]');
-        const card = button ? button.closest(".history-card") : null;
+        allHistoryItems = allHistoryItems.filter(function (item) {
+          return getHistoryItemId(item) !== String(historyId);
+        });
 
-        if (card) {
-          card.style.opacity = "0";
-          card.style.transform = "translateY(8px)";
-          setTimeout(function () {
-            card.remove();
-
-            const list = document.getElementById("historyList");
-            if (list && !list.querySelector(".history-card")) {
-              list.innerHTML = '<div class="empty-card">まだ履歴がありません。</div>';
-            }
-          }, 180);
+        if (allHistoryItems.length && visibleHistoryCount < HISTORY_PAGE_SIZE) {
+          visibleHistoryCount = HISTORY_PAGE_SIZE;
         }
+
+        if (visibleHistoryCount > allHistoryItems.length) {
+          visibleHistoryCount = Math.max(HISTORY_PAGE_SIZE, allHistoryItems.length);
+        }
+
+        renderVisibleHistory();
       }
 
       async function deleteHistoryItem(historyId, button) {
@@ -1619,11 +1676,23 @@ export const prerender = false;
         });
       }
 
+      function setupHistoryMoreHandler() {
+        const button = document.getElementById("historyMoreButton");
+        if (!button) return;
+
+        button.addEventListener("click", function () {
+          showMoreHistory();
+        });
+      }
+
 
       async function loadHistory() {
         const list = document.getElementById("historyList");
         const token = getAuthToken();
 
+        allHistoryItems = [];
+        visibleHistoryCount = HISTORY_PAGE_SIZE;
+        updateHistoryMoreButton();
         list.innerHTML = '<div class="loading-card">読み込み中...</div>';
         hideNotice();
         showDebug("");
@@ -1678,6 +1747,9 @@ export const prerender = false;
           const items = extractItems(data);
 
           if (!items.length) {
+            allHistoryItems = [];
+            visibleHistoryCount = HISTORY_PAGE_SIZE;
+            updateHistoryMoreButton();
             list.innerHTML = '<div class="empty-card">まだ履歴がありません。</div>';
             showDebug(
               "API URL:\n" + url + "\n\n" +
@@ -1713,6 +1785,7 @@ export const prerender = false;
       document.addEventListener("DOMContentLoaded", function () {
         setupAuthNav();
         setupHistoryDeleteHandler();
+        setupHistoryMoreHandler();
 
         const reloadButton = document.getElementById("reloadHistoryButton");
         if (reloadButton) {
