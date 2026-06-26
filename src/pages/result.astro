@@ -117,6 +117,7 @@ import "../styles/global.css";
     <script>
       // @ts-nocheck
       import { buildDailyFortune } from "../lib/fortuneEngine";
+      import { runShironeEngine } from "../lib/shironeEngine";
 
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
@@ -235,6 +236,37 @@ import "../styles/global.css";
         `;
       }
 
+      function renderShironeSections(sections) {
+        if (!Array.isArray(sections) || sections.length === 0) return "";
+
+        const validSections = sections
+          .map((section) => ({
+            title: String(section?.title || "").trim(),
+            body: String(section?.body || "").trim()
+          }))
+          .filter((section) => section.title || section.body);
+
+        if (validSections.length === 0) return "";
+
+        return `
+          <section class="fortune-shirone-sections" aria-label="白音七からの読み解き">
+            <h2 class="fortune-shirone-sections-title">白音七からの読み解き</h2>
+            <div class="fortune-shirone-section-list">
+              ${validSections
+                .map(
+                  (section) => `
+                    <article class="fortune-shirone-section">
+                      ${section.title ? `<h3>${escapeHtml(section.title)}</h3>` : ""}
+                      ${section.body ? `<p>${toHtmlLines(section.body)}</p>` : ""}
+                    </article>
+                  `
+                )
+                .join("")}
+            </div>
+          </section>
+        `;
+      }
+
       if (!input || !input.name || !input.birthday) {
         if (resultHeadArea) {
           resultHeadArea.innerHTML = `
@@ -288,6 +320,29 @@ import "../styles/global.css";
         }
 
         if (fortune) {
+          let shironeResult = null;
+
+          try {
+            shironeResult = runShironeEngine({
+              birthDate: birthday,
+              name,
+              question: input.question ? String(input.question) : undefined,
+              today: fortune.fortuneDate,
+              plan: "free"
+            });
+
+            fortune = {
+              ...fortune,
+              plan: shironeResult.plan,
+              lengthRange: shironeResult.lengthRange,
+              sections: shironeResult.sections,
+              iconHints: shironeResult.iconHints,
+              knowledgePayload: shironeResult.knowledgePayload,
+              historyPayloadV2: shironeResult.historyPayloadV2
+            };
+          } catch (error) {
+            console.error("shironeEngine result merge failed", error);
+          }
 
         const resultPayload = {
           name,
@@ -307,7 +362,13 @@ import "../styles/global.css";
           action: fortune.action,
           caution: fortune.caution,
           summary: fortune.summary,
-          luckyAction: fortune.luckyAction
+          luckyAction: fortune.luckyAction,
+          plan: fortune.plan,
+          lengthRange: fortune.lengthRange,
+          sections: fortune.sections,
+          iconHints: fortune.iconHints,
+          knowledgePayload: fortune.knowledgePayload,
+          historyPayloadV2: fortune.historyPayloadV2
         };
 
         if (resultHeadArea) {
@@ -364,6 +425,8 @@ import "../styles/global.css";
               <h2>避けたいこと</h2>
               <p>${escapeHtml(fortune.caution)}</p>
             </div>
+
+            ${renderShironeSections(fortune.sections)}
           `;
         }
 
@@ -675,6 +738,47 @@ import "../styles/global.css";
         border-color: rgba(255, 255, 255, 0.14);
       }
 
+      .fortune-shirone-sections {
+        margin: 1.35rem 0 0;
+        padding-top: 0.35rem;
+      }
+
+      .fortune-shirone-sections-title {
+        margin: 0 0 0.9rem;
+        color: #fff0bd;
+        font-size: clamp(1.1rem, 2.2vw, 1.35rem);
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .fortune-shirone-section-list {
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .fortune-shirone-section {
+        padding: 0 0 0.85rem 1rem;
+        border-left: 1px solid rgba(226, 191, 92, 0.28);
+      }
+
+      .fortune-shirone-section:not(:last-child) {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .fortune-shirone-section h3 {
+        margin: 0 0 0.45rem;
+        color: #fff3c5;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      .fortune-shirone-section p {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.82);
+        line-height: 1.9;
+      }
+
       @media (max-width: 720px) {
         .fortune-icon-hints-grid {
           grid-template-columns: 1fr;
@@ -682,6 +786,10 @@ import "../styles/global.css";
 
         .fortune-icon-hint-card {
           min-height: auto;
+        }
+
+        .fortune-shirone-section {
+          padding-left: 0.85rem;
         }
       }
     </style>
