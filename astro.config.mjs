@@ -8,6 +8,6 @@ import vercel from "@astrojs/vercel/serverless";
 export default defineConfig({
   site: "https://nana-fortune.vercel.app",
   output: "server",
-  adapter: vercel(),
+  adapter: vercel({}),
   integrations: [mdx(), sitemap()],
 });

@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { evaluate } from '/src/lib/shirone/engine.ts';
+import { evaluate } from '../lib/shirone/engine';
 
 export const GET: APIRoute = async ({ url }) => {
   const birth = url.searchParams.get('birth'); // 例: 1984-04-10
