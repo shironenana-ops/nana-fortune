@@ -96,3 +96,5 @@ export const DETAIL_BY_PD = {
     9:"デトックス/湯船/断捨離。",
   }
 } as const;
+
+export type Focus = keyof typeof DETAIL_BY_PD;

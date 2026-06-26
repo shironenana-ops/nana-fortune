@@ -14,7 +14,7 @@ import {
   LIFE_PROFILE_LONG,
   WEEK_THEME_BY_PD,
   DETAIL_BY_PD,
-  type Focus, // ← rules.ts で export しているもの
+  type Focus,
 } from "./rules";
 
 // 1〜9 の数値を型で表す（個人日/個人月/個人年の添字用）
@@ -46,6 +46,10 @@ export interface Output {
   sections?: { title: string; body: string }[];
 }
 
+function isFocus(value: unknown): value is Focus {
+  return typeof value === "string" && value in DETAIL_BY_PD;
+}
+
 export function evaluate(
   { birthISO, name = "", focus, now = new Date(), detail = true }: Input
 ): Output {
@@ -60,6 +64,7 @@ export function evaluate(
   const rand = seededRandom(`${name}|${birthISO}|${now.toDateString()}`);
   const color = LUCKY_COLORS[Math.floor(rand() * LUCKY_COLORS.length)];
   const item  = LUCKY_ITEMS[Math.floor(rand() * LUCKY_ITEMS.length)];
+  const focusTips = isFocus(focus) ? DETAIL_BY_PD[focus][pd] : undefined;
 
   const out: Output = {
     lifeNumber: life,
@@ -70,7 +75,7 @@ export function evaluate(
     todayAdvice: PERSONAL_DAY[pd],
     luckyColor: color,
     luckyItem: item,
-    focusTips: focus ? DETAIL_BY_PD[focus][pd] : undefined,
+    focusTips,
     seedNote: "※名前と日付に基づく軽い変動。日付が変わると内容も少しだけ変わります。",
   };
 
