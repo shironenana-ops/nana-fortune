@@ -162,6 +162,79 @@ import "../styles/global.css";
         return escapeHtml(value).replaceAll("\n", "<br />");
       }
 
+      const iconHintTones = new Set(["gold", "purple", "blue", "green", "gray"]);
+
+      function normalizeIconHintTone(tone) {
+        const value = String(tone || "gray");
+        return iconHintTones.has(value) ? value : "gray";
+      }
+
+      function normalizeIconHint(hint) {
+        if (!hint || typeof hint !== "object") return null;
+
+        const icon = String(hint.icon || "").trim();
+        const label = String(hint.label || "").trim();
+        const value = String(hint.value || "").trim();
+
+        if (!icon && !label && !value) return null;
+
+        return {
+          icon: icon || "・",
+          label: label || "手がかり",
+          value,
+          tone: normalizeIconHintTone(hint.tone)
+        };
+      }
+
+      function extractIconHints(source) {
+        if (!source || typeof source !== "object") return [];
+
+        const candidates = [
+          source.iconHints,
+          source.icon_hints,
+          source.result?.iconHints,
+          source.result?.icon_hints,
+          source.historyPayloadV2?.result?.iconHints,
+          source.history_payload_v2?.result?.iconHints,
+          source.result?.historyPayloadV2?.result?.iconHints,
+          source.result?.history_payload_v2?.result?.iconHints
+        ];
+
+        const rawHints = candidates.find((candidate) => Array.isArray(candidate));
+        if (!rawHints) return [];
+
+        return rawHints.map(normalizeIconHint).filter(Boolean);
+      }
+
+      function renderIconHints(source) {
+        const iconHints = Array.isArray(source)
+          ? source.map(normalizeIconHint).filter(Boolean)
+          : extractIconHints(source);
+
+        if (!iconHints.length) return "";
+
+        return `
+          <section class="fortune-icon-hints-section" aria-label="今日の小さな手がかり">
+            <h2 class="fortune-icon-hints-title">今日の小さな手がかり</h2>
+            <div class="fortune-icon-hints-grid">
+              ${iconHints
+                .map(
+                  (hint) => `
+                    <article class="fortune-icon-hint-card tone-${hint.tone}">
+                      <div class="fortune-icon-hint-symbol">${escapeHtml(hint.icon)}</div>
+                      <div class="fortune-icon-hint-text">
+                        <div class="fortune-icon-hint-label">${escapeHtml(hint.label)}</div>
+                        <div class="fortune-icon-hint-value">${escapeHtml(hint.value)}</div>
+                      </div>
+                    </article>
+                  `
+                )
+                .join("")}
+            </div>
+          </section>
+        `;
+      }
+
       if (!input || !input.name || !input.birthday) {
         if (resultHeadArea) {
           resultHeadArea.innerHTML = `
@@ -259,6 +332,8 @@ import "../styles/global.css";
               <p><strong>名前ナンバー：</strong>${fortune.nameNumber}</p>
               <p><strong>キーワード：</strong>${escapeHtml(fortune.keyword)}</p>
             </div>
+
+            ${renderIconHints(fortune)}
 
             <div class="fortune-result-card highlight">
               <h2>今日のテーマ</h2>
@@ -527,5 +602,88 @@ import "../styles/global.css";
         }
       }
     </script>
+
+    <style is:global>
+      .fortune-icon-hints-section {
+        margin: 1.2rem 0;
+      }
+
+      .fortune-icon-hints-title {
+        margin: 0 0 0.75rem;
+        color: #fff0bd;
+        font-size: clamp(1.05rem, 2vw, 1.25rem);
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .fortune-icon-hints-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+
+      .fortune-icon-hint-card {
+        display: flex;
+        align-items: center;
+        min-height: 82px;
+        gap: 0.75rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid rgba(226, 191, 92, 0.18);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.035);
+        box-shadow: none;
+      }
+
+      .fortune-icon-hint-symbol {
+        display: grid;
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.055);
+        color: #ffe8a3;
+        font-weight: 800;
+      }
+
+      .fortune-icon-hint-label {
+        color: rgba(255, 240, 189, 0.72);
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      .fortune-icon-hint-value {
+        color: #fff4ca;
+        font-size: 1rem;
+        font-weight: 800;
+        overflow-wrap: anywhere;
+      }
+
+      .fortune-icon-hint-card.tone-purple {
+        border-color: rgba(189, 154, 255, 0.24);
+      }
+
+      .fortune-icon-hint-card.tone-blue {
+        border-color: rgba(137, 188, 255, 0.24);
+      }
+
+      .fortune-icon-hint-card.tone-green {
+        border-color: rgba(141, 205, 151, 0.22);
+      }
+
+      .fortune-icon-hint-card.tone-gray {
+        border-color: rgba(255, 255, 255, 0.14);
+      }
+
+      @media (max-width: 720px) {
+        .fortune-icon-hints-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .fortune-icon-hint-card {
+          min-height: auto;
+        }
+      }
+    </style>
   </body>
 </html>
