@@ -72,6 +72,36 @@ export type ShironeIconHint = {
   tone: "gold" | "purple" | "blue" | "green" | "gray";
 };
 
+export type ShironeHistoryPayloadV2 = {
+  version: "shirone-history-v2";
+  plan: ShironePlan;
+  createdAt: string;
+  input: {
+    birthDate: string;
+    name?: string;
+    question?: string;
+    today: string;
+  };
+  context: ShironeEngineContext;
+  result: {
+    title: string;
+    todayMessage: string;
+    marginMessage: string;
+    oneStep: string;
+    avoidHint: string;
+    audioScript: string;
+    sections: ShironeReadingSection[];
+    iconHints: ShironeIconHint[];
+  };
+  knowledgePayload: ShironeKnowledgePayload;
+  summary: {
+    displayTitle: string;
+    shortSummary: string;
+    primaryTag: string;
+    planLabel: string;
+  };
+};
+
 export type ShironeEngineResult = {
   plan: ShironePlan;
   lengthRange: ShironeLengthRange;
@@ -83,6 +113,7 @@ export type ShironeEngineResult = {
   audioScript: string;
   sections: ShironeReadingSection[];
   knowledgePayload: ShironeKnowledgePayload;
+  historyPayloadV2: ShironeHistoryPayloadV2;
   iconHints: ShironeIconHint[];
   context: ShironeEngineContext;
 };
@@ -738,7 +769,93 @@ function buildKnowledgePayload(params: {
   };
 }
 
-function buildResult(input: ShironeEngineInput, context: ShironeEngineContext): ShironeEngineResult {
+function planLabel(plan: ShironePlan): string {
+  const labels: Record<ShironePlan, string> = {
+    free: "無料鑑定",
+    light: "軽め鑑定",
+    deep: "深掘り鑑定"
+  };
+
+  return labels[plan];
+}
+
+function buildShortSummary(message: string): string {
+  const normalized = message.replace(/\s+/g, " ").trim();
+  const limit = 110;
+
+  if (normalized.length <= limit) return normalized;
+  return `${normalized.slice(0, limit)}...`;
+}
+
+function buildCreatedAtFromToday(today: string): string {
+  return `${today}T00:00:00.000Z`;
+}
+
+function buildHistoryPayloadV2(params: {
+  input: ShironeEngineInput;
+  resolvedToday: string;
+  plan: ShironePlan;
+  context: ShironeEngineContext;
+  title: string;
+  todayMessage: string;
+  marginMessage: string;
+  oneStep: string;
+  avoidHint: string;
+  audioScript: string;
+  sections: ShironeReadingSection[];
+  iconHints: ShironeIconHint[];
+  knowledgePayload: ShironeKnowledgePayload;
+}): ShironeHistoryPayloadV2 {
+  const {
+    input,
+    resolvedToday,
+    plan,
+    context,
+    title,
+    todayMessage,
+    marginMessage,
+    oneStep,
+    avoidHint,
+    audioScript,
+    sections,
+    iconHints,
+    knowledgePayload
+  } = params;
+  const name = input.name?.trim();
+  const question = input.question?.trim();
+
+  return {
+    version: "shirone-history-v2",
+    plan,
+    createdAt: buildCreatedAtFromToday(resolvedToday),
+    input: {
+      birthDate: input.birthDate,
+      ...(name ? { name } : {}),
+      ...(question ? { question } : {}),
+      today: resolvedToday
+    },
+    context,
+    result: {
+      title,
+      todayMessage,
+      marginMessage,
+      oneStep,
+      avoidHint,
+      audioScript,
+      sections,
+      iconHints
+    },
+    knowledgePayload,
+    summary: {
+      displayTitle: title,
+      shortSummary: buildShortSummary(todayMessage),
+      primaryTag: knowledgePayload.tags[0] ?? `plan:${plan}`,
+      planLabel: planLabel(plan)
+    }
+  };
+}
+
+function buildResult(input: ShironeEngineInput, context: ShironeEngineContext, resolvedToday: string): ShironeEngineResult {
   const plan = normalizePlan(input.plan);
   const name = input.name?.trim();
   const questionText = input.question?.trim() ?? "";
@@ -786,6 +903,21 @@ function buildResult(input: ShironeEngineInput, context: ShironeEngineContext): 
     avoidHint
   });
   const iconHints = buildIconHints(context);
+  const historyPayloadV2 = buildHistoryPayloadV2({
+    input,
+    resolvedToday,
+    plan,
+    context,
+    title,
+    todayMessage,
+    marginMessage,
+    oneStep,
+    avoidHint,
+    audioScript,
+    sections,
+    iconHints,
+    knowledgePayload
+  });
 
   return {
     plan,
@@ -798,6 +930,7 @@ function buildResult(input: ShironeEngineInput, context: ShironeEngineContext): 
     audioScript,
     sections,
     knowledgePayload,
+    historyPayloadV2,
     iconHints,
     context
   };
@@ -811,5 +944,5 @@ export function runShironeEngine(input: ShironeEngineInput): ShironeEngineResult
     biorhythm: calculateBiorhythm(input.birthDate, today)
   };
 
-  return buildResult(input, context);
+  return buildResult(input, context, today);
 }
