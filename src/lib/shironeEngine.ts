@@ -95,6 +95,20 @@ type DateParts = {
 
 type WaveLevel = ShironeBiorhythmHint["physical"];
 
+type PlanTextParams = {
+  plan: ShironePlan;
+  address: string;
+  questionText: string;
+  questionTheme: string;
+  numerologyDay: number;
+  dayTheme: string;
+  lifeTheme: string;
+  title: string;
+  oneStep: string;
+  avoidHint: string;
+  context: ShironeEngineContext;
+};
+
 const MASTER_NUMBERS = new Set([11, 22, 33]);
 
 const LENGTH_RANGES: Record<ShironePlan, ShironeLengthRange> = {
@@ -354,7 +368,154 @@ function detectQuestionTheme(question?: string): string {
   return "daily-flow";
 }
 
-function buildSections(params: {
+function questionThemeLabel(theme: string): string {
+  const labels: Record<string, string> = {
+    relationship: "人間関係",
+    work: "仕事・働き方",
+    money: "お金・暮らし",
+    care: "からだと休息",
+    "daily-flow": "日々の流れ",
+    none: "日々の流れ"
+  };
+
+  return labels[theme] ?? "日々の流れ";
+}
+
+function buildFreeTodayMessage(params: PlanTextParams): string {
+  const questionLine = params.questionText
+    ? "相談ごとは、今日は深く掘りすぎなくて大丈夫です。\n答えより先に、今日できる一歩へ小さく寄せてみてください。"
+    : "今日は、今の流れを短く受け取るだけで大丈夫です。";
+
+  return [
+    `${params.address}の今日は「${params.dayTheme}」の流れです。`,
+    DAY_MESSAGES[params.numerologyDay],
+    questionLine,
+    `まずは「${params.oneStep}」。`,
+    "今日はこれだけでも、静かに整っていきそうです。"
+  ].join("\n");
+}
+
+function buildLightTodayMessage(params: PlanTextParams): string {
+  const questionLine = params.questionText
+    ? `相談テーマは「${questionThemeLabel(params.questionTheme)}」として受け取ります。\n今すぐ大きな結論にするより、今日の流れに重ねて、扱える大きさまで整えるとよさそうです。`
+    : "具体的な相談がなくても、今日は本質と今のテーマを重ねて見ることで、次の選び方が少し見えやすくなります。";
+
+  return [
+    `${params.address}の今日は、数秘の個人日${params.context.numerology.personalDayNumber}が示す「${params.dayTheme}」の流れにいます。`,
+    `ライフパスには${params.lifeTheme}の気配があり、今日はその力を強く出すより、日常の中で扱いやすい形にすることが鍵になりそうです。`,
+    `${params.context.astrology.zodiacSign}の星の空気は、${ELEMENT_HINTS[params.context.astrology.element]}`,
+    questionLine,
+    `行動は「${params.oneStep}」くらいの小ささで十分です。`
+  ].join("\n");
+}
+
+function buildDeepTodayMessage(params: PlanTextParams): string {
+  const questionLine = params.questionText
+    ? `相談内容は「${params.questionText}」。\nこの問いは、すぐに一つの答えへ押し込むより、「今の自分が何を守りたいのか」「何を急ぎすぎているのか」「今日できる最小の行動は何か」に分けて見ると、少し呼吸がしやすくなりそうです。`
+    : "具体的な相談内容がない場合は、人生全体の流れを大きく決めつけるのではなく、今の整え方と、これから選びやすくなる方向を静かに見ていきます。";
+
+  return [
+    `${params.address}の今日の中心には、個人日${params.context.numerology.personalDayNumber}の「${params.dayTheme}」が流れています。`,
+    `数秘では、ライフパス${params.context.numerology.lifePathNumber}の${params.lifeTheme}が背骨になります。これは性格を決めつけるためではなく、迷った時に戻れる軸として扱います。`,
+    `${params.context.astrology.zodiacSign}の空気は、今日の読みの光になります。${ELEMENT_HINTS[params.context.astrology.element]}`,
+    `バイオリズムでは、体は${params.context.biorhythm.physical}、心は${params.context.biorhythm.emotional}、思考は${params.context.biorhythm.intellectual}の波です。これは断定ではなく、力の配分を見るための目安です。`,
+    questionLine,
+    `今日の行動は「${params.oneStep}」。避けたいのは「${params.avoidHint}」です。\n大きく変えるより、今日できる範囲で、余白を残した選び方にしていきましょう。`
+  ].join("\n\n");
+}
+
+function buildPlanTodayMessage(params: PlanTextParams): string {
+  if (params.plan === "light") return buildLightTodayMessage(params);
+  if (params.plan === "deep") return buildDeepTodayMessage(params);
+  return buildFreeTodayMessage(params);
+}
+
+function buildPlanMarginMessage(params: PlanTextParams): string {
+  const base = biorhythmMarginMessage(params.context.biorhythm);
+
+  if (params.plan === "free") {
+    return [
+      base,
+      "今日は、余白を少し残せたら十分です。"
+    ].join("\n");
+  }
+
+  if (params.plan === "light") {
+    return [
+      base,
+      `体の波は${params.context.biorhythm.physical}、心の波は${params.context.biorhythm.emotional}、思考の波は${params.context.biorhythm.intellectual}です。`,
+      "全部を同じ強さで動かそうとせず、いちばん疲れやすいところに少し余白を渡してみてください。"
+    ].join("\n");
+  }
+
+  return [
+    base,
+    `今日の波を分けて見ると、体は${params.context.biorhythm.physical}、心は${params.context.biorhythm.emotional}、思考は${params.context.biorhythm.intellectual}です。`,
+    "体が重い日は予定の密度を下げる。心が揺れる日は人の反応を急いで読まない。思考が沈む日は、結論よりメモを残す。",
+    "このように分解して見ると、今日の不調や迷いを自分のせいにしすぎず、扱える形へ戻しやすくなります。"
+  ].join("\n\n");
+}
+
+function buildPlanAudioScript(params: PlanTextParams, todayMessage: string, marginMessage: string): string {
+  if (params.plan === "free") {
+    return [
+      params.title,
+      "",
+      `${params.address}の今日は、${params.dayTheme}の流れです。`,
+      "無理に答えを出さなくて大丈夫です。",
+      "",
+      "今の余白。",
+      marginMessage,
+      "",
+      "無理しない一歩。",
+      `${params.oneStep}。`,
+      "",
+      "今日はこれだけでも大丈夫です。"
+    ].join("\n");
+  }
+
+  if (params.plan === "light") {
+    return [
+      params.title,
+      "",
+      `数秘では、今日の流れは${params.dayTheme}。`,
+      `あなたの背骨には、${params.lifeTheme}の気配があります。`,
+      `${params.context.astrology.zodiacSign}の星の空気も、今日の選び方を少し照らしています。`,
+      "",
+      params.questionText
+        ? "相談ごとは、今日できる形まで小さくすると扱いやすくなりそうです。"
+        : "今日は本質と今のテーマを重ねて、次の一歩を見ていきます。",
+      "",
+      "今の余白。",
+      marginMessage,
+      "",
+      `今日の一歩は、${params.oneStep}。`,
+      `避けたいのは、${params.avoidHint}。`,
+      "急がず、今日の分だけ受け取ってください。"
+    ].join("\n");
+  }
+
+  return [
+    params.title,
+    "",
+    "ここでは、数秘術の背骨、星の空気、今日の波を重ねて見ていきます。",
+    "",
+    todayMessage,
+    "",
+    "今の余白。",
+    marginMessage,
+    "",
+    params.questionText
+      ? "相談内容は、一つの答えへ急がず、問いを小さく分けて受け取っていきます。"
+      : "具体的な相談がなくても、今の流れとこれからの整え方を静かに見ていけます。",
+    "",
+    `これからの行動は、${params.oneStep}。`,
+    `手放す候補は、${params.avoidHint}。`,
+    "今日のあなたに残せる余白を、まずひとつ守ってください。"
+  ].join("\n");
+}
+
+type SectionBuildParams = {
   plan: ShironePlan;
   title: string;
   todayMessage: string;
@@ -363,118 +524,147 @@ function buildSections(params: {
   avoidHint: string;
   context: ShironeEngineContext;
   question?: string;
-}): ShironeReadingSection[] {
-  const { plan, title, todayMessage, marginMessage, oneStep, avoidHint, context, question } = params;
+};
+
+function buildFreeSections(params: SectionBuildParams): ShironeReadingSection[] {
+  const { title, todayMessage, marginMessage, oneStep } = params;
+
+  return [
+    {
+      id: "today-line",
+      title: "今日の一文",
+      summary: title,
+      body: todayMessage
+    },
+    {
+      id: "margin",
+      title: "今の余白",
+      summary: "休む幅を少しだけ残します",
+      body: marginMessage
+    },
+    {
+      id: "one-step",
+      title: "無理しない一歩",
+      summary: oneStep,
+      body: `今日できることは「${oneStep}」。\nここまでで大丈夫です。\n続きは、気力が戻った時に少しずつでかまいません。`
+    }
+  ];
+}
+
+function buildLightSections(params: SectionBuildParams): ShironeReadingSection[] {
+  const { todayMessage, marginMessage, oneStep, avoidHint, context, question } = params;
   const lifePath = context.numerology.lifePathNumber;
   const dayNumber = cycleNumber(context.numerology.personalDayNumber);
   const lifeTheme = NUMBER_THEMES[lifePath] ?? NUMBER_THEMES[cycleNumber(lifePath)];
   const dayTheme = NUMBER_THEMES[dayNumber];
   const questionText = question?.trim();
+  const questionTheme = detectQuestionTheme(question);
+  const questionLabel = questionThemeLabel(questionTheme);
 
-  if (plan === "free") {
-    return [
-      {
-        id: "today-line",
-        title: "今日の一文",
-        summary: title,
-        body: todayMessage
-      },
-      {
-        id: "margin",
-        title: "今の余白",
-        summary: "今日の波に合わせて、休む幅を少し整えます",
-        body: marginMessage
-      },
-      {
-        id: "one-step",
-        title: "無理しない一歩",
-        summary: oneStep,
-        body: `今日できることは「${oneStep}」。\n大きく動かなくても、ここから流れを整えられそうです。`
-      }
-    ];
-  }
+  return [
+    {
+      id: "daily-flow",
+      title: "今日の流れ",
+      summary: `${dayTheme}の流れを読み物として整理します`,
+      body: todayMessage
+    },
+    {
+      id: "essence",
+      title: "あなたの本質",
+      summary: `ライフパス${lifePath}の気配`,
+      body: `ライフパス${lifePath}は、${lifeTheme}を人生の背骨として持ちます。\n今日それを強く証明しようとしなくても大丈夫です。むしろ、日常の小さな選択に落とし込むことで、その本質はやさしく使いやすくなります。`
+    },
+    {
+      id: "current-theme",
+      title: "今のテーマ",
+      summary: `${context.astrology.zodiacSign}の空気と今日の波`,
+      body: `${context.astrology.zodiacSign}の星の空気は、${ELEMENT_HINTS[context.astrology.element]}\nそこに今日の波を重ねると、体・心・思考を同じ速度で進めるより、どこに余白を置くかを選ぶことがテーマになりそうです。\n${marginMessage}`
+    },
+    {
+      id: "question-hint",
+      title: "相談内容へのヒント",
+      summary: questionText ? `${questionLabel}の相談を今日の流れに重ねます` : "相談がない時は今のテーマを中心に読みます",
+      body: questionText
+        ? `相談内容「${questionText}」は、今日の流れでは急いで結論にするより、まず今できる行動へ近づけると扱いやすそうです。\n問いを一段小さくして、「今日返せる言葉」「今日整えられる場所」「今日保てる距離」のように見ると、次の一手が見えやすくなります。`
+        : "今は大きな相談がなくても、今日のテーマを受け取るだけで十分です。本質と波を重ねて見ることで、今の自分に合う速度が少し分かりやすくなります。"
+    },
+    {
+      id: "action-hint",
+      title: "行動ヒント",
+      summary: oneStep,
+      body: `今日の一歩は「${oneStep}」。\nただ行動するだけでなく、始める前に一度だけ「これは今の自分にとって小さくできているか」を確認してみてください。`
+    },
+    {
+      id: "avoid-hint",
+      title: "避けたいこと",
+      summary: avoidHint,
+      body: `今日は「${avoidHint}」を少しだけ避けると、心の余白が残りやすくなります。\n避けることは逃げではなく、自分の流れを乱しすぎないための小さな調整です。`
+    }
+  ];
+}
 
-  if (plan === "light") {
-    return [
-      {
-        id: "daily-flow",
-        title: "今日の流れ",
-        summary: `${dayTheme}の流れを短く整理します`,
-        body: todayMessage
-      },
-      {
-        id: "essence",
-        title: "あなたの本質",
-        summary: `ライフパス${lifePath}の気配`,
-        body: `数秘では、あなたの背骨に${lifeTheme}が流れています。\n今日はそれを強く使うより、扱いやすい形まで小さくするのがよさそうです。`
-      },
-      {
-        id: "current-theme",
-        title: "今のテーマ",
-        summary: `${context.astrology.zodiacSign}の空気と今日の波`,
-        body: `${ELEMENT_HINTS[context.astrology.element]}\nバイオリズムは、体・心・思考の波を見ながら無理のない配分を探すための目安です。`
-      },
-      {
-        id: "action-hint",
-        title: "行動ヒント",
-        summary: oneStep,
-        body: `今日の一歩は「${oneStep}」。\n迷ったら、いちばん小さく始められる形を選んでみてください。`
-      },
-      {
-        id: "avoid-hint",
-        title: "避けたいこと",
-        summary: avoidHint,
-        body: `今日は「${avoidHint}」を少しだけ避けると、心の余白が残りやすくなります。`
-      }
-    ];
-  }
+function buildDeepSections(params: SectionBuildParams): ShironeReadingSection[] {
+  const { marginMessage, oneStep, avoidHint, context, question } = params;
+  const lifePath = context.numerology.lifePathNumber;
+  const dayNumber = cycleNumber(context.numerology.personalDayNumber);
+  const lifeTheme = NUMBER_THEMES[lifePath] ?? NUMBER_THEMES[cycleNumber(lifePath)];
+  const dayTheme = NUMBER_THEMES[dayNumber];
+  const questionText = question?.trim();
+  const questionTheme = detectQuestionTheme(question);
+  const questionLabel = questionThemeLabel(questionTheme);
 
   return [
     {
       id: "numerology-essence",
       title: "数秘術から見る本質",
       summary: `ライフパス${lifePath}と個人日${context.numerology.personalDayNumber}`,
-      body: `ライフパス${lifePath}には、${lifeTheme}という背骨があります。\n今日の個人日は${context.numerology.personalDayNumber}。${dayTheme}の流れを重ねて読むと、無理に広げるより今扱える形へ整えることが鍵になりそうです。`
+      body: `ライフパス${lifePath}には、${lifeTheme}という背骨があります。\nこれは「あなたはこうでなければならない」という枠ではなく、迷った時に戻れる内側の軸として扱います。\n\n今日の個人日は${context.numerology.personalDayNumber}。${dayTheme}の流れを重ねると、今は力を外へ広げるより、使う場所と量を選ぶことが大切になりそうです。`
     },
     {
       id: "astrology-air",
       title: "星から見る今の空気",
       summary: `${context.astrology.zodiacSign} / ${context.astrology.element} / ${context.astrology.mode}`,
-      body: `${context.astrology.zodiacSign}の簡易ヒントでは、${ELEMENT_HINTS[context.astrology.element]}\n出生時刻や出生地を使わないため、ここでは空気と光のような補助線として扱います。`
+      body: `${context.astrology.zodiacSign}の簡易ヒントでは、${ELEMENT_HINTS[context.astrology.element]}\n\nここでは出生時刻や出生地を使わないため、厳密な天体計算ではなく、今日の空気を読む補助線として扱います。\n数秘が背骨なら、星は光の角度です。何を見やすくして、何を急がせないかを教えてくれます。`
     },
     {
       id: "today-wave",
       title: "今日の波",
       summary: `体 ${context.biorhythm.physical} / 心 ${context.biorhythm.emotional} / 思考 ${context.biorhythm.intellectual}`,
-      body: `${marginMessage}\nこの波は断定ではなく、今日の力の配分をやさしく見るための目安です。`
+      body: `${marginMessage}\n\nこの波は、今日の結果を決めるものではありません。\nただ、体が先に疲れているのか、心が反応を拾いやすいのか、思考がまとまりにくいのかを分けて見ると、自分を責める前に調整できる余地が生まれます。`
     },
     {
       id: "question-layer",
       title: "相談内容との重ね読み",
-      summary: questionText ? "相談内容を今日の流れに重ねます" : "相談内容がない場合は日々の流れを中心に読みます",
+      summary: questionText ? `${questionLabel}の相談を分解して重ねます` : "相談内容がない場合は人生の流れと今の整え方を中心に読みます",
       body: questionText
-        ? `相談内容「${questionText}」は、すぐに結論へ押し込まなくて大丈夫です。\n今日の流れに重ねるなら、まずは自分の感覚を失わない大きさまで問いを小さくしてみてください。`
-        : "今日は具体的な相談内容がなくても、日々の流れを見ながら、心に残るところだけ受け取れば大丈夫です。"
+        ? `相談内容「${questionText}」は、すぐに一つの答えへまとめなくても大丈夫です。\n\nまず、「本当は何を知りたいのか」「何が不安を大きくしているのか」「今日できる範囲はどこまでか」に分けて見てみます。\n数秘の${dayTheme}は、問いを扱える大きさへ整えることを促します。星の空気は、見落としていた感覚に光を当てます。波は、今日どれくらい踏み込むと疲れすぎるかを教えてくれます。`
+        : "今日は具体的な相談内容がなくても、人生全体を急いで決める必要はありません。\n今は、これまでの流れの中で何を持ち続け、何を少し緩めるかを見る時間です。\n心に残る一文だけを受け取る形でも、今日の鑑定としては十分です。"
     },
     {
       id: "release",
       title: "手放すこと",
       summary: avoidHint,
-      body: `手放す候補は「${avoidHint}」。\n完全にやめる必要はありません。気づいた時に少し距離を置くだけでも、流れは静かに変わります。`
+      body: `手放す候補は「${avoidHint}」。\n\n手放す、という言葉は大きく聞こえるかもしれませんが、今日の白音七では「少し距離を置く」くらいの意味で受け取ってください。\n完全にやめる必要はありません。気づいた時に一呼吸置くことで、反応ではなく選択に戻りやすくなります。`
     },
     {
       id: "next-action",
       title: "これからの行動",
       summary: oneStep,
-      body: `これからの一歩は「${oneStep}」。\n今日の自分にできる大きさで選ぶことが、次の安心につながりそうです。`
+      body: `これからの一歩は「${oneStep}」。\n\nこの行動は、何かを大きく変えるためではなく、今日の自分に主導権を少し戻すためのものです。\nうまくできたかどうかより、「自分のペースで選べたか」を見てあげてください。`
     },
     {
       id: "audio-summary",
       title: "音声で受け取るためのまとめ",
-      summary: "短く読み上げやすい形に整えます",
-      body: `今日の灯りは${dayTheme}。\n余白を残しながら、${oneStep}。\nあなたのペースで大丈夫です。`
+      summary: "深掘り鑑定の最後に置ける形へ整えます",
+      body: `今日の灯りは${dayTheme}。\n数秘は、あなたの背骨に${lifeTheme}を映しています。\n星は、今見やすい方向を静かに照らしています。\n波は、力の入れどころと休ませどころを分けて教えてくれます。\n\n余白を残しながら、${oneStep}。\nあなたのペースで大丈夫です。`
     }
   ];
+}
+
+function buildSections(params: SectionBuildParams): ShironeReadingSection[] {
+  if (params.plan === "light") return buildLightSections(params);
+  if (params.plan === "deep") return buildDeepSections(params);
+  return buildFreeSections(params);
 }
 
 function buildIconHints(context: ShironeEngineContext): ShironeIconHint[] {
@@ -551,32 +741,31 @@ function buildKnowledgePayload(params: {
 function buildResult(input: ShironeEngineInput, context: ShironeEngineContext): ShironeEngineResult {
   const plan = normalizePlan(input.plan);
   const name = input.name?.trim();
+  const questionText = input.question?.trim() ?? "";
+  const questionTheme = detectQuestionTheme(input.question);
   const numerologyDay = cycleNumber(context.numerology.personalDayNumber);
   const lifeTheme = NUMBER_THEMES[context.numerology.lifePathNumber] ?? NUMBER_THEMES[cycleNumber(context.numerology.lifePathNumber)];
   const dayTheme = NUMBER_THEMES[numerologyDay];
   const address = name ? `${name}さん` : "あなた";
-  const questionLine = input.question?.trim()
-    ? `相談ごとは、急いで結論にしなくても大丈夫です。\nまずは今日できる形まで小さくしてみてください。`
-    : ELEMENT_HINTS[context.astrology.element];
   const title = `今日の灯りは「${dayTheme}」`;
-  const todayMessage = `${address}の今日には、${dayTheme}の流れが静かに重なっています。\n${DAY_MESSAGES[numerologyDay]}\n生まれ持つ${lifeTheme}を、無理に大きく使わなくても大丈夫です。\n${questionLine}`;
-  const marginMessage = biorhythmMarginMessage(context.biorhythm);
   const oneStep = STEP_MESSAGES[numerologyDay];
   const avoidHint = AVOID_MESSAGES[numerologyDay];
-  const audioScript = [
+  const textParams: PlanTextParams = {
+    plan,
+    address,
+    questionText,
+    questionTheme,
+    numerologyDay,
+    dayTheme,
+    lifeTheme,
     title,
-    "",
-    todayMessage,
-    "",
-    "今の余白。",
-    marginMessage,
-    "",
-    "無理しない一歩。",
-    `${oneStep}。`,
-    "",
-    `今日は、${avoidHint}を少しだけ避けてみてください。`,
-    "あなたのペースで大丈夫です。"
-  ].join("\n");
+    oneStep,
+    avoidHint,
+    context
+  };
+  const todayMessage = buildPlanTodayMessage(textParams);
+  const marginMessage = buildPlanMarginMessage(textParams);
+  const audioScript = buildPlanAudioScript(textParams, todayMessage, marginMessage);
   const sections = buildSections({
     plan,
     title,
