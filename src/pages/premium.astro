@@ -190,6 +190,34 @@ export const prerender = false;
         return buildNormalCard() + buildPremiumCard() + buildExtraCard();
       }
 
+      function buildReadingDoorway() {
+        return `
+          <section class="fortune-card" style="padding:34px; border-radius:28px; margin-bottom:28px; background: radial-gradient(circle at 88% 16%, rgba(177,124,255,0.12), transparent 30%), rgba(255,255,255,0.035);">
+            <div style="display:inline-flex; padding:8px 14px; border-radius:999px; border:1px solid rgba(202,168,79,0.28); color:#f2dd9a; margin-bottom:16px;">
+              READING DOORS
+            </div>
+            <h2 style="margin:0 0 10px; color:#fff0bf; font-size:2rem;">鑑定の扉を選ぶ</h2>
+            <p style="margin:0 0 18px; color:#dbc979; line-height:1.9;">
+              一度届けた鑑定は、あなたの人生ログとして残ります。<br />
+              新しく詳しい鑑定を作る扉だけ、現在の会員状態または単発購入で確認していきます。
+            </p>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px;">
+              <a href="/premium/light" style="display:block; padding:18px; border-radius:18px; border:1px solid rgba(214,174,64,0.28); color:#fff0bf; background:rgba(255,255,255,0.04); text-decoration:none;">
+                <strong style="display:block; margin-bottom:6px;">ライト鑑定の案内</strong>
+                <span style="display:block; color:rgba(255,236,179,0.72); line-height:1.75;">light会員以上で使える想定の、少し詳しい鑑定です。</span>
+              </a>
+              <a href="/premium/deep" style="display:block; padding:18px; border-radius:18px; border:1px solid rgba(177,124,255,0.34); color:#fff0bf; background:rgba(177,124,255,0.06); text-decoration:none;">
+                <strong style="display:block; margin-bottom:6px;">深掘り鑑定の案内</strong>
+                <span style="display:block; color:rgba(255,236,179,0.72); line-height:1.75;">premium会員で使える想定の、多面的な鑑定です。</span>
+              </a>
+            </div>
+            <p style="margin:18px 0 0; padding-top:16px; border-top:1px solid rgba(202,168,79,0.18); color:rgba(255,236,179,0.76); line-height:1.85;">
+              この画面では案内だけを行います。本番生成時は、API側で token と membershipTier を確認する必要があります。
+            </p>
+          </section>
+        `;
+      }
+
       function buildBillingMessage(statusInfo) {
         if (statusInfo.plan === "premium") {
           return statusInfo.cancelAtPeriodEnd
@@ -304,6 +332,8 @@ export const prerender = false;
             </p>
           </section>
 
+          ${buildReadingDoorway()}
+
           <section class="fortune-card" style="padding:34px; border-radius:28px; margin-bottom:28px;">
             <div style="display:inline-flex; padding:8px 14px; border-radius:999px; border:1px solid rgba(202,168,79,0.28); color:#f2dd9a; margin-bottom:16px;">
               COURSE SELECT
@@ -326,6 +356,8 @@ export const prerender = false;
           </section>
 
           <section style="display:flex; flex-wrap:wrap; gap:12px;">
+            <a href="/premium/light" class="fortune-btn gold">ライト鑑定の案内</a>
+            <a href="/premium/deep" class="fortune-btn violet">深掘り鑑定の案内</a>
             <a href="/premium/voice" class="fortune-btn violet">音声鑑定ページへ</a>
             <a href="/history" class="fortune-btn secondary">履歴を見る</a>
             <a href="/members" class="fortune-btn gold">会員ページへ戻る</a>
