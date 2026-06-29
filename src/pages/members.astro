@@ -874,33 +874,132 @@ body.members-page-body {
   }
 
   .reading-doorway-link {
-    display: block;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
-    padding: 16px 18px;
+    max-width: 100%;
+    min-height: 184px;
+    padding: 18px;
     border: 1px solid rgba(214, 174, 64, 0.28);
     border-radius: 18px;
     color: #fff0bf;
-    background: rgba(255, 255, 255, 0.04);
+    background:
+      radial-gradient(circle at 88% 16%, rgba(214, 174, 64, 0.12), transparent 34%),
+      rgba(255, 255, 255, 0.04);
     text-decoration: none;
-    transition: transform 0.18s ease, border-color 0.18s ease, filter 0.18s ease;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+    transition:
+      transform 0.18s ease,
+      border-color 0.18s ease,
+      filter 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .reading-doorway-link--deep {
+    border-color: rgba(177, 124, 255, 0.34);
+    background:
+      radial-gradient(circle at 88% 16%, rgba(177, 124, 255, 0.16), transparent 34%),
+      rgba(255, 255, 255, 0.04);
   }
 
   .reading-doorway-link:hover {
     transform: translateY(-2px);
     border-color: rgba(214, 174, 64, 0.45);
     filter: brightness(1.04);
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+  }
+
+  .reading-doorway-link--deep:hover {
+    border-color: rgba(177, 124, 255, 0.52);
   }
 
   .reading-doorway-link strong,
-  .reading-doorway-link span {
+  .reading-doorway-link span,
+  .reading-doorway-link small {
     display: block;
   }
 
+  .reading-doorway-link strong {
+    font-size: 1.08rem;
+    letter-spacing: 0.02em;
+  }
+
   .reading-doorway-link span {
-    margin-top: 4px;
+    margin-top: 8px;
     color: rgba(255, 236, 179, 0.7);
     font-size: 0.88rem;
     line-height: 1.7;
+  }
+
+  .reading-doorway-link small {
+    margin-top: 10px;
+    color: rgba(255, 236, 179, 0.58);
+    font-size: 0.8rem;
+    line-height: 1.6;
+  }
+
+  .reading-doorway-link .reading-doorway-cta {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: auto;
+    width: 100%;
+    max-width: 100%;
+    min-height: 50px;
+    margin-top: auto;
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 247, 214, 0.92);
+    border-radius: 14px;
+    color: #17110a;
+    background:
+      linear-gradient(180deg, #fff8dc 0%, #efd074 48%, #bd8622 100%);
+    box-shadow:
+      0 12px 24px rgba(214, 174, 64, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.68);
+    font-size: 0.96rem;
+    font-weight: 800;
+    line-height: 1.35;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.22);
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      filter 0.18s ease;
+  }
+
+  .reading-doorway-link.reading-doorway-link--deep .reading-doorway-cta {
+    color: #fff8df;
+    border-color: rgba(239, 220, 255, 0.86);
+    background:
+      linear-gradient(180deg, #b58eff 0%, #7d58ee 52%, #4f2ba9 100%);
+    box-shadow:
+      0 12px 26px rgba(127, 92, 255, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  }
+
+  .reading-doorway-link .reading-doorway-cta::after {
+    content: "→";
+    flex: 0 0 auto;
+    margin-left: 10px;
+    font-size: 1.1rem;
+    line-height: 1;
+    transform: translateY(-1px);
+  }
+
+  .reading-doorway-link:hover .reading-doorway-cta {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+    box-shadow:
+      0 16px 30px rgba(214, 174, 64, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.68);
+  }
+
+  .reading-doorway-link--deep:hover .reading-doorway-cta {
+    box-shadow:
+      0 16px 32px rgba(127, 92, 255, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.34);
   }
 
   .membership-tier-bridge {
@@ -1193,14 +1292,18 @@ body.members-page-body {
       </div>
 
       <div class="reading-doorway-actions">
-        <a class="reading-doorway-link" href="/premium/light">
+        <a class="reading-doorway-link" id="readingDoorLightLink" href="/premium/light">
           <strong>ライト鑑定の案内</strong>
-          <span>light会員以上で使える想定の、少し詳しい鑑定です。</span>
+          <span id="readingDoorLightText">ライト会員以上で使える想定の、少し詳しい鑑定です。</span>
+          <small>今日の流れと、今のテーマを少し深く受け取ります。</small>
+          <span class="reading-doorway-cta" id="readingDoorLightCta">ライト鑑定へ</span>
         </a>
 
-        <a class="reading-doorway-link" href="/premium/deep">
+        <a class="reading-doorway-link reading-doorway-link--deep" id="readingDoorDeepLink" href="/premium/deep">
           <strong>深掘り鑑定の案内</strong>
-          <span>premium会員で使える想定の、多面的な鑑定です。</span>
+          <span id="readingDoorDeepText">プレミアム会員で使える想定の、多面的な鑑定です。</span>
+          <small>数秘、星、今日の波、相談内容を重ねて読みます。</small>
+          <span class="reading-doorway-cta" id="readingDoorDeepCta">深掘り鑑定へ</span>
         </a>
       </div>
     </section>
@@ -1384,6 +1487,27 @@ body.members-page-body {
       return normalizeMembershipTier(plan) !== normalizeMembershipTier(pendingPlan);
     }
 
+    function updateReadingDoorCtas(tier) {
+      const canUseLight = tier === "light" || tier === "premium";
+      const canUseDeep = tier === "premium";
+
+      setText(
+        "readingDoorLightText",
+        canUseLight
+          ? "ライト鑑定へ進めます。少し詳しい鑑定を静かに受け取れます。"
+          : "ライト会員以上で使える鑑定です。"
+      );
+      setText("readingDoorLightCta", canUseLight ? "ライト鑑定へ" : "ライト鑑定の案内へ");
+
+      setText(
+        "readingDoorDeepText",
+        canUseDeep
+          ? "深掘り鑑定へ進めます。多面的な鑑定を受け取るための扉です。"
+          : "プレミアム会員で使える鑑定です。"
+      );
+      setText("readingDoorDeepCta", canUseDeep ? "深掘り鑑定へ" : "深掘り鑑定の案内へ");
+    }
+
     function updateReadingTierBridge(rawPlan, usedFallback = false) {
       const displayInfo = getMembershipDisplayInfo(rawPlan);
       const planText = displayInfo.availablePlans
@@ -1398,6 +1522,7 @@ body.members-page-body {
         "readingTierDescription",
         `${displayInfo.description}\n新しく開ける扉: ${planText}\n${suffix}`
       );
+      updateReadingDoorCtas(displayInfo.tier);
     }
 
     function formatDate(value) {
