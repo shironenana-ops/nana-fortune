@@ -1332,7 +1332,7 @@ body.members-page-body {
   <script src="/js/billing.js" is:inline></script>
 
   <script>
-    import { getMembershipDisplayInfo } from "../lib/membership";
+    import { getMembershipDisplayInfo, normalizeMembershipTier } from "../lib/membership";
 
     const USER_STATUS_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/user/status";
     const CHANGE_PLAN_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/subscription/change-plan";
@@ -1372,6 +1372,16 @@ body.members-page-body {
       if (plan === "premium") return "premium";
       if (plan === "normal" || plan === "light" || plan === "member") return "normal";
       return "free";
+    }
+
+    function normalizePendingPlan(rawPlan) {
+      const plan = String(rawPlan ?? "").trim();
+      return plan ? normalizePlan(plan) : "";
+    }
+
+    function shouldShowPlanChangeNotice(plan, pendingPlan) {
+      if (!pendingPlan) return false;
+      return normalizeMembershipTier(plan) !== normalizeMembershipTier(pendingPlan);
     }
 
     function updateReadingTierBridge(rawPlan, usedFallback = false) {
@@ -1428,14 +1438,14 @@ body.members-page-body {
       }
     }
 
-    function showPlanChangeNotice(pendingPlan, effectiveAt) {
+    function showPlanChangeNotice(plan, pendingPlan, effectiveAt) {
       const box = document.getElementById("planChangeNotice");
       const title = document.getElementById("planChangeNoticeTitle");
       const text = document.getElementById("planChangeNoticeText");
 
       if (!box || !title || !text) return;
 
-      if (!pendingPlan) {
+      if (!shouldShowPlanChangeNotice(plan, pendingPlan)) {
         box.hidden = true;
         return;
       }
@@ -1545,13 +1555,17 @@ body.members-page-body {
       if (!grid) return;
 
       const sourcePath = "/members";
+      const visiblePendingPlan = shouldShowPlanChangeNotice(plan, pendingPlan) ? pendingPlan : "";
+      const isPendingLight = visiblePendingPlan
+        ? normalizeMembershipTier(visiblePendingPlan) === "light"
+        : false;
       let html = "";
 
       if (plan === "premium") {
         html = buildExtraCard(sourcePath) + buildDowngradeCard();
 
         setBillingMessage(
-          pendingPlan === "normal"
+          isPendingLight
             ? (currentPeriodEnd
                 ? `現在プレミアム会員です。ライト会員への変更は ${formatDate(currentPeriodEnd)} から反映予定です。単発追加は引き続き利用できます。`
                 : "現在プレミアム会員です。ライト会員への変更を予約済みです。単発追加は引き続き利用できます。")
@@ -1569,7 +1583,7 @@ body.members-page-body {
 
       grid.innerHTML = html;
       bindPlanButtons();
-      updateRenderedPlanStates(plan, pendingPlan, currentPeriodEnd);
+      updateRenderedPlanStates(plan, visiblePendingPlan, currentPeriodEnd);
     }
 
     function updateRenderedPlanStates(plan, pendingPlan = "", currentPeriodEnd = "") {
@@ -1594,7 +1608,7 @@ body.members-page-body {
           normalBtn.textContent = "ライト会員へ変更予約";
         }
 
-        if (pendingPlan === "normal") {
+        if (pendingPlan && normalizeMembershipTier(pendingPlan) === "light") {
           normalCard?.classList.add("is-pending");
           if (normalBtn) {
             normalBtn.disabled = true;
@@ -1631,7 +1645,7 @@ body.members-page-body {
         currentPendingPlan = data.pending_plan || targetPlan;
         currentPeriodEnd = data.effective_at || currentPeriodEnd;
 
-        showPlanChangeNotice(currentPendingPlan, currentPeriodEnd);
+        showPlanChangeNotice(currentPlan, currentPendingPlan, currentPeriodEnd);
         renderPlanCards(currentPlan, currentPendingPlan, currentPeriodEnd);
 
         alert(
@@ -1710,7 +1724,7 @@ body.members-page-body {
         const voiceRemaining = Math.max(voiceLimit - voiceUsed, 0);
         const extraVoiceRemaining = Number(data.extra_voice_remaining ?? 0);
         const deepEnabled = !!data.deep_enabled;
-        const pendingPlan = normalizePlan(data.pending_plan || "");
+        const pendingPlan = normalizePendingPlan(data.pending_plan);
         const currentPeriodEnd = data.current_period_end || "";
 
         currentPlan = plan;
@@ -1743,7 +1757,7 @@ body.members-page-body {
         if (meterFill) meterFill.style.width = `${fillPercent}%`;
 
         setStatusDot(subscriptionStatus);
-        showPlanChangeNotice(pendingPlan, currentPeriodEnd);
+        showPlanChangeNotice(plan, pendingPlan, currentPeriodEnd);
         renderPlanCards(plan, pendingPlan, currentPeriodEnd);
 
         loading.hidden = true;
