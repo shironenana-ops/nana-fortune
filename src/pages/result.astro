@@ -90,7 +90,7 @@ import "../styles/global.css";
                 </div>
 
                 <div class="fortune-premium-item">
-                  <h3>🧬 生命診断・手相</h3>
+                  <h3>🧬 姓名判断・手相</h3>
                   <p>あなたの現在地と変化の兆しを多角的に分析</p>
                 </div>
 
@@ -500,6 +500,18 @@ import "../styles/global.css";
           return Boolean(getSavedRecord(userId)) || alreadySavedByLegacyList();
         }
 
+        function isUnauthorizedMessage(value) {
+          return String(value || "").toLowerCase().includes("unauthorized");
+        }
+
+        function getSaveErrorMessage(value, status) {
+          if (status === 401 || status === 403 || isUnauthorizedMessage(value)) {
+            return "ログイン状態を確認できませんでした。\nお手数ですが、もう一度ログインしてから保存してください。";
+          }
+
+          return "保存に失敗しました。\n少し時間を置いて、もう一度お試しください。";
+        }
+
         function renderSavedState(options = {}) {
           const mode = options.mode || "saved";
 
@@ -535,11 +547,14 @@ import "../styles/global.css";
         saveBtn?.addEventListener("click", async () => {
           if (saveMessage) saveMessage.textContent = "";
 
-          const token = localStorage.getItem("token");
+          const token = String(localStorage.getItem("token") || "").trim();
 
           if (!token) {
             sessionStorage.setItem("pendingFortuneResult", JSON.stringify(resultPayload));
-            window.location.href = "/login?redirect=/result";
+            if (saveMessage) {
+              saveMessage.textContent =
+                "ログイン状態を確認できませんでした。\n結果を保存するには、もう一度ログインしてください。";
+            }
             return;
           }
 
@@ -547,9 +562,9 @@ import "../styles/global.css";
 
           if (!userId) {
             if (saveMessage) {
-              saveMessage.textContent = "ログイン情報が見つかりません。もう一度ログインしてください。";
+              saveMessage.textContent =
+                "ログイン状態を確認できませんでした。\n結果を保存するには、もう一度ログインしてください。";
             }
-            window.location.href = "/login?redirect=/result";
             return;
           }
 
@@ -615,7 +630,7 @@ import "../styles/global.css";
             const data = await res.json().catch(() => ({}));
 
             if (!res.ok) {
-              throw new Error(data?.message || data?.error || "履歴保存に失敗しました。");
+              throw new Error(getSaveErrorMessage(data?.message || data?.error, res.status));
             }
 
             const savedItems = JSON.parse(localStorage.getItem("savedFortunes") || "[]");
@@ -649,7 +664,9 @@ import "../styles/global.css";
               saveBtn.textContent = "この結果を記録する";
             }
 
-            if (saveMessage) saveMessage.textContent = error?.message || "保存に失敗しました。";
+            if (saveMessage) {
+              saveMessage.textContent = getSaveErrorMessage(error?.message);
+            }
           }
         });
 
