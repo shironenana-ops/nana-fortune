@@ -54,6 +54,8 @@ export const prerender = false;
     <script is:inline src="/js/billing.js"></script>
 
     <script>
+      import { getMembershipDisplayInfo } from "../lib/membership";
+
       const USER_STATUS_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/user/status";
 
       const authArea = document.getElementById("authArea");
@@ -190,7 +192,15 @@ export const prerender = false;
         return buildNormalCard() + buildPremiumCard() + buildExtraCard();
       }
 
-      function buildReadingDoorway() {
+      function buildReadingDoorway(statusInfo, usedFallback = false) {
+        const displayInfo = getMembershipDisplayInfo(statusInfo?.plan);
+        const planText = displayInfo.availablePlans
+          .map((plan) => (plan === "deep" ? "深掘り鑑定" : plan === "light" ? "ライト鑑定" : "無料鑑定"))
+          .join(" / ");
+        const fallbackNote = usedFallback
+          ? "取得できない場合は、安全のため無料会員として案内します。"
+          : "一度受け取った鑑定は、あなたの人生ログとして残ります。";
+
         return `
           <section class="fortune-card" style="padding:34px; border-radius:28px; margin-bottom:28px; background: radial-gradient(circle at 88% 16%, rgba(177,124,255,0.12), transparent 30%), rgba(255,255,255,0.035);">
             <div style="display:inline-flex; padding:8px 14px; border-radius:999px; border:1px solid rgba(202,168,79,0.28); color:#f2dd9a; margin-bottom:16px;">
@@ -201,6 +211,12 @@ export const prerender = false;
               一度届けた鑑定は、あなたの人生ログとして残ります。<br />
               新しく詳しい鑑定を作る扉だけ、現在の会員状態または単発購入で確認していきます。
             </p>
+            <div style="margin:0 0 18px; padding:16px 18px; border-radius:18px; border:1px solid rgba(214,174,64,0.2); background:rgba(255,255,255,0.035);">
+              <strong style="display:block; color:#fff0bf;">現在の会員ランク: ${escapeHtml(displayInfo.label)}</strong>
+              <span style="display:block; margin-top:6px; color:rgba(255,236,179,0.74); line-height:1.75;">${escapeHtml(displayInfo.description)}</span>
+              <span style="display:block; margin-top:6px; color:rgba(255,236,179,0.74); line-height:1.75;">新しく開ける扉: ${escapeHtml(planText)}</span>
+              <small style="display:block; margin-top:10px; color:rgba(255,236,179,0.62); line-height:1.7;">${escapeHtml(fallbackNote)}</small>
+            </div>
             <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px;">
               <a href="/premium/light" style="display:block; padding:18px; border-radius:18px; border:1px solid rgba(214,174,64,0.28); color:#fff0bf; background:rgba(255,255,255,0.04); text-decoration:none;">
                 <strong style="display:block; margin-bottom:6px;">ライト鑑定の案内</strong>
@@ -307,12 +323,14 @@ export const prerender = false;
         };
 
         let billingMessage = "";
+        let usedMembershipFallback = false;
         try {
           statusInfo = await fetchUserStatus();
           billingMessage = buildBillingMessage(statusInfo);
         } catch (error) {
           console.error(error);
           billingMessage = "会員状態の確認に失敗しました。安全のため、この画面では単発追加のみ表示します。";
+          usedMembershipFallback = true;
           statusInfo = {
             plan: "premium",
             cancelAtPeriodEnd: false,
@@ -332,7 +350,7 @@ export const prerender = false;
             </p>
           </section>
 
-          ${buildReadingDoorway()}
+          ${buildReadingDoorway(usedMembershipFallback ? { plan: "free" } : statusInfo, usedMembershipFallback)}
 
           <section class="fortune-card" style="padding:34px; border-radius:28px; margin-bottom:28px;">
             <div style="display:inline-flex; padding:8px 14px; border-radius:999px; border:1px solid rgba(202,168,79,0.28); color:#f2dd9a; margin-bottom:16px;">
