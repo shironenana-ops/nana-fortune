@@ -14,7 +14,9 @@ import "../../styles/global.css";
     />
   </head>
 
-  <body class="fortune-body">
+  <body class="fortune-body reading-deep-body">
+    <div class="reading-deep-bg" aria-hidden="true"></div>
+
     <header class="fortune-header">
       <div class="fortune-container fortune-header-inner">
         <a href="/" class="fortune-logo">
@@ -156,6 +158,30 @@ import "../../styles/global.css";
     </script>
 
     <style>
+      :global(body.reading-deep-body) {
+        overflow-x: hidden;
+        background-color: #050412;
+      }
+
+      .reading-deep-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(5, 4, 18, 0.42), rgba(5, 4, 18, 0.76)),
+          url("/images/backgrounds/reading/mobile/reading-deep-mobile-01.webp");
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+      }
+
+      :global(body.reading-deep-body .fortune-header),
+      .reading-door-shell {
+        position: relative;
+        z-index: 1;
+      }
+
       .reading-door-shell {
         padding: 48px 0 88px;
       }
@@ -165,9 +191,27 @@ import "../../styles/global.css";
       }
 
       .reading-door-frame--deep {
+        position: relative;
+        overflow: hidden;
         background:
-          radial-gradient(circle at 88% 18%, rgba(177, 124, 255, 0.16), transparent 30%),
-          linear-gradient(180deg, rgba(10, 14, 34, 0.95), rgba(16, 11, 40, 0.92));
+          radial-gradient(circle at 88% 18%, rgba(177, 124, 255, 0.18), transparent 30%),
+          linear-gradient(180deg, rgba(10, 14, 34, 0.9), rgba(16, 11, 40, 0.86));
+      }
+
+      .reading-door-frame--deep::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at 16% 10%, rgba(255, 226, 155, 0.12), transparent 22%),
+          radial-gradient(circle at 88% 30%, rgba(177, 124, 255, 0.13), transparent 28%);
+      }
+
+      .reading-door-frame--deep > * {
+        position: relative;
+        z-index: 1;
       }
 
       .reading-door-kicker {
@@ -236,7 +280,7 @@ import "../../styles/global.css";
         border-radius: 24px;
         background:
           radial-gradient(circle at 88% 12%, rgba(177, 124, 255, 0.14), transparent 28%),
-          rgba(255, 255, 255, 0.035);
+          rgba(5, 7, 20, 0.62);
       }
 
       .reading-input-head {
@@ -310,6 +354,15 @@ import "../../styles/global.css";
       }
 
       @media (max-width: 820px) {
+        .reading-deep-bg {
+          background-image:
+            linear-gradient(rgba(5, 4, 18, 0.38), rgba(5, 4, 18, 0.78)),
+            url("/images/backgrounds/reading/mobile/reading-deep-mobile-01.webp");
+          background-size: cover;
+          background-position: center center;
+          background-repeat: no-repeat;
+        }
+
         .reading-door-grid {
           grid-template-columns: 1fr;
         }
