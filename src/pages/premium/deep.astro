@@ -196,6 +196,9 @@ import "../../styles/global.css";
         background:
           radial-gradient(circle at 88% 18%, rgba(177, 124, 255, 0.18), transparent 30%),
           linear-gradient(180deg, rgba(10, 14, 34, 0.9), rgba(16, 11, 40, 0.86));
+        box-shadow:
+          0 22px 74px rgba(0, 0, 0, 0.42),
+          inset 0 0 0 1px rgba(216, 196, 255, 0.04);
       }
 
       .reading-door-frame--deep::before {
@@ -252,9 +255,9 @@ import "../../styles/global.css";
 
       .reading-door-panel {
         padding: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(216, 196, 255, 0.12);
         border-radius: 18px;
-        background: rgba(255, 255, 255, 0.035);
+        background: rgba(5, 7, 20, 0.46);
       }
 
       .reading-door-panel h2 {
@@ -280,7 +283,7 @@ import "../../styles/global.css";
         border-radius: 24px;
         background:
           radial-gradient(circle at 88% 12%, rgba(177, 124, 255, 0.14), transparent 28%),
-          rgba(5, 7, 20, 0.62);
+          rgba(5, 7, 20, 0.72);
       }
 
       .reading-input-head {
@@ -322,11 +325,11 @@ import "../../styles/global.css";
       .reading-form textarea {
         width: 100%;
         box-sizing: border-box;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(216, 196, 255, 0.18);
         border-radius: 16px;
         padding: 13px 14px;
         color: #fff8df;
-        background: rgba(5, 8, 20, 0.52);
+        background: rgba(5, 8, 20, 0.74);
         font: inherit;
       }
 
@@ -369,6 +372,27 @@ import "../../styles/global.css";
 
         .reading-form {
           grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .reading-door-shell {
+          padding: 28px 0 64px;
+        }
+
+        .reading-door-frame {
+          padding: 22px 18px;
+          border-radius: 24px;
+        }
+
+        .reading-door-panel {
+          padding: 18px;
+        }
+
+        .reading-door-actions .fortune-btn,
+        .reading-form .fortune-btn {
+          width: 100%;
+          justify-content: center;
         }
       }
     </style>
