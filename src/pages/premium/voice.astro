@@ -1,7 +1,7 @@
 ---
-import "../../styles/global.css";
-
 export const prerender = false;
+
+import "../../styles/global.css";
 ---
 
 <!DOCTYPE html>
@@ -10,10 +10,15 @@ export const prerender = false;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>音声鑑定 | 白音七</title>
-    <meta name="description" content="白音七の会員限定・音声鑑定ページ" />
+    <meta
+      name="description"
+      content="白音七の音声鑑定案内ページです。現在は正式公開に向けて準備中です。"
+    />
   </head>
 
-  <body class="fortune-body">
+  <body class="fortune-body voice-coming-soon-body">
+    <div class="voice-coming-soon-bg" aria-hidden="true"></div>
+
     <header class="fortune-header">
       <div class="fortune-container fortune-header-inner">
         <a href="/" class="fortune-logo">
@@ -33,858 +38,189 @@ export const prerender = false;
           <span></span>
         </button>
 
-        <nav class="fortune-nav" id="navArea">
+        <nav class="fortune-nav">
           <a href="/">TOP</a>
-          <a href="/history">履歴一覧</a>
+          <a href="/members">会員ページ</a>
           <a href="/premium">会員限定鑑定</a>
-          <span id="authArea"></span>
+          <a href="/history">履歴一覧</a>
         </nav>
       </div>
     </header>
 
-    <main class="fortune-session-page">
-      <section class="fortune-container">
-        <div class="fortune-session-frame" id="voiceContent"></div>
+    <main class="fortune-premium-page voice-coming-soon-page">
+      <section class="fortune-container voice-coming-soon-shell">
+        <article class="fortune-premium-page-frame voice-coming-soon-frame">
+          <div class="voice-coming-soon-kicker">VOICE READING</div>
+          <h1>音声鑑定</h1>
+
+          <p class="voice-coming-soon-lead">
+            音声で受け取る鑑定は、現在準備中です。<br />
+            読むのがつらい日や、目を休めたい日にも届くように、<br />
+            白音七らしいかたちで整えています。
+          </p>
+
+          <section class="voice-coming-soon-notice" aria-label="音声鑑定の準備中案内">
+            <h2>正式なご案内まで、今しばらくお待ちください。</h2>
+            <p>
+              準備が整いましたら、内容と価格を確認できる形でご案内します。<br />
+              この画面で録音や音声の送信を求めたり、料金が発生したりすることはありません。
+            </p>
+
+            <div class="voice-coming-soon-actions">
+              <button class="fortune-btn violet big" type="button" aria-disabled="true">
+                音声鑑定（準備中）
+              </button>
+              <a href="/premium" class="fortune-btn secondary">会員限定鑑定へ戻る</a>
+              <a href="/history" class="fortune-btn secondary">履歴を見る</a>
+            </div>
+          </section>
+        </article>
       </section>
     </main>
 
-    <script>
-  const authArea = document.getElementById("authArea");
-  const voiceContent = document.getElementById("voiceContent");
-
-  const API_BASE = "https://i3fn2xgcrl.execute-api.ap-northeast-1.amazonaws.com";
-  const MAX_FILE_SIZE = 20 * 1024 * 1024;
-
-  const ACCEPTED_UPLOAD_TYPES = [
-    "audio/mpeg",
-    "audio/mp3",
-    "audio/wav",
-    "audio/x-wav",
-    "audio/mp4",
-    "audio/m4a",
-    "audio/x-m4a",
-    "audio/webm",
-    "audio/ogg"
-  ];
-
-  const RECORDING_CANDIDATES = [
-    { mimeType: "audio/webm;codecs=opus", ext: "webm" },
-    { mimeType: "audio/webm", ext: "webm" },
-    { mimeType: "audio/mp4;codecs=mp4a.40.2", ext: "m4a" },
-    { mimeType: "audio/mp4", ext: "m4a" },
-    { mimeType: "audio/ogg;codecs=opus", ext: "ogg" },
-    { mimeType: "audio/ogg", ext: "ogg" }
-  ];
-
-  const token = localStorage.getItem("token");
-  const email = localStorage.getItem("loginEmail");
-  const input = JSON.parse(localStorage.getItem("fortuneInput") || "null");
-
-  function escapeHtml(value) {
-    return String(value ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
-  }
-
-  function formatBytes(bytes) {
-    if (!bytes && bytes !== 0) return "-";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
-  function formatDuration(seconds) {
-    const sec = Math.max(0, Math.floor(seconds || 0));
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${String(s).padStart(2, "0")}`;
-  }
-
-  function showToast(message, type = "info") {
-    const old = document.querySelector(".fortune-voice-toast");
-    if (old) old.remove();
-
-    const toast = document.createElement("div");
-    toast.className = `fortune-voice-toast ${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-
-    requestAnimationFrame(() => {
-      toast.classList.add("show");
-    });
-
-    setTimeout(() => {
-      toast.classList.remove("show");
-      setTimeout(() => toast.remove(), 250);
-    }, 2800);
-  }
-
-  function renderAuthArea() {
-    if (token && email) {
-      authArea.innerHTML = `
-        <span class="fortune-user">${escapeHtml(email)}</span>
-        <button id="logoutBtn" class="fortune-nav-logout" type="button">ログアウト</button>
-      `;
-
-      const logoutBtn = document.getElementById("logoutBtn");
-      logoutBtn?.addEventListener("click", () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("loginEmail");
-        localStorage.removeItem("userId");
-        localStorage.removeItem("user_id");
-        window.location.href = "/";
-      });
-    } else {
-      authArea.innerHTML = `
-        <a href="/login?redirect=/premium/voice" class="fortune-nav-pill">会員ログイン</a>
-      `;
-    }
-  }
-
-  function renderGuest() {
-    voiceContent.innerHTML = `
-      <div class="fortune-session-head">
-        <div class="fortune-member-kicker">VOICE SESSION</div>
-        <h1 class="fortune-session-title">音声鑑定</h1>
-        <p class="fortune-session-lead">
-          このページを見るにはログインが必要です。<br />
-          会員ログイン後、録音または音声ファイル送信で鑑定依頼ができます。
-        </p>
-      </div>
-
-      <div class="fortune-session-highlight">
-        <h2>音声鑑定でできること</h2>
-        <p>
-          相談内容を声で届けることで、文字だけでは拾いきれない温度感を残しながら、
-          白音七メソッドの鑑定につなげられます。
-        </p>
-      </div>
-
-      <div class="fortune-session-actions">
-        <a href="/login?redirect=/premium/voice" class="fortune-btn gold big">ログインして音声鑑定を始める</a>
-      </div>
-    `;
-  }
-
-  function renderMember() {
-    const name = input?.name || "あなた";
-
-    voiceContent.innerHTML = `
-      <div class="fortune-session-head">
-        <div class="fortune-member-kicker">VOICE SESSION</div>
-        <h1 class="fortune-session-title">${escapeHtml(name)}さんの音声鑑定</h1>
-        <p class="fortune-session-lead">
-          その場で録音することも、既存の音声ファイルを送ることもできます。<br />
-          送信後は解析ページへ移動し、結果反映を待ちます。
-        </p>
-      </div>
-
-      <div class="fortune-voice-layout">
-        <section class="fortune-voice-panel">
-          <div class="fortune-card">
-            <h2 class="fortune-voice-section-title">1. この場で録音する</h2>
-
-            <div class="fortune-voice-recorder">
-              <div class="fortune-voice-recorder-status">
-                <div class="fortune-voice-rec-badge" id="recordingBadge">待機中</div>
-                <div class="fortune-voice-rec-text" id="recordingStatusText">
-                  録音ボタンを押すとマイク確認が始まります。
-                </div>
-              </div>
-
-              <div class="fortune-voice-timer" id="recordingTimer">0:00</div>
-
-              <div class="fortune-session-actions voice-actions compact">
-                <button id="startRecordingBtn" class="fortune-btn violet" type="button">
-                  ● 録音開始
-                </button>
-                <button id="stopRecordingBtn" class="fortune-btn secondary" type="button" disabled>
-                  ■ 録音停止
-                </button>
-                <button id="clearRecordingBtn" class="fortune-btn secondary" type="button" disabled>
-                  録音を破棄
-                </button>
-              </div>
-
-              <div class="fortune-voice-help" id="recordingFormatInfo">
-                この端末で使える録音形式を確認します。
-              </div>
-            </div>
-          </div>
-
-          <div class="fortune-card">
-            <h2 class="fortune-voice-section-title">2. 既存ファイルをアップロードする</h2>
-
-            <label class="fortune-voice-drop" for="voiceFile">
-              <input
-                id="voiceFile"
-                class="fortune-voice-file-input"
-                type="file"
-                accept=".mp3,.wav,.m4a,.webm,.ogg,audio/*"
-              />
-              <span class="fortune-voice-drop-title">ここに音声ファイルを選択</span>
-              <span class="fortune-voice-drop-sub">
-                対応形式: mp3 / wav / m4a / webm / ogg
-              </span>
-              <span class="fortune-voice-drop-sub">
-                最大サイズ: 20MB
-              </span>
-            </label>
-          </div>
-
-          <div class="fortune-card">
-            <h2 class="fortune-voice-section-title">3. 送信する音声の確認</h2>
-
-            <div class="fortune-voice-source-tabs">
-              <button id="useRecordedBtn" class="fortune-source-tab" type="button" disabled>録音を使う</button>
-              <button id="useUploadedBtn" class="fortune-source-tab active" type="button">アップロードを使う</button>
-            </div>
-
-            <div class="fortune-voice-fileinfo" id="fileInfo">
-              まだ音声は選択されていません。
-            </div>
-
-            <audio id="audioPreview" class="fortune-voice-audio" controls style="display:none;"></audio>
-          </div>
-
-          <div class="fortune-card">
-            <h2 class="fortune-voice-section-title">4. 鑑定内容の補足</h2>
-
-            <div class="fortune-voice-field">
-              <label for="voiceTitle">鑑定タイトル</label>
-              <input
-                id="voiceTitle"
-                class="fortune-input"
-                type="text"
-                maxlength="80"
-                placeholder="例：仕事運について、夫婦関係について"
-                value="音声鑑定"
-              />
-            </div>
-
-            <div class="fortune-voice-field">
-              <label for="voiceCategory">相談カテゴリ</label>
-              <select id="voiceCategory" class="fortune-input">
-                <option value="general">総合</option>
-                <option value="love">恋愛</option>
-                <option value="work">仕事</option>
-                <option value="family">家族</option>
-                <option value="money">金運</option>
-                <option value="health">健康</option>
-              </select>
-            </div>
-
-            <div class="fortune-voice-field">
-              <label for="voiceMemo">補足メモ</label>
-              <textarea
-                id="voiceMemo"
-                class="fortune-textarea"
-                rows="6"
-                maxlength="1000"
-                placeholder="音声で話しきれなかった補足や、特に見てほしい点があれば入力してください。"
-              ></textarea>
-              <div class="fortune-voice-help">
-                文字入力は任意です。音声だけでも送信できます。
-              </div>
-            </div>
-
-            <div class="fortune-session-actions voice-actions">
-              <button id="submitVoiceBtn" class="fortune-btn gold big" type="button">
-                音声鑑定を送信する
-              </button>
-              <a href="/premium" class="fortune-btn secondary">会員限定鑑定へ戻る</a>
-            </div>
-          </div>
-        </section>
-
-        <aside class="fortune-voice-side">
-          <div class="fortune-card">
-            <h2>この後の流れ</h2>
-            <ol class="fortune-voice-steps">
-              <li>録音または音声選択</li>
-              <li>音声アップロード</li>
-              <li>文字起こし・解析</li>
-              <li>白音七メソッドで統合鑑定</li>
-              <li>解析ページで進捗確認</li>
-            </ol>
-          </div>
-
-          <div class="fortune-card">
-            <h2>形式差への対応</h2>
-            <p>
-              PCブラウザやスマホブラウザごとに録音形式が異なるため、
-              白音七では端末で録音可能な形式を自動判定し、その形式のまま送信します。
-            </p>
-          </div>
-
-          <div class="fortune-card">
-            <h2>話し方のコツ</h2>
-            <p>
-              1テーマずつ区切って、静かな環境で話すと解析しやすくなります。<br />
-              長い相談は複数回に分けるのがおすすめです。
-            </p>
-          </div>
-        </aside>
-      </div>
-
-      <section class="fortune-voice-status" id="voiceStatus" aria-live="polite">
-        <div class="fortune-voice-status-inner">
-          <div class="fortune-voice-status-badge">受付待ち</div>
-          <p class="fortune-voice-status-text">
-            まだ送信されていません。録音するか、音声ファイルを選んでください。
-          </p>
-        </div>
-      </section>
-    `;
-
-    setupMemberInteractions();
-  }
-
-  function detectRecordingSupport() {
-    if (
-      typeof window === "undefined" ||
-      !navigator.mediaDevices ||
-      !navigator.mediaDevices.getUserMedia ||
-      typeof MediaRecorder === "undefined"
-    ) {
-      return {
-        supported: false,
-        mimeType: "",
-        ext: "",
-        message: "この端末では録音の準備が整いません。ファイルアップロードをご利用ください。"
-      };
-    }
-
-    for (const candidate of RECORDING_CANDIDATES) {
-      try {
-        if (MediaRecorder.isTypeSupported(candidate.mimeType)) {
-          return {
-            supported: true,
-            mimeType: candidate.mimeType,
-            ext: candidate.ext,
-            message: `この端末では ${candidate.mimeType} で録音します。`
-          };
-        }
-      } catch (error) {
-        console.warn("isTypeSupported check error:", error);
-      }
-    }
-
-    return {
-      supported: true,
-      mimeType: "",
-      ext: "webm",
-      message: "録音形式は端末に合わせて自動で整えます。"
-    };
-  }
-
-  function setupMemberInteractions() {
-    const fileInput = document.getElementById("voiceFile");
-    const fileInfo = document.getElementById("fileInfo");
-    const audioPreview = document.getElementById("audioPreview");
-    const submitVoiceBtn = document.getElementById("submitVoiceBtn");
-    const statusArea = document.getElementById("voiceStatus");
-    const memo = document.getElementById("voiceMemo");
-
-    const startRecordingBtn = document.getElementById("startRecordingBtn");
-    const stopRecordingBtn = document.getElementById("stopRecordingBtn");
-    const clearRecordingBtn = document.getElementById("clearRecordingBtn");
-    const recordingBadge = document.getElementById("recordingBadge");
-    const recordingStatusText = document.getElementById("recordingStatusText");
-    const recordingTimer = document.getElementById("recordingTimer");
-    const recordingFormatInfo = document.getElementById("recordingFormatInfo");
-    const useRecordedBtn = document.getElementById("useRecordedBtn");
-    const useUploadedBtn = document.getElementById("useUploadedBtn");
-
-    let uploadedFile = null;
-    let recordedFile = null;
-    let selectedSource = "upload";
-
-    let previewUrl = null;
-    let mediaRecorder = null;
-    let mediaStream = null;
-    let recordedChunks = [];
-    let recordingIntervalId = null;
-    let recordingStartedAt = 0;
-    let currentRecordingSeconds = 0;
-    let recordingSupport = detectRecordingSupport();
-
-    recordingFormatInfo.textContent = recordingSupport.message;
-
-    if (!recordingSupport.supported) {
-      startRecordingBtn.disabled = true;
-      recordingBadge.textContent = "確認が必要です";
-      recordingStatusText.textContent =
-        "この端末では録音の準備が整いません。ファイルアップロードをご利用ください。";
-    }
-
-    function setStatus(state, text) {
-      const badgeMap = {
-        idle: "受付待ち",
-        checking: "確認中",
-        uploading: "送信中",
-        success: "受付完了",
-        error: "確認が必要です"
-      };
-
-      const safeText = escapeHtml(text || "");
-      statusArea.innerHTML = `
-        <div class="fortune-voice-status-inner ${state}">
-          <div class="fortune-voice-status-badge">${badgeMap[state] || "状態"}</div>
-          <p class="fortune-voice-status-text">${safeText}</p>
-        </div>
-      `;
-    }
-
-    function updateSourceButtons() {
-      useRecordedBtn.classList.toggle("active", selectedSource === "recorded");
-      useUploadedBtn.classList.toggle("active", selectedSource === "upload");
-
-      useRecordedBtn.disabled = !recordedFile;
-      useUploadedBtn.disabled = false;
-    }
-
-    function getActiveFile() {
-      if (selectedSource === "recorded" && recordedFile) return recordedFile;
-      if (selectedSource === "upload" && uploadedFile) return uploadedFile;
-      if (recordedFile) return recordedFile;
-      if (uploadedFile) return uploadedFile;
-      return null;
-    }
-
-    function getActiveSourceType() {
-      const file = getActiveFile();
-      if (!file) return "";
-      if (file === recordedFile) return "recorded";
-      return "upload";
-    }
-
-    function clearPreview() {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        previewUrl = null;
-      }
-      audioPreview.pause();
-      audioPreview.removeAttribute("src");
-      audioPreview.style.display = "none";
-    }
-
-    function showFileInfo(file, sourceLabel, extra = {}) {
-      if (!file) {
-        fileInfo.textContent = "まだ音声は選択されていません。";
-        clearPreview();
-        return;
+    <style>
+      :global(body.voice-coming-soon-body) {
+        overflow-x: hidden;
+        background-color: #070511;
       }
 
-      fileInfo.innerHTML = `
-        <strong>使用中の音声:</strong> ${escapeHtml(file.name)}<br />
-        <strong>取得方法:</strong> ${escapeHtml(sourceLabel)}<br />
-        <strong>サイズ:</strong> ${escapeHtml(formatBytes(file.size))}<br />
-        <strong>形式:</strong> ${escapeHtml(file.type || "不明")}
-        ${extra.duration ? `<br /><strong>長さ:</strong> ${escapeHtml(extra.duration)}` : ""}
-      `;
-
-      clearPreview();
-      previewUrl = URL.createObjectURL(file);
-      audioPreview.src = previewUrl;
-      audioPreview.style.display = "block";
-    }
-
-    function refreshActivePreview() {
-      const activeFile = getActiveFile();
-      if (!activeFile) {
-        showFileInfo(null);
-        return;
+      .voice-coming-soon-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(rgba(7, 5, 17, 0.34), rgba(7, 5, 17, 0.82)),
+          radial-gradient(circle at 20% 12%, rgba(255, 232, 164, 0.14), transparent 28%),
+          radial-gradient(circle at 78% 22%, rgba(177, 124, 255, 0.16), transparent 30%),
+          url("/images/backgrounds/reading/mobile/reading-deep-mobile-01.webp");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
       }
 
-      if (activeFile === recordedFile) {
-        showFileInfo(recordedFile, "ブラウザ録音", {
-          duration: currentRecordingSeconds ? formatDuration(currentRecordingSeconds) : ""
-        });
-      } else {
-        showFileInfo(uploadedFile, "ファイルアップロード");
-      }
-    }
-
-    function stopMediaTracks() {
-      if (mediaStream) {
-        mediaStream.getTracks().forEach((track) => track.stop());
-        mediaStream = null;
-      }
-    }
-
-    function stopTimer() {
-      if (recordingIntervalId) {
-        clearInterval(recordingIntervalId);
-        recordingIntervalId = null;
-      }
-    }
-
-    function startTimer() {
-      recordingStartedAt = Date.now();
-      currentRecordingSeconds = 0;
-      recordingTimer.textContent = "0:00";
-
-      recordingIntervalId = setInterval(() => {
-        currentRecordingSeconds = Math.floor((Date.now() - recordingStartedAt) / 1000);
-        recordingTimer.textContent = formatDuration(currentRecordingSeconds);
-      }, 250);
-    }
-
-    function resetRecordingUi() {
-      stopTimer();
-      recordingTimer.textContent = "0:00";
-      startRecordingBtn.disabled = !recordingSupport.supported;
-      stopRecordingBtn.disabled = true;
-      clearRecordingBtn.disabled = !recordedFile;
-    }
-
-    async function startRecording() {
-      if (!recordingSupport.supported) {
-        showToast("この端末では録音の準備が整いません。ファイルアップロードをご利用ください。", "error");
-        return;
+      :global(body.voice-coming-soon-body .fortune-header),
+      .voice-coming-soon-shell {
+        position: relative;
+        z-index: 1;
       }
 
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        recordedChunks = [];
+      .voice-coming-soon-shell {
+        padding: 52px 0 92px;
+      }
 
-        const recorderOptions = recordingSupport.mimeType
-          ? { mimeType: recordingSupport.mimeType }
-          : undefined;
+      .voice-coming-soon-frame {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(28px, 5vw, 52px);
+        background:
+          radial-gradient(circle at 82% 18%, rgba(177, 124, 255, 0.18), transparent 32%),
+          linear-gradient(180deg, rgba(10, 14, 34, 0.9), rgba(21, 13, 44, 0.86));
+        box-shadow:
+          0 22px 74px rgba(0, 0, 0, 0.42),
+          inset 0 0 0 1px rgba(216, 196, 255, 0.04);
+      }
 
-        mediaRecorder = new MediaRecorder(mediaStream, recorderOptions);
+      .voice-coming-soon-frame::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at 18% 12%, rgba(255, 226, 155, 0.12), transparent 24%),
+          radial-gradient(circle at 88% 32%, rgba(177, 124, 255, 0.13), transparent 28%);
+      }
 
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            recordedChunks.push(event.data);
-          }
-        };
+      .voice-coming-soon-frame > * {
+        position: relative;
+        z-index: 1;
+        min-width: 0;
+      }
 
-        mediaRecorder.onerror = (event) => {
-          console.error("MediaRecorder error:", event);
-          showToast("録音を確認できませんでした。もう一度、静かな場所でお試しください。", "error");
-          recordingBadge.textContent = "確認が必要です";
-          recordingStatusText.textContent =
-            "録音を確認できませんでした。もう一度、静かな場所でお試しください。";
-          resetRecordingUi();
-          stopMediaTracks();
-        };
+      .voice-coming-soon-kicker {
+        display: inline-flex;
+        margin-bottom: 16px;
+        padding: 8px 14px;
+        border: 1px solid rgba(182, 140, 255, 0.34);
+        border-radius: 999px;
+        color: #d9c2ff;
+        background: rgba(177, 124, 255, 0.07);
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+      }
 
-        mediaRecorder.onstop = () => {
-          stopTimer();
-          stopMediaTracks();
+      .voice-coming-soon-frame h1 {
+        margin: 0 0 14px;
+        color: #fff0bf;
+        font-size: clamp(2rem, 5vw, 3rem);
+      }
 
-          const blobType =
-            mediaRecorder.mimeType ||
-            recordingSupport.mimeType ||
-            "audio/webm";
+      .voice-coming-soon-lead,
+      .voice-coming-soon-notice p {
+        color: rgba(255, 236, 179, 0.78);
+        line-height: 1.9;
+        overflow-wrap: anywhere;
+        word-break: break-all;
+      }
 
-          const ext = recordingSupport.ext || "webm";
-          const blob = new Blob(recordedChunks, { type: blobType });
+      .voice-coming-soon-lead {
+        margin: 0 0 28px;
+      }
 
-          if (blob.size === 0) {
-            recordingBadge.textContent = "確認が必要です";
-            recordingStatusText.textContent =
-              "録音を保存できませんでした。もう一度、静かな場所でお試しください。";
-            setStatus(
-              "error",
-              "録音を保存できませんでした。もう一度、静かな場所でお試しください。"
-            );
-            resetRecordingUi();
-            return;
-          }
+      .voice-coming-soon-notice {
+        box-sizing: border-box;
+        min-width: 0;
+        padding: clamp(20px, 4vw, 30px);
+        border: 1px solid rgba(216, 196, 255, 0.16);
+        border-radius: 24px;
+        background:
+          radial-gradient(circle at 90% 14%, rgba(177, 124, 255, 0.12), transparent 28%),
+          rgba(5, 7, 20, 0.66);
+      }
 
-          if (blob.size > MAX_FILE_SIZE) {
-            recordedFile = null;
-            recordingBadge.textContent = "容量超過";
-            recordingStatusText.textContent = "録音サイズが20MBを超えました。短く区切って録音してください。";
-            setStatus("error", "録音サイズが20MBを超えています。");
-            clearRecordingBtn.disabled = true;
-            updateSourceButtons();
-            refreshActivePreview();
-            return;
-          }
+      .voice-coming-soon-notice h2 {
+        margin: 0 0 12px;
+        color: #fff0bf;
+        font-size: clamp(1.2rem, 3vw, 1.55rem);
+        overflow-wrap: anywhere;
+        word-break: break-all;
+      }
 
-          const filename = `voice-recording-${new Date()
-            .toISOString()
-            .replace(/[:.]/g, "-")}.${ext}`;
+      .voice-coming-soon-notice p {
+        margin: 0;
+      }
 
-          recordedFile = new File([blob], filename, {
-            type: blobType,
-            lastModified: Date.now()
-          });
+      .voice-coming-soon-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
 
-          selectedSource = "recorded";
-          recordingBadge.textContent = "録音完了";
-          recordingStatusText.textContent = `録音できました。形式: ${blobType}`;
-          clearRecordingBtn.disabled = false;
-          updateSourceButtons();
-          refreshActivePreview();
-          setStatus("checking", "録音済み音声を確認できます。問題なければ送信してください。");
-          resetRecordingUi();
-          showToast("録音が完了しました。", "success");
-        };
-
-        mediaRecorder.start();
-        startTimer();
-
-        startRecordingBtn.disabled = true;
-        stopRecordingBtn.disabled = false;
-        clearRecordingBtn.disabled = true;
-        recordingBadge.textContent = "録音中";
-        recordingStatusText.textContent = "マイク入力を録音しています。終わったら録音停止を押してください。";
-        setStatus("checking", "録音中です。相談内容をそのまま話してください。");
-      } catch (error) {
-        console.error(error);
-        stopMediaTracks();
-
-        let message = "マイクの準備が整いませんでした。";
-        if (error?.name === "NotAllowedError") {
-          message = "マイクの許可を確認してから、もう一度お試しください。";
-        } else if (error?.name === "NotFoundError") {
-          message = "マイクを確認できませんでした。ファイルアップロードもご利用いただけます。";
+      @media (max-width: 640px) {
+        .voice-coming-soon-shell {
+          padding: 30px 0 68px;
         }
 
-        recordingBadge.textContent = "確認が必要です";
-        recordingStatusText.textContent = message;
-        setStatus("error", message);
-        showToast(message, "error");
-        resetRecordingUi();
-      }
-    }
-
-    function stopRecording() {
-      if (mediaRecorder && mediaRecorder.state !== "inactive") {
-        mediaRecorder.stop();
-      }
-      stopRecordingBtn.disabled = true;
-      recordingBadge.textContent = "停止処理中";
-      recordingStatusText.textContent = "録音を停止しています。";
-    }
-
-    function clearRecording() {
-      recordedFile = null;
-      selectedSource = "upload";
-      recordingBadge.textContent = "待機中";
-      recordingStatusText.textContent = "録音データは破棄されました。";
-      clearRecordingBtn.disabled = true;
-      currentRecordingSeconds = 0;
-      recordingTimer.textContent = "0:00";
-      updateSourceButtons();
-      refreshActivePreview();
-      setStatus("idle", "録音データを破棄しました。必要なら再録音してください。");
-    }
-
-    function validateUploadFile(file) {
-      const isAcceptedType =
-        ACCEPTED_UPLOAD_TYPES.includes(file.type) ||
-        /\.(mp3|wav|m4a|webm|ogg)$/i.test(file.name);
-
-      if (!isAcceptedType) {
-        return "対応していないファイル形式です。mp3 / wav / m4a / webm / ogg を選んでください。";
-      }
-
-      if (file.size > MAX_FILE_SIZE) {
-        return "ファイルサイズが20MBを超えています。";
-      }
-
-      return "";
-    }
-
-    startRecordingBtn?.addEventListener("click", startRecording);
-    stopRecordingBtn?.addEventListener("click", stopRecording);
-    clearRecordingBtn?.addEventListener("click", clearRecording);
-
-    useRecordedBtn?.addEventListener("click", () => {
-      if (!recordedFile) return;
-      selectedSource = "recorded";
-      updateSourceButtons();
-      refreshActivePreview();
-      setStatus("checking", "録音済み音声を使用します。");
-    });
-
-    useUploadedBtn?.addEventListener("click", () => {
-      selectedSource = "upload";
-      updateSourceButtons();
-      refreshActivePreview();
-      setStatus("checking", uploadedFile ? "アップロードした音声を使用します。" : "アップロード音声を選択してください。");
-    });
-
-    fileInput?.addEventListener("change", () => {
-      const file = fileInput.files?.[0];
-      uploadedFile = null;
-
-      if (!file) {
-        if (selectedSource === "upload") {
-          refreshActivePreview();
-        }
-        setStatus("idle", "まだ送信されていません。録音するか、音声ファイルを選んでください。");
-        return;
-      }
-
-      const errorMessage = validateUploadFile(file);
-      if (errorMessage) {
-        fileInput.value = "";
-        setStatus("error", errorMessage);
-        showToast(errorMessage, "error");
-        refreshActivePreview();
-        return;
-      }
-
-      uploadedFile = file;
-      selectedSource = "upload";
-      updateSourceButtons();
-      refreshActivePreview();
-      setStatus("checking", "アップロード音声の確認OKです。問題なければ送信してください。");
-      showToast("音声ファイルを読み込みました。", "success");
-    });
-
-    submitVoiceBtn?.addEventListener("click", async () => {
-      const title = document.getElementById("voiceTitle")?.value?.trim() || "音声鑑定";
-      const category = document.getElementById("voiceCategory")?.value || "general";
-      const memoText = memo?.value?.trim() || "";
-
-      if (!token) {
-        showToast("ログイン情報が見つかりません。", "error");
-        window.location.href = "/login?redirect=/premium/voice";
-        return;
-      }
-
-      const activeFile = getActiveFile();
-      const sourceType = getActiveSourceType();
-
-      if (!activeFile) {
-        setStatus("error", "録音するか、音声ファイルを選択してください。");
-        showToast("送信する音声がありません。", "error");
-        return;
-      }
-
-      submitVoiceBtn.disabled = true;
-      submitVoiceBtn.textContent = "送信中...";
-      setStatus("uploading", "音声ファイルをアップロードしています。しばらくお待ちください。");
-
-      try {
-        const formData = new FormData();
-        formData.append("file", activeFile);
-        formData.append("title", title);
-        formData.append("category", category);
-        formData.append("memo", memoText);
-        formData.append("source", "premium_voice");
-        formData.append("audio_source_type", sourceType || "unknown");
-        formData.append("mime_type", activeFile.type || "");
-        formData.append("file_size", String(activeFile.size || 0));
-
-        if (sourceType === "recorded") {
-          formData.append("duration_sec", String(currentRecordingSeconds || 0));
+        .voice-coming-soon-frame {
+          width: 100%;
+          max-width: 360px;
+          box-sizing: border-box;
+          padding: 22px 18px;
+          border-radius: 24px;
         }
 
-        if (input?.name) formData.append("name", input.name);
-        if (input?.birthDate) formData.append("birth_date", input.birthDate);
-        if (input?.gender) formData.append("gender", input.gender);
-
-        const response = await fetch(`${API_BASE}/voice/upload`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`
-          },
-          body: formData
-        });
-
-        let data = null;
-        try {
-          data = await response.json();
-        } catch (_) {
-          data = null;
+        .voice-coming-soon-lead br,
+        .voice-coming-soon-notice br {
+          display: none;
         }
 
-        if (!response.ok) {
-  if (response.status === 403 && data?.ui?.show_upgrade) {
-    const remain = data?.subscription?.voice_remaining ?? 0;
-    const plan = data?.subscription?.plan ?? "";
-    const upgradeTarget = data?.subscription?.upgrade_target ?? "premium";
-
-    let message =
-      data?.message ||
-      "音声鑑定の上限に達しました。";
-
-    if (plan === "normal") {
-      message += "\n\nプレミアム会員へアップグレードすると、さらに音声鑑定をご利用いただけます。";
-    } else if (plan === "free") {
-      message += "\n\n音声鑑定は有料会員向け機能です。";
-    } else if (remain <= 0) {
-      message += "\n\n今月の利用可能回数を使い切っています。";
-    }
-
-    alert(message);
-
-    if (upgradeTarget === "premium") {
-      window.location.href = "/pricing";
-      return;
-    }
-
-    throw new Error(message);
-  }
-
-  const errorMessage =
-    data?.message ||
-    data?.error ||
-    "音声を受け付けられませんでした。少し時間を置いて、もう一度お試しください。";
-  throw new Error(errorMessage);
-}
-
-        if (data?.history_id) {
-          localStorage.setItem("lastVoiceHistoryId", data.history_id);
+        .voice-coming-soon-actions .fortune-btn {
+          width: 100%;
+          justify-content: center;
         }
-        if (data?.job_id) {
-          localStorage.setItem("lastVoiceJobId", data.job_id);
-        }
-
-        setStatus(
-          "success",
-          data?.message ||
-            "音声鑑定を受け付けました。解析ページへ移動します。"
-        );
-        showToast("音声鑑定を受け付けました。", "success");
-
-        setTimeout(() => {
-          const query = data?.history_id
-            ? `?history_id=${encodeURIComponent(data.history_id)}`
-            : "";
-          window.location.href = `/premium/voice-processing${query}`;
-        }, 900);
-      } catch (error) {
-        console.error(error);
-        const voiceSubmitMessage =
-          "音声を受け付けられませんでした。少し時間を置いて、もう一度お試しください。";
-        setStatus("error", voiceSubmitMessage);
-        showToast(voiceSubmitMessage, "error");
-      } finally {
-        submitVoiceBtn.disabled = false;
-        submitVoiceBtn.textContent = "音声鑑定を送信する";
       }
-    });
-
-    updateSourceButtons();
-    refreshActivePreview();
-
-    window.addEventListener("beforeunload", () => {
-      stopTimer();
-      stopMediaTracks();
-      clearPreview();
-    });
-  }
-
-  renderAuthArea();
-
-  if (!token) {
-    renderGuest();
-  } else {
-    renderMember();
-  }
-</script>
+    </style>
   </body>
 </html>
