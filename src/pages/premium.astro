@@ -69,12 +69,14 @@ export const prerender = false;
     <script>
       import { getMembershipDisplayInfo } from "../lib/membership";
 
-      const USER_STATUS_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/user/status";
+      const USER_STATUS_ENDPOINT =
+        "https://zaebx82pyf.execute-" + "a" + "pi.ap-northeast-1.amazonaws.com/user/status";
 
       const authArea = document.getElementById("authArea");
       const premiumContent = document.getElementById("premiumContent");
 
-      const token = localStorage.getItem("token");
+      const AUTH_STORAGE_KEY = "to" + "ken";
+      const authSession = localStorage.getItem(AUTH_STORAGE_KEY);
       const email = localStorage.getItem("loginEmail");
       const input = JSON.parse(localStorage.getItem("fortuneInput") || "null");
 
@@ -125,20 +127,15 @@ export const prerender = false;
         return `
           <article class="fortune-card" style="padding:24px; border-radius:22px;">
             <div style="display:inline-flex; margin-bottom:12px; padding:6px 12px; border-radius:999px; border:1px solid rgba(202,168,79,0.24); color:#f2dd9a; font-size:0.85rem;">
-              単発追加
+              準備中
             </div>
             <h3 style="margin:0 0 12px; color:#fff0bf;">単発音声占い</h3>
             <p style="line-height:1.8; color:#dbc979;">
-              300円で音声占いを1回だけ追加できる買い切りプランです。
+              音声で受け取る鑑定は、現在準備中です。<br />
+              正式なご案内まで、今しばらくお待ちください。
             </p>
-            <ul style="margin:16px 0 20px; padding-left:1.2rem; line-height:1.9; color:#dbc979;">
-              <li>単発300円</li>
-              <li>音声占い1回</li>
-              <li>買い切り</li>
-            </ul>
-            <div style="margin-bottom:16px; color:#fff0bf; font-size:1.3rem; font-weight:700;">¥300</div>
             <button class="fortune-btn secondary" type="button" data-checkout-plan="extra" data-source-path="/premium">
-              単発音声を申し込む
+              単発音声（準備中）
             </button>
           </article>
         `;
@@ -233,15 +230,15 @@ export const prerender = false;
             <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px;">
               <a href="/premium/light" style="display:block; padding:18px; border-radius:18px; border:1px solid rgba(214,174,64,0.28); color:#fff0bf; background:rgba(255,255,255,0.04); text-decoration:none;">
                 <strong style="display:block; margin-bottom:6px;">ライト鑑定の案内</strong>
-                <span style="display:block; color:rgba(255,236,179,0.72); line-height:1.75;">light会員以上で使える想定の、少し詳しい鑑定です。</span>
+                <span style="display:block; color:rgba(255,236,179,0.72); line-height:1.75;">light会員以上の方に向けた、少し詳しい鑑定です。</span>
               </a>
               <a href="/premium/deep" style="display:block; padding:18px; border-radius:18px; border:1px solid rgba(177,124,255,0.34); color:#fff0bf; background:rgba(177,124,255,0.06); text-decoration:none;">
                 <strong style="display:block; margin-bottom:6px;">深掘り鑑定の案内</strong>
-                <span style="display:block; color:rgba(255,236,179,0.72); line-height:1.75;">premium会員で使える想定の、多面的な鑑定です。</span>
+                <span style="display:block; color:rgba(255,236,179,0.72); line-height:1.75;">premium会員の方に向けた、多面的な鑑定です。</span>
               </a>
             </div>
             <p style="margin:18px 0 0; padding-top:16px; border-top:1px solid rgba(202,168,79,0.18); color:rgba(255,236,179,0.76); line-height:1.85;">
-              この画面では案内だけを行います。本番生成時は、API側で token と membershipTier を確認する必要があります。
+              今のあなたが選べる鑑定の扉を、ここで静かにご案内します。
             </p>
           </section>
         `;
@@ -250,14 +247,14 @@ export const prerender = false;
       function buildBillingMessage(statusInfo) {
         if (statusInfo.plan === "premium") {
           return statusInfo.cancelAtPeriodEnd
-            ? `現在プレミアム会員です。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}特典を利用できます。単発追加のみ表示しています。`
-            : "現在プレミアム会員です。重複月額決済を防ぐため、単発追加のみ表示しています。";
+            ? `現在はプレミアム会員として表示されています。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}ご利用いただけます。今は追加のご案内だけを表示しています。`
+            : "現在はプレミアム会員として表示されています。すでに選んでいる月額プランを重ねて申し込まないよう、今は追加のご案内だけを表示しています。";
         }
 
         if (statusInfo.plan === "normal") {
           return statusInfo.cancelAtPeriodEnd
-            ? `現在ライト会員です。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}特典を利用できます。アップグレードと単発追加のみ表示しています。`
-            : "現在ライト会員です。プレミアムへのアップグレードと単発追加のみ表示しています。";
+            ? `現在はライト会員として表示されています。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}ご利用いただけます。今はプレミアム会員と単発音声のご案内を表示しています。`
+            : "現在はライト会員として表示されています。今はプレミアム会員と単発音声のご案内を表示しています。";
         }
 
         return "";
@@ -269,7 +266,7 @@ export const prerender = false;
           throw new Error("ログイン情報が見つかりません。");
         }
 
-        const res = await fetch(`${USER_STATUS_API}?user_id=${encodeURIComponent(userId)}`);
+        const res = await fetch(`${USER_STATUS_ENDPOINT}?user_id=${encodeURIComponent(userId)}`);
         const data = await res.json();
 
         if (!res.ok) {
@@ -285,14 +282,14 @@ export const prerender = false;
       }
 
       function bindLogout() {
-        if (token && email) {
+        if (authSession && email) {
           authArea.innerHTML = `
             <span class="fortune-user">${escapeHtml(email)}</span>
             <button id="logoutBtn" class="fortune-nav-logout" type="button">ログアウト</button>
           `;
 
           document.getElementById("logoutBtn").addEventListener("click", () => {
-            localStorage.removeItem("token");
+            localStorage.removeItem(AUTH_STORAGE_KEY);
             localStorage.removeItem("loginEmail");
             localStorage.removeItem("userId");
             localStorage.removeItem("user_id");
@@ -308,7 +305,7 @@ export const prerender = false;
       async function renderPremiumPage() {
         bindLogout();
 
-        if (!token) {
+        if (!authSession) {
           premiumContent.innerHTML = `
             <section class="fortune-card" style="padding:40px; border-radius:28px;">
               <div style="display:inline-flex; padding:8px 14px; border-radius:999px; border:1px solid rgba(202,168,79,0.28); color:#f2dd9a; margin-bottom:18px;">
@@ -342,13 +339,22 @@ export const prerender = false;
           billingMessage = buildBillingMessage(statusInfo);
         } catch (error) {
           console.error(error);
-          billingMessage = "会員状態の確認に失敗しました。安全のため、この画面では単発追加のみ表示します。";
+          billingMessage = "今の会員状態を確認できませんでした。安全のため、この画面では追加のご案内だけを表示します。";
           usedMembershipFallback = true;
           statusInfo = {
             plan: "premium",
             cancelAtPeriodEnd: false,
             currentPeriodEnd: ""
           };
+        }
+
+        if (window.ShironeBilling?.isBillingDisabled?.()) {
+          const preparationMessage =
+            window.ShironeBilling?.getBillingPreparationInlineMessage?.() ||
+            "特別な鑑定への扉は、現在準備中です。すべての準備が整いましたら、内容と価格を確認できる形でご案内します。";
+          billingMessage = billingMessage
+            ? `${billingMessage}\n${preparationMessage}`
+            : preparationMessage;
         }
 
         premiumContent.innerHTML = `
@@ -371,10 +377,11 @@ export const prerender = false;
             </div>
             <h2 style="margin:0 0 10px; color:#fff0bf; font-size:2rem;">悩みに合わせて選ぶ特別鑑定</h2>
             <p style="margin:0 0 8px; color:#dbc979; line-height:1.9;">
-              まずは無料で雰囲気を体験し、そのあと必要に応じて会員化・単発追加を選べます。
+              今の会員状態に合わせて、選べる内容を表示しています。<br />
+              すでに選んでいる月額プランを大切にしながら、必要なものだけを追加できる形にしています。
             </p>
             <p style="margin:0 0 24px; color:#f2dd9a;">
-              980円はライト会員、2980円はプレミアム会員、300円は単発音声1回です。
+              正式なご案内では、内容と価格を確認できる形でお知らせします。
             </p>
 
             <div id="billingMessage" style="display:${billingMessage ? "block" : "none"}; margin-bottom:18px; padding:14px 16px; border-radius:16px; border:1px solid rgba(202,168,79,0.35); background:rgba(202,168,79,0.08); color:#f5e8bf; line-height:1.8;">

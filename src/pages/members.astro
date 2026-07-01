@@ -1287,21 +1287,21 @@ body.members-page-body {
           取得できない場合は、安全のため無料会員として案内します。
         </span>
         <small>
-          この表示は案内です。本番生成時はAPI側で会員状態を確認します。
+          今のあなたが選べる鑑定の扉を、ここで静かにご案内します。
         </small>
       </div>
 
       <div class="reading-doorway-actions">
         <a class="reading-doorway-link" id="readingDoorLightLink" href="/premium/light">
           <strong>ライト鑑定の案内</strong>
-          <span id="readingDoorLightText">ライト会員以上で使える想定の、少し詳しい鑑定です。</span>
+          <span id="readingDoorLightText">ライト会員以上の方に向けた、少し詳しい鑑定です。</span>
           <small>今日の流れと、今のテーマを少し深く受け取ります。</small>
           <span class="reading-doorway-cta" id="readingDoorLightCta">ライト鑑定へ</span>
         </a>
 
         <a class="reading-doorway-link reading-doorway-link--deep" id="readingDoorDeepLink" href="/premium/deep">
           <strong>深掘り鑑定の案内</strong>
-          <span id="readingDoorDeepText">プレミアム会員で使える想定の、多面的な鑑定です。</span>
+          <span id="readingDoorDeepText">プレミアム会員の方に向けた、多面的な鑑定です。</span>
           <small>数秘、星、今日の波、相談内容を重ねて読みます。</small>
           <span class="reading-doorway-cta" id="readingDoorDeepCta">深掘り鑑定へ</span>
         </a>
@@ -1619,15 +1619,22 @@ body.members-page-body {
       );
     }
 
+    function isBillingDisabled() {
+      return Boolean(window.ShironeBilling?.isBillingDisabled?.());
+    }
+
+    function showBillingPreparation() {
+      window.ShironeBilling?.showBillingPreparationMessage?.();
+    }
+
     function buildExtraCard(sourcePath) {
       return `
         <article class="plan-card" data-plan-card="extra">
-          <span class="plan-card__tag">単発追加</span>
+          <span class="plan-card__tag">準備中</span>
           <h3>単発音声占い</h3>
-          <p>300円で音声占いを1回だけ追加できる買い切りプランです。</p>
-          <div class="plan-card__price">¥300</div>
+          <p>音声で受け取る鑑定は、現在準備中です。正式なご案内まで、今しばらくお待ちください。</p>
           <button class="plan-card__button" data-plan="extra" data-source-path="${sourcePath}">
-            単発音声を申し込む
+            単発音声（準備中）
           </button>
         </article>
       `;
@@ -1694,7 +1701,7 @@ body.members-page-body {
             ? (currentPeriodEnd
                 ? `現在プレミアム会員です。ライト会員への変更は ${formatDate(currentPeriodEnd)} から反映予定です。単発追加は引き続き利用できます。`
                 : "現在プレミアム会員です。ライト会員への変更を予約済みです。単発追加は引き続き利用できます。")
-            : "現在プレミアム会員です。重複月額決済は表示せず、単発追加と次回更新からのライト変更のみ表示しています。"
+            : "現在はプレミアム会員として表示されています。すでに選んでいる月額プランを重ねて申し込まないよう、今は追加のご案内と次回更新からのライト変更だけを表示しています。"
         );
       } else if (plan === "normal") {
         html = buildPremiumCard(sourcePath) + buildExtraCard(sourcePath);
@@ -1709,6 +1716,14 @@ body.members-page-body {
       grid.innerHTML = html;
       bindPlanButtons();
       updateRenderedPlanStates(plan, visiblePendingPlan, currentPeriodEnd);
+
+      if (isBillingDisabled()) {
+        window.ShironeBilling?.prepareBillingButtons?.("#planCards [data-plan]");
+        setBillingMessage(
+          window.ShironeBilling?.getBillingPreparationInlineMessage?.() ||
+            "特別な鑑定への扉は、現在準備中です。すべての準備が整いましたら、内容と価格を確認できる形でご案内します。"
+        );
+      }
     }
 
     function updateRenderedPlanStates(plan, pendingPlan = "", currentPeriodEnd = "") {
@@ -1788,6 +1803,11 @@ body.members-page-body {
           const plan = btn.getAttribute("data-plan");
           const sourcePath = btn.getAttribute("data-source-path") || "/members";
           if (!plan) return;
+
+          if (isBillingDisabled()) {
+            showBillingPreparation();
+            return;
+          }
 
           if (plan === "normal" && currentPlan === "premium") {
             const ok = confirm("次回更新日からライト会員へ変更予約します。よろしいですか？");
