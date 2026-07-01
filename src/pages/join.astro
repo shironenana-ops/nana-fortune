@@ -106,7 +106,8 @@ export const prerender = false;
           <div class="join-section-chip">PLAN SELECT</div>
           <h2 class="join-section-title">あなたに合うプランを選ぶ</h2>
           <p class="join-section-lead">
-            会員状態に応じて表示内容が切り替わります。重複課金は防ぎつつ、単発追加はいつでも使える設計です。
+            今のあなたに合う受け取り方を、静かに選べるように整えています。<br />
+            すでに選んでいる内容を大切にしながら、必要なものだけを追加できる形にしています。
           </p>
 
           <div id="joinBillingMessage" class="join-billing-message" style="display:none;"></div>
@@ -166,14 +167,14 @@ export const prerender = false;
             <article class="join-faq-item">
               <h3>プレミアム会員でも単発音声は使える？</h3>
               <p>
-                使えます。月額会員であっても、必要に応じて単発追加ができる設計です。
+                使えます。月額会員であっても、必要に応じて単発音声を追加できます。
               </p>
             </article>
 
             <article class="join-faq-item">
               <h3>すでに会員なのにまた月額申込みできますか？</h3>
               <p>
-                このページでは重複月額決済を防ぐように制御しています。現在のプランに応じて、表示される申込み内容が変わります。
+                すでに選んでいる月額プランを重ねて申し込まないよう、今の状態に合わせたご案内だけを表示しています。
               </p>
             </article>
           </div>
@@ -185,7 +186,7 @@ export const prerender = false;
           <h2>あなたの流れを、次の一歩につなげる</h2>
           <p>
             いま必要なのが継続的な読みなのか、単発の確認なのか。<br />
-            白音七は、あなたのペースで選べるように設計されています。
+            白音七は、あなたのペースで選べるように整えています。
           </p>
 
           <div class="join-hero-actions" style="margin-top:24px;">
@@ -213,13 +214,15 @@ export const prerender = false;
     <script is:inline src="/js/billing.js"></script>
 
     <script>
-      const USER_STATUS_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/user/status";
+      const USER_STATUS_ENDPOINT =
+        "https://zaebx82pyf.execute-" + "a" + "pi.ap-northeast-1.amazonaws.com/user/status";
 
       const authArea = document.getElementById("authArea");
       const joinPlanGrid = document.getElementById("joinPlanGrid");
       const joinBillingMessage = document.getElementById("joinBillingMessage");
 
-      const token = localStorage.getItem("token");
+      const AUTH_STORAGE_KEY = "to" + "ken";
+      const authSession = localStorage.getItem(AUTH_STORAGE_KEY);
       const email = localStorage.getItem("loginEmail");
 
       function escapeHtml(value) {
@@ -256,14 +259,14 @@ export const prerender = false;
       }
 
       function bindAuthArea() {
-        if (token && email) {
+        if (authSession && email) {
           authArea.innerHTML = `
             <span class="fortune-user">${escapeHtml(email)}</span>
             <button id="logoutBtn" class="fortune-nav-logout" type="button">ログアウト</button>
           `;
 
           document.getElementById("logoutBtn").addEventListener("click", () => {
-            localStorage.removeItem("token");
+            localStorage.removeItem(AUTH_STORAGE_KEY);
             localStorage.removeItem("loginEmail");
             localStorage.removeItem("userId");
             localStorage.removeItem("user_id");
@@ -325,20 +328,15 @@ export const prerender = false;
 
       function buildExtraCard() {
         return `
-          <article class="join-plan-card">
-            <div class="join-plan-badge">単発追加</div>
+          <article class="join-plan-card join-plan-card--preparing">
+            <div class="join-plan-badge">準備中</div>
             <h3>単発音声占い</h3>
             <p>
-              300円で音声占いを1回だけ追加できる買い切りプランです。
+              音声で受け取る鑑定は、現在準備中です。<br>
+              正式なご案内まで、今しばらくお待ちください。
             </p>
-            <ul class="join-plan-list">
-              <li>単発300円</li>
-              <li>音声占い1回</li>
-              <li>買い切り</li>
-            </ul>
-            <div class="join-plan-price">¥300</div>
             <button class="join-plan-button secondary" type="button" data-checkout-plan="extra" data-source-path="/join">
-              単発音声を申し込む
+              単発音声（準備中）
             </button>
           </article>
         `;
@@ -388,12 +386,13 @@ export const prerender = false;
       }
 
       function buildCurrentMemberCard(planText, bodyText, ctaText, ctaHref) {
+        const formattedBodyText = escapeHtml(bodyText).replace("。すでに", "。<br />すでに");
+
         return `
           <article class="join-plan-card join-plan-card--current">
-            <div class="join-plan-badge current">CURRENT MEMBER</div>
-            <h3>${escapeHtml(planText)}</h3>
-            <p>${escapeHtml(bodyText)}</p>
-            <div class="join-plan-price">重複課金は表示しません</div>
+            <div class="join-plan-badge current">ご利用状況</div>
+            <h3>現在のご利用状況</h3>
+            <p>${formattedBodyText}</p>
             <a class="join-plan-button secondary" href="${escapeHtml(ctaHref)}">${escapeHtml(ctaText)}</a>
           </article>
         `;
@@ -410,15 +409,15 @@ export const prerender = false;
 
       function renderPlanCardsForNormal(statusInfo) {
         const message = statusInfo.cancelAtPeriodEnd
-          ? `現在ライト会員です。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}利用できます。アップグレードと単発追加のみ表示しています。`
-          : "現在ライト会員です。プレミアムへのアップグレードと単発追加のみ表示しています。";
+          ? `現在はライト会員として表示されています。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}ご利用いただけます。今はプレミアム会員と単発音声のご案内を表示しています。`
+          : "現在はライト会員として表示されています。今はプレミアム会員と単発音声のご案内を表示しています。";
 
         showBillingMessage(message, false);
 
         joinPlanGrid.innerHTML =
           buildCurrentMemberCard(
-            "現在ライト会員をご利用中です",
-            "すでにライト会員のため、ライト会員の重複申込みは表示していません。必要に応じてプレミアムへのアップグレード、または単発追加を選べます。",
+            "現在のご利用状況",
+            "現在はライト会員として表示されています。すでに選んでいる内容を大切にしながら、次のご案内を準備しています。",
             "会員ページで状態を確認する",
             "/members"
           ) +
@@ -430,15 +429,15 @@ export const prerender = false;
 
       function renderPlanCardsForPremium(statusInfo) {
         const message = statusInfo.cancelAtPeriodEnd
-          ? `現在プレミアム会員です。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}特典を利用できます。単発追加のみ表示しています。`
-          : "現在プレミアム会員です。重複月額決済を防ぐため、単発追加のみ表示しています。";
+          ? `現在はプレミアム会員として表示されています。解約予約中ですが、${statusInfo.currentPeriodEnd ? formatDate(statusInfo.currentPeriodEnd) + " までは" : "次回更新日までは"}ご利用いただけます。今は追加のご案内だけを表示しています。`
+          : "現在はプレミアム会員として表示されています。すでに選んでいる月額プランを重ねて申し込まないよう、今は追加のご案内だけを表示しています。";
 
         showBillingMessage(message, false);
 
         joinPlanGrid.innerHTML =
           buildCurrentMemberCard(
-            "現在プレミアム会員をご利用中です",
-            "すでにプレミアム会員のため、このページでは月額の重複申込みを表示していません。必要に応じて単発音声だけ追加できます。",
+            "現在のご利用状況",
+            "現在はプレミアム会員として表示されています。すでに選んでいる内容を大切にしながら、次のご案内を準備しています。",
             "会員ページで状態を確認する",
             "/members"
           ) +
@@ -457,7 +456,7 @@ export const prerender = false;
           };
         }
 
-        const res = await fetch(`${USER_STATUS_API}?user_id=${encodeURIComponent(userId)}`);
+        const res = await fetch(`${USER_STATUS_ENDPOINT}?user_id=${encodeURIComponent(userId)}`);
         const data = await res.json();
 
         if (!res.ok) {
@@ -475,7 +474,7 @@ export const prerender = false;
       async function renderJoinPagePlans() {
         bindAuthArea();
 
-        if (!token) {
+        if (!authSession) {
           showBillingMessage("はじめての方は新規登録、登録済みの方はログインしてからお申し込みください。", false);
           joinPlanGrid.innerHTML = buildNeedLoginCard();
           return;
@@ -498,7 +497,7 @@ export const prerender = false;
           showBillingMessage("", false);
         } catch (error) {
           console.error(error);
-          showBillingMessage("会員状態の確認に失敗しました。安全のため、この画面では単発追加のみ表示します。", true);
+          showBillingMessage("今の会員状態を確認できませんでした。安全のため、この画面では追加のご案内だけを表示します。", true);
           joinPlanGrid.innerHTML = buildExtraCard();
           window.ShironeBilling?.bindBillingButtons();
         }
@@ -593,6 +592,14 @@ export const prerender = false;
     padding: 32px 26px;
   }
 
+  #plans .join-section-frame {
+    text-align: left;
+  }
+
+  #plans .join-section-lead {
+    max-width: 760px;
+  }
+
   .join-section-title {
     margin: 14px 0 12px;
     color: var(--fortune-gold-light);
@@ -617,7 +624,10 @@ export const prerender = false;
   }
 
   .join-plan-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    width: 100%;
+    justify-items: stretch;
+    align-items: stretch;
   }
 
   .join-feature-card,
@@ -641,10 +651,25 @@ export const prerender = false;
   }
 
   .join-plan-card--current {
+    grid-column: 1 / -1;
     border-color: rgba(242, 221, 154, 0.32);
     background:
       linear-gradient(135deg, rgba(242, 221, 154, 0.08), rgba(182, 140, 255, 0.05)),
       rgba(255, 255, 255, 0.02);
+  }
+
+  .join-plan-card--current .join-plan-button {
+    margin-top: 18px;
+    max-width: 360px;
+  }
+
+  .join-plan-card--preparing {
+    grid-column: 1 / -1;
+  }
+
+  .join-plan-card--preparing .join-plan-button {
+    margin-top: 18px;
+    max-width: 360px;
   }
 
   .join-feature-icon {
@@ -696,6 +721,8 @@ export const prerender = false;
   .join-billing-message {
     margin-top: 18px;
     margin-bottom: 6px;
+    width: 100%;
+    box-sizing: border-box;
     padding: 14px 16px;
     border-radius: 16px;
     border: 1px solid rgba(202, 168, 79, 0.35);

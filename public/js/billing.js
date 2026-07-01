@@ -1,5 +1,9 @@
 const BILLING_DISABLED = true;
 const BILLING_API_URL = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/checkout";
+const BILLING_PREPARATION_MESSAGE =
+  "このお申し込みの扉は、現在静かに準備中です。\n正式なご案内まで、今しばらくお待ちください。\n料金が発生することはありません。";
+const BILLING_PREPARATION_INLINE_MESSAGE =
+  "特別な鑑定への扉は、現在準備中です。\nすべての準備が整いましたら、内容と価格を確認できる形でご案内します。";
 
 function getCanonicalUserId() {
   return localStorage.getItem("user_id") || localStorage.getItem("userId") || "";
@@ -19,7 +23,7 @@ function getToken() {
 }
 
 function showBillingMessage(message, isError = false) {
-  const box = document.getElementById("billingMessage");
+  const box = document.getElementById("billingMessage") || document.getElementById("joinBillingMessage");
   if (!box) return;
 
   box.textContent = message;
@@ -33,9 +37,53 @@ function showBillingMessage(message, isError = false) {
     : "rgba(202, 168, 79, 0.08)";
 }
 
+function showBillingPreparationMessage() {
+  showBillingMessage(BILLING_PREPARATION_INLINE_MESSAGE, false);
+  alert(BILLING_PREPARATION_MESSAGE);
+}
+
+function getPreparationButtonLabel(button) {
+  const plan = button.getAttribute("data-checkout-plan") || button.getAttribute("data-plan") || "";
+  const currentLabel = (button.textContent || "").trim();
+
+  if (currentLabel.includes("変更")) return "プラン変更（準備中）";
+  if (plan === "extra") return "単発音声（準備中）";
+  if (plan === "normal" || plan === "light") return "ライト会員（準備中）";
+  if (plan === "premium") return "Premium（準備中）";
+  return "準備中";
+}
+
+function prepareBillingButton(button) {
+  if (!BILLING_DISABLED || !button) return;
+
+  if (!button.dataset.billingOriginalLabel) {
+    button.dataset.billingOriginalLabel = (button.textContent || "").trim();
+  }
+
+  button.textContent = getPreparationButtonLabel(button);
+  button.setAttribute("aria-disabled", "true");
+  button.setAttribute("title", "お申し込みの扉は現在準備中です");
+  button.classList.add("is-billing-disabled");
+  button.removeAttribute("disabled");
+}
+
+function prepareBillingButtons(selector = "[data-checkout-plan]") {
+  document.querySelectorAll(selector).forEach((button) => {
+    prepareBillingButton(button);
+  });
+}
+
+function isBillingDisabled() {
+  return BILLING_DISABLED;
+}
+
+function getBillingPreparationInlineMessage() {
+  return BILLING_PREPARATION_INLINE_MESSAGE;
+}
+
 async function startCheckout(arg1, arg2 = location.pathname) {
   if (BILLING_DISABLED) {
-    alert("ただいま申込み前の確認画面を準備しています。\n確認なしに料金が発生することはありません。");
+    showBillingPreparationMessage();
     return;
   }
 
@@ -110,7 +158,18 @@ async function startCheckout(arg1, arg2 = location.pathname) {
 function bindBillingButtons() {
   const buttons = document.querySelectorAll("[data-checkout-plan]");
   buttons.forEach((button) => {
-    button.addEventListener("click", async () => {
+    prepareBillingButton(button);
+
+    if (button.dataset.billingBound === "true") return;
+    button.dataset.billingBound = "true";
+
+    button.addEventListener("click", async (event) => {
+      if (BILLING_DISABLED) {
+        event.preventDefault();
+        showBillingPreparationMessage();
+        return;
+      }
+
       const plan = button.getAttribute("data-checkout-plan");
       const sourcePath = button.getAttribute("data-source-path") || location.pathname;
       await startCheckout(plan, sourcePath);
@@ -122,5 +181,10 @@ window.startCheckout = startCheckout;
 window.bindBillingButtons = bindBillingButtons;
 window.ShironeBilling = {
   startCheckout,
-  bindBillingButtons
+  bindBillingButtons,
+  isBillingDisabled,
+  prepareBillingButton,
+  prepareBillingButtons,
+  showBillingPreparationMessage,
+  getBillingPreparationInlineMessage
 };

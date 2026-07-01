@@ -1368,10 +1368,9 @@ export const prerender = false;
 
           <article class="menu-card">
             <h3>単発音声占い</h3>
-            <p>300円。音声占いを1回だけ追加できる買い切りプランです。</p>
-            <div class="price">¥300</div>
+            <p>音声で受け取る鑑定は、現在準備中です。正式なご案内まで、今しばらくお待ちください。</p>
             <button class="btn btn-secondary" type="button" data-checkout-plan="extra" data-source-path="/history">
-              単発音声を申し込む
+              単発音声（準備中）
             </button>
           </article>
         `;
@@ -1384,7 +1383,7 @@ export const prerender = false;
 
         const cancelText = statusInfo.cancelAtPeriodEnd
           ? "解約予約中です。次回更新日までは利用できます。"
-          : "重複課金防止のため、このページから月額申込みはできません。";
+          : "すでに選んでいる月額プランを大切にしながら、今の状態に合わせたご案内を表示しています。";
 
         return `
           <article class="member-status-card current">
@@ -1399,12 +1398,11 @@ export const prerender = false;
 
           <article class="menu-card">
             <h3>単発音声占い</h3>
-            <p>月の回数とは別に、音声占いを1回だけ追加できます。</p>
-            <div class="price">¥300</div>
+            <p>音声で受け取る鑑定は、現在準備中です。正式なご案内まで、今しばらくお待ちください。</p>
             <button class="btn btn-secondary" type="button" data-checkout-plan="extra" data-source-path="/history">
-              単発音声を申し込む
+              単発音声（準備中）
             </button>
-            <div class="plan-note">ライト会員中は、履歴ページでは単発追加のみ受け付けます。</div>
+            <div class="plan-note">正式なご案内では、内容と価格を確認できる形でお知らせします。</div>
           </article>
         `;
       }
