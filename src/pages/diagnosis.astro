@@ -75,7 +75,7 @@ import "../styles/global.css";
             </p>
 
             <!-- フォーム -->
-            <form id="diagnosisForm" class="fortune-diagnosis-form">
+            <form id="diagnosisForm" class="fortune-diagnosis-form" novalidate>
               <div class="fortune-form-group">
                 <label for="name">お名前</label>
                 <input type="text" id="name" required placeholder="例：山田 太郎" />
@@ -83,7 +83,7 @@ import "../styles/global.css";
 
               <div class="fortune-form-group">
                 <label for="birthday">生年月日</label>
-                <input type="date" id="birthday" required />
+                <input type="date" id="birthday" min="1900-01-01" required />
               </div>
 
               <div class="fortune-form-group">
@@ -100,6 +100,17 @@ import "../styles/global.css";
                   ✦ 占いを開始する
                 </button>
               </div>
+
+              <p class="fortune-profile-note">
+                入力情報は次回からの入力を省くため、この端末のブラウザに保存されます。<br />
+                他の端末には共有されません。
+              </p>
+
+              <p id="profileMessage" class="fortune-profile-message" aria-live="polite"></p>
+
+              <button id="clearProfileBtn" class="fortune-profile-clear" type="button">
+                保存した入力情報を削除
+              </button>
             </form>
 
             <!-- ローディング -->
@@ -168,18 +179,181 @@ import "../styles/global.css";
       // フォーム処理
       const form = document.getElementById("diagnosisForm");
       const loading = document.getElementById("loadingArea");
+      const profileStorageKey = "shironeDailyProfile";
+      const nameInput = document.getElementById("name");
+      const birthdayInput = document.getElementById("birthday");
+      const genderInput = document.getElementById("gender");
+      const profileMessage = document.getElementById("profileMessage");
+      const clearProfileBtn = document.getElementById("clearProfileBtn");
+      const birthDateErrorMessage = "生年月日は4桁の西暦で入力してください。例：1984/04/10";
+
+      function todayIsoDate() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function setProfileMessage(message, isError = false) {
+        if (!profileMessage) return;
+        profileMessage.textContent = message;
+        profileMessage.classList.toggle("is-error", Boolean(isError));
+      }
+
+      function isValidBirthDate(value) {
+        const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return false;
+
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const date = new Date(year, month - 1, day);
+        if (Number.isNaN(date.getTime())) return false;
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day
+        ) {
+          return false;
+        }
+
+        const normalized = [
+          String(year).padStart(4, "0"),
+          String(month).padStart(2, "0"),
+          String(day).padStart(2, "0")
+        ].join("-");
+
+        if (value < "1900-01-01") return false;
+        if (normalized > todayIsoDate()) return false;
+
+        return true;
+      }
+
+      function updateBirthdayValidity() {
+        if (!birthdayInput) return true;
+
+        const value = birthdayInput.value;
+        const isEmpty = !value;
+        const isValid = isEmpty || isValidBirthDate(value);
+
+        birthdayInput.setCustomValidity(isValid ? "" : birthDateErrorMessage);
+        return isValid;
+      }
+
+      function readSavedDailyProfile() {
+        try {
+          const raw = localStorage.getItem(profileStorageKey);
+          if (!raw) return null;
+
+          const data = JSON.parse(raw);
+          const profiles = Array.isArray(data?.profiles) ? data.profiles : [];
+          const selectedProfileId = data?.selectedProfileId || "default";
+
+          return (
+            profiles.find((profile) => profile?.id === selectedProfileId) ||
+            profiles.find((profile) => profile?.id === "default") ||
+            null
+          );
+        } catch {
+          return null;
+        }
+      }
+
+      function restoreDailyProfile() {
+        const profile = readSavedDailyProfile();
+        if (!profile) return;
+
+        if (nameInput && typeof profile.name === "string") {
+          nameInput.value = profile.name;
+        }
+
+        if (birthdayInput && typeof profile.birthDate === "string" && isValidBirthDate(profile.birthDate)) {
+          birthdayInput.value = profile.birthDate;
+        }
+
+        if (genderInput && typeof profile.gender === "string") {
+          genderInput.value = ["", "male", "female"].includes(profile.gender) ? profile.gender : "";
+        }
+      }
+
+      function saveDailyProfile({ name, birthday, gender }) {
+        const data = {
+          profiles: [
+            {
+              id: "default",
+              label: "本人",
+              name,
+              birthDate: birthday,
+              gender
+            }
+          ],
+          selectedProfileId: "default",
+          updatedAt: new Date().toISOString()
+        };
+
+        localStorage.setItem(profileStorageKey, JSON.stringify(data));
+      }
+
+      if (birthdayInput) {
+        birthdayInput.max = todayIsoDate();
+        birthdayInput.addEventListener("input", updateBirthdayValidity);
+        birthdayInput.addEventListener("change", updateBirthdayValidity);
+        birthdayInput.addEventListener("invalid", () => {
+          if (birthdayInput.validity.valueMissing) {
+            birthdayInput.setCustomValidity("生年月日を入力してください。");
+            return;
+          }
+
+          updateBirthdayValidity();
+        });
+      }
+
+      restoreDailyProfile();
+      updateBirthdayValidity();
+
+      clearProfileBtn?.addEventListener("click", () => {
+        localStorage.removeItem(profileStorageKey);
+
+        if (nameInput) nameInput.value = "";
+        if (birthdayInput) {
+          birthdayInput.value = "";
+          birthdayInput.setCustomValidity("");
+        }
+        if (genderInput) genderInput.value = "";
+
+        setProfileMessage("保存した入力情報を削除しました。");
+      });
 
       if (form && loading) {
         form.addEventListener("submit", (e) => {
           e.preventDefault();
 
-          const nameInput = document.getElementById("name");
-          const birthdayInput = document.getElementById("birthday");
-          const genderInput = document.getElementById("gender");
-
           const name = nameInput ? nameInput.value : "";
           const birthday = birthdayInput ? birthdayInput.value : "";
           const gender = genderInput ? genderInput.value : "";
+
+          if (!name.trim()) {
+            setProfileMessage("お名前を入力してください。", true);
+            nameInput?.focus();
+            return;
+          }
+
+          if (!birthday) {
+            setProfileMessage("生年月日を入力してください。", true);
+            birthdayInput?.focus();
+            return;
+          }
+
+          updateBirthdayValidity();
+
+          if (!isValidBirthDate(birthday)) {
+            setProfileMessage(birthDateErrorMessage, true);
+            birthdayInput?.focus();
+            return;
+          }
+
+          saveDailyProfile({ name, birthday, gender });
 
           localStorage.setItem("fortuneInput", JSON.stringify({
             name,
@@ -336,6 +510,42 @@ import "../styles/global.css";
         margin-top: 0.4rem;
         display: flex;
         justify-content: center;
+      }
+
+      .fortune-profile-note,
+      .fortune-profile-message {
+        margin: 0;
+        color: rgba(255, 236, 179, 0.72);
+        font-size: 0.84rem;
+        line-height: 1.75;
+        text-align: center;
+      }
+
+      .fortune-profile-message {
+        min-height: 1.4em;
+        color: rgba(255, 236, 179, 0.86);
+      }
+
+      .fortune-profile-message.is-error {
+        color: #ffd7d7;
+      }
+
+      .fortune-profile-clear {
+        appearance: none;
+        justify-self: center;
+        border: 0;
+        padding: 0;
+        color: rgba(255, 236, 179, 0.7);
+        background: transparent;
+        font: inherit;
+        font-size: 0.84rem;
+        text-decoration: underline;
+        text-underline-offset: 0.25em;
+        cursor: pointer;
+      }
+
+      .fortune-profile-clear:hover {
+        color: #fff0bf;
       }
 
       .diagnosis-side {
@@ -514,6 +724,11 @@ import "../styles/global.css";
         .fortune-diagnosis-actions .fortune-btn {
           width: 100%;
           justify-content: center;
+        }
+
+        .fortune-profile-note,
+        .fortune-profile-message {
+          text-align: left;
         }
       }
     </style>
