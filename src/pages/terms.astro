@@ -1,0 +1,186 @@
+---
+import "../styles/global.css";
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>利用規約 | 白音七</title>
+    <meta
+      name="description"
+      content="白音七の利用規約です。サービスの目的、会員登録、履歴保存、有料機能、禁止事項、免責事項について記載しています。"
+    />
+  </head>
+
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
+
+        <button
+          class="fortune-mobile-menu-button"
+          type="button"
+          aria-label="メニューを開く"
+          aria-expanded="false"
+          onclick="const nav=this.parentElement.querySelector('.fortune-nav'); const open=!nav.classList.contains('is-open'); nav.classList.toggle('is-open', open); this.setAttribute('aria-expanded', String(open)); this.setAttribute('aria-label', open ? 'メニューを閉じる' : 'メニューを開く');"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/diagnosis">今日の鑑定</a>
+          <a href="/members">会員ページ</a>
+          <a href="/contact">お問い合わせ</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
+
+    <main class="fortune-result">
+      <section class="fortune-container">
+        <div class="fortune-result-frame">
+          <div class="fortune-detail-kicker">TERMS</div>
+          <h1 class="fortune-result-title">利用規約</h1>
+          <p class="fortune-result-message">
+            白音七を安心してお使いいただくための約束ごとです。
+            占いを怖いものにせず、日々を整える手がかりとしてお届けします。
+          </p>
+
+          <div class="fortune-result-card highlight">
+            <h2>1. サービスの目的</h2>
+            <p>
+              白音七は、占い・自己理解の補助を目的とするサービスです。
+              鑑定結果は、日々の気持ちや行動を整えるための参考情報として提供されます。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>2. 重大な判断について</h2>
+            <p>
+              白音七は、医療、法律、投資、就職、結婚、離婚、契約などの重大な判断を代替するものではありません。
+              必要な場合は、専門家や関係機関へご相談ください。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>3. 鑑定結果の受け止め方</h2>
+            <p>
+              鑑定結果の受け止め方や、その後の行動は利用者自身の判断に委ねられます。
+              白音七は、特定の結果や効果を保証するものではありません。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>4. 会員登録と履歴保存</h2>
+            <p>
+              一部の機能を利用するには、会員登録やログインが必要です。
+              白音七では「占いは個人の資産」という考え方を大切にし、一度届けた鑑定本文は、本人の履歴として見返せる設計を目指します。
+            </p>
+            <p>
+              ただし、新規のlight鑑定、deep鑑定、未生成音声の新規生成は、現在の会員ランクまたは単発購入により制御されます。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>5. 有料機能と解約</h2>
+            <p>
+              有料機能の内容、料金、提供時期は、各購入ページまたは申込み画面に表示します。
+              サブスクリプションの解約は、会員ページまたはStripeカスタマーポータル等の案内に従って行います。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>6. 禁止事項</h2>
+            <p>
+              不正アクセス、虚偽情報の登録、第三者になりすます行為、サービス運営を妨げる行為、
+              鑑定結果や画面内容の無断転載・再販売、法令または公序良俗に反する行為を禁止します。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>7. 免責事項</h2>
+            <p>
+              サービスの利用により生じた損害について、白音七は故意または重過失がある場合を除き、
+              法令で認められる範囲で責任を負わないものとします。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>8. サービス内容の変更・停止</h2>
+            <p>
+              白音七は、必要に応じてサービス内容の変更、追加、停止を行う場合があります。
+              重要な変更がある場合は、できるだけ分かりやすくお知らせします。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>9. 準拠法・管轄</h2>
+            <p>
+              本規約は日本法に準拠します。サービスに関して紛争が生じた場合は、
+              運営者所在地を管轄する裁判所を第一審の専属的合意管轄裁判所とします。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>10. お問い合わせ</h2>
+            <p>
+              本規約に関するお問い合わせは、お問い合わせページよりご連絡ください。
+            </p>
+          </div>
+
+          <div class="fortune-result-actions">
+            <a href="/" class="fortune-btn secondary">TOPへ戻る</a>
+            <a href="/privacy" class="fortune-btn primary">プライバシーポリシーへ</a>
+            <a href="/commercial-transactions" class="fortune-btn violet">特商法表記へ</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="fortune-footer">
+      <div class="fortune-container fortune-footer-inner">
+        <div>© {new Date().getFullYear()} 白音七</div>
+        <nav class="fortune-footer-links" aria-label="フッターナビゲーション">
+          <a href="/terms">利用規約</a>
+          <a href="/privacy">プライバシーポリシー</a>
+          <a href="/commercial-transactions">特定商取引法に基づく表記</a>
+          <a href="/disclaimer">免責事項</a>
+          <a href="/contact">お問い合わせ</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      const authArea = document.getElementById("authArea");
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+
+      if (token && email) {
+        authArea.innerHTML = `
+          <span class="fortune-user">${email}</span>
+          <button id="logoutBtn" class="fortune-nav-logout" type="button">ログアウト</button>
+        `;
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("loginEmail");
+          localStorage.removeItem("user_id");
+          localStorage.removeItem("userId");
+          window.location.href = "/";
+        });
+      } else {
+        authArea.innerHTML = `
+          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+        `;
+      }
+    </script>
+  </body>
+</html>

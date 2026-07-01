@@ -1,0 +1,173 @@
+---
+import "../styles/global.css";
+
+const rows = [
+  ["販売事業者", "白音七 運営事務局（正式表記確認中）"],
+  ["運営責任者", "確認中"],
+  ["所在地", "確認中\n※正式公開前に、法令上必要な表示方法を確認のうえ記載します。"],
+  ["電話番号", "確認中\n※お問い合わせは原則メールにて受け付けます。"],
+  ["メールアドレス", "support@nana-fortune.com\n※未設定の場合は正式公開前に差し替えます。"],
+  ["販売価格", "各購入ページまたは申込み画面に表示します。Premiumプラン等の価格は正式公開前に確定します。"],
+  ["商品代金以外の必要料金", "インターネット接続料金、通信料金等は利用者の負担となります。"],
+  ["支払い方法", "クレジットカード決済等、Stripeが提供する決済方法"],
+  ["支払い時期", "申込み時または各決済サービスの定める時期"],
+  ["サービス提供時期", "決済完了後、利用可能な会員機能を提供します。準備中の機能は各ページにその旨を表示します。"],
+  ["返品・キャンセル・返金について", "デジタルコンテンツおよびサービスの性質上、提供開始後の返金は原則としてお受けできません。ただし、重複決済や当方の不備が確認された場合は個別に対応します。"],
+  ["解約について", "サブスクリプションは会員ページまたはStripeカスタマーポータル等の案内に従って解約できます。解約後も、既に届けられた鑑定本文は本人の履歴として見返せる設計です。ただし、新規鑑定生成や未生成音声の新規生成は、現在の会員ランクまたは単発購入により制御されます。"],
+  ["動作環境", "インターネットに接続できるスマートフォン、タブレット、PCの主要ブラウザ"],
+  ["表現および商品に関する注意書き", "本サービスは占い・自己理解の補助を目的としたものであり、特定の結果や効果を保証するものではありません。"]
+];
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>特定商取引法に基づく表記 | 白音七</title>
+    <meta
+      name="description"
+      content="白音七の特定商取引法に基づく表記です。販売価格、支払い方法、返品・解約等について記載しています。"
+    />
+  </head>
+
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
+
+        <button
+          class="fortune-mobile-menu-button"
+          type="button"
+          aria-label="メニューを開く"
+          aria-expanded="false"
+          onclick="const nav=this.parentElement.querySelector('.fortune-nav'); const open=!nav.classList.contains('is-open'); nav.classList.toggle('is-open', open); this.setAttribute('aria-expanded', String(open)); this.setAttribute('aria-label', open ? 'メニューを閉じる' : 'メニューを開く');"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/members">会員ページ</a>
+          <a href="/privacy">プライバシーポリシー</a>
+          <a href="/contact">お問い合わせ</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
+
+    <main class="fortune-result">
+      <section class="fortune-container">
+        <div class="fortune-result-frame">
+          <div class="fortune-detail-kicker">LEGAL NOTICE</div>
+          <h1 class="fortune-result-title">特定商取引法に基づく表記</h1>
+          <p class="fortune-result-message">
+            正式公開前の確認用として、未確定の項目には「確認中」と記載しています。
+            個人住所や電話番号は推測せず、正式公開前に必要な表示方法を確認します。
+          </p>
+
+          <div class="legal-table" role="table" aria-label="特定商取引法に基づく表記">
+            {rows.map(([label, value]) => (
+              <div class="legal-row" role="row">
+                <div class="legal-label" role="cell">{label}</div>
+                <div class="legal-value" role="cell">
+                  {value.split("\n").map((line) => (
+                    <span>{line}<br /></span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div class="fortune-result-actions">
+            <a href="/" class="fortune-btn secondary">TOPへ戻る</a>
+            <a href="/terms" class="fortune-btn primary">利用規約へ</a>
+            <a href="/contact" class="fortune-btn violet">お問い合わせへ</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="fortune-footer">
+      <div class="fortune-container fortune-footer-inner">
+        <div>© {new Date().getFullYear()} 白音七</div>
+        <nav class="fortune-footer-links" aria-label="フッターナビゲーション">
+          <a href="/terms">利用規約</a>
+          <a href="/privacy">プライバシーポリシー</a>
+          <a href="/commercial-transactions">特定商取引法に基づく表記</a>
+          <a href="/disclaimer">免責事項</a>
+          <a href="/contact">お問い合わせ</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      const authArea = document.getElementById("authArea");
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+
+      if (token && email) {
+        authArea.innerHTML = `
+          <span class="fortune-user">${email}</span>
+          <button id="logoutBtn" class="fortune-nav-logout" type="button">ログアウト</button>
+        `;
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("loginEmail");
+          localStorage.removeItem("user_id");
+          localStorage.removeItem("userId");
+          window.location.href = "/";
+        });
+      } else {
+        authArea.innerHTML = `
+          <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+        `;
+      }
+    </script>
+
+    <style>
+      .legal-table {
+        display: grid;
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      .legal-row {
+        display: grid;
+        grid-template-columns: minmax(160px, 0.36fr) minmax(0, 1fr);
+        border: 1px solid rgba(214, 174, 64, 0.22);
+        border-radius: 18px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.025);
+      }
+
+      .legal-label,
+      .legal-value {
+        padding: 16px 18px;
+        line-height: 1.8;
+      }
+
+      .legal-label {
+        color: #fff0bf;
+        font-weight: 800;
+        background: rgba(214, 174, 64, 0.08);
+      }
+
+      .legal-value {
+        color: rgba(255, 236, 179, 0.82);
+      }
+
+      @media (max-width: 640px) {
+        .legal-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </body>
+</html>
