@@ -1645,10 +1645,10 @@ body.members-page-body {
         <article class="plan-card" data-plan-card="normal">
           <span class="plan-card__tag">月額ライト会員</span>
           <h3>ライト会員</h3>
-          <p>月額980円で、音声占い5回と履歴確認ができる基本プランです。</p>
-          <div class="plan-card__price">¥980 <small>/ 月</small></div>
+          <p>ライト会員は、日々の鑑定と履歴確認を少し深く受け取りたい方向けに準備しています。</p>
+          <div class="plan-card__price">料金は準備中</div>
           <button class="plan-card__button" data-plan="normal" data-source-path="${sourcePath}">
-            ライト会員に申し込む
+            ライト会員（準備中）
           </button>
         </article>
       `;
@@ -1659,10 +1659,10 @@ body.members-page-body {
         <article class="plan-card plan-card--premium" data-plan-card="premium">
           <span class="plan-card__tag">人気No.1 プレミアム</span>
           <h3>プレミアム会員</h3>
-          <p>月額2980円で、音声20回・履歴確認・深掘り鑑定まで使える本命プランです。</p>
-          <div class="plan-card__price">¥2,980 <small>/ 月</small></div>
+          <p>プレミアム会員は、より深い鑑定や受け取り方を選びたい方向けに準備しています。</p>
+          <div class="plan-card__price">料金は準備中</div>
           <button class="plan-card__button" data-plan="premium" data-source-path="${sourcePath}">
-            プレミアム会員に申し込む
+            Premium（準備中）
           </button>
         </article>
       `;
@@ -1673,10 +1673,10 @@ body.members-page-body {
         <article class="plan-card" data-plan-card="normal">
           <span class="plan-card__tag">次回更新から変更</span>
           <h3>ライト会員へ変更</h3>
-          <p>プレミアム会員からライト会員へ、次回更新日から切り替える予約を行います。</p>
-          <div class="plan-card__price">¥980 <small>/ 月</small></div>
+          <p>プラン変更のご案内は現在準備中です。正式なご案内時に、内容と料金を確認できる形でお知らせします。</p>
+          <div class="plan-card__price">料金は準備中</div>
           <button class="plan-card__button" data-plan="normal">
-            ライト会員へ変更予約
+            プラン変更（準備中）
           </button>
         </article>
       `;
@@ -1738,14 +1738,14 @@ body.members-page-body {
       if (plan === "normal") {
         if (premiumBtn) {
           premiumBtn.disabled = false;
-          premiumBtn.textContent = "プレミアム会員に申し込む";
+          premiumBtn.textContent = "Premium（準備中）";
         }
       }
 
       if (plan === "premium") {
         if (normalBtn) {
           normalBtn.disabled = false;
-          normalBtn.textContent = "ライト会員へ変更予約";
+          normalBtn.textContent = "プラン変更（準備中）";
         }
 
         if (pendingPlan && normalizeMembershipTier(pendingPlan) === "light") {
