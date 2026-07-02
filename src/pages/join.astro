@@ -12,7 +12,7 @@ export const prerender = false;
     <title>会員登録・プラン案内 | 白音七</title>
     <meta
       name="description"
-      content="白音七の会員登録ページ。ライト会員、プレミアム会員、単発音声占いの違いを比較しながら申し込めます。"
+      content="白音七の会員登録ページ。ライト会員、プレミアム会員、単発音声占いの違いを確認できます。現在、お申し込みは準備中です。"
     />
   </head>
 
@@ -348,16 +348,16 @@ export const prerender = false;
             <div class="join-plan-badge">月額ライト会員</div>
             <h3>ライト会員</h3>
             <p>
-              月額980円で、音声占い5回と履歴確認ができる基本プランです。
+              ライト会員は、日々の鑑定と履歴確認を少し深く受け取りたい方向けに準備しています。
             </p>
             <ul class="join-plan-list">
-              <li>月額980円</li>
-              <li>音声占い5回</li>
+              <li>料金は正式なご案内時に確認できます</li>
+              <li>音声で受け取る鑑定は準備中</li>
               <li>履歴確認</li>
             </ul>
-            <div class="join-plan-price">¥980 / 月</div>
+            <div class="join-plan-price">料金は準備中</div>
             <button class="join-plan-button gold" type="button" data-checkout-plan="normal" data-source-path="/join">
-              ライト会員に申し込む
+              ライト会員（準備中）
             </button>
           </article>
         `;
@@ -369,17 +369,17 @@ export const prerender = false;
             <div class="join-plan-badge premium">人気No.1 プレミアム</div>
             <h3>プレミアム会員</h3>
             <p>
-              月額2980円で、音声20回・履歴確認・深掘り鑑定まで使える本命プランです。
+              プレミアム会員は、より深い鑑定や受け取り方を選びたい方向けに準備しています。
             </p>
             <ul class="join-plan-list">
-              <li>月額2980円</li>
-              <li>音声占い20回</li>
+              <li>料金は正式なご案内時に確認できます</li>
+              <li>音声で受け取る鑑定は準備中</li>
               <li>履歴確認</li>
               <li>深掘り鑑定</li>
             </ul>
-            <div class="join-plan-price">¥2,980 / 月</div>
+            <div class="join-plan-price">料金は準備中</div>
             <button class="join-plan-button violet" type="button" data-checkout-plan="premium" data-source-path="/join">
-              プレミアム会員に申し込む
+              Premium（準備中）
             </button>
           </article>
         `;
@@ -475,7 +475,7 @@ export const prerender = false;
         bindAuthArea();
 
         if (!authSession) {
-          showBillingMessage("はじめての方は新規登録、登録済みの方はログインしてからお申し込みください。", false);
+          showBillingMessage("はじめての方は新規登録、登録済みの方はログインしてからご確認ください。お申し込みは現在準備中です。", false);
           joinPlanGrid.innerHTML = buildNeedLoginCard();
           return;
         }
