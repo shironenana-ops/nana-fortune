@@ -1,0 +1,304 @@
+---
+import "../styles/global.css";
+import { shironeTypes } from "../lib/shironeTypes";
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>白音七 7タイプ診断 | 白音七</title>
+    <meta
+      name="description"
+      content="白音七オリジナルの7タイプ診断。生年月日から導く7つの響きと、それぞれの気配を紹介します。"
+    />
+    <style>
+      .shirone-type-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 24px;
+        align-items: stretch;
+        margin: 28px 0 36px;
+      }
+
+      .shirone-type-card {
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        min-height: 214px;
+        height: 100%;
+        text-decoration: none;
+      }
+
+      .shirone-type-card-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .shirone-type-card-title h2 {
+        margin: 0;
+        color: #fff0bf;
+        font-size: 1.16rem;
+      }
+
+      .shirone-type-card-title span {
+        color: rgba(255, 236, 179, 0.62);
+        font-size: 0.88rem;
+        white-space: nowrap;
+      }
+
+      .shirone-type-card-catch {
+        margin: 0 0 12px;
+        color: #f2dd9a;
+        line-height: 1.75;
+      }
+
+      .shirone-type-card-meta {
+        margin: auto 0 0;
+        color: rgba(255, 236, 179, 0.72);
+        line-height: 1.8;
+      }
+
+      .shirone-type-cta {
+        margin-top: 8px;
+      }
+
+      .shirone-type-detail-list {
+        display: grid;
+        gap: 20px;
+        margin-top: 30px;
+      }
+
+      .shirone-type-detail-card {
+        position: relative;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+
+      .shirone-type-detail-card * {
+        box-sizing: border-box;
+      }
+
+      @media (max-width: 640px) {
+        .shirone-type-grid {
+          grid-template-columns: 1fr;
+          gap: 18px;
+          margin: 24px 0 32px;
+        }
+
+        .shirone-type-card {
+          min-height: 0;
+        }
+
+        .shirone-type-detail-list {
+          gap: 18px;
+          margin-top: 26px;
+        }
+      }
+    </style>
+  </head>
+
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo">
+          <span class="fortune-logo-mark"></span>
+          <span>白音七</span>
+        </a>
+
+        <button
+          class="fortune-mobile-menu-button"
+          type="button"
+          aria-label="メニューを開く"
+          aria-expanded="false"
+          onclick="const nav=this.parentElement.querySelector('.fortune-nav'); const open=!nav.classList.contains('is-open'); nav.classList.toggle('is-open', open); this.setAttribute('aria-expanded', String(open)); this.setAttribute('aria-label', open ? 'メニューを閉じる' : 'メニューを開く');"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="fortune-nav" id="navArea">
+          <a href="/">TOP</a>
+          <a href="/diagnosis">今日の鑑定</a>
+          <a href="/history">履歴一覧</a>
+          <a href="/compat">相性占い</a>
+          <a href="/contact">お問い合わせ</a>
+          <span id="authArea"></span>
+        </nav>
+      </div>
+    </header>
+
+    <main class="fortune-result">
+      <section class="fortune-container">
+        <div class="fortune-result-frame" style="max-width: 980px;">
+          <div class="fortune-detail-kicker">SHIRONE SEVEN TYPES</div>
+
+          <h1 class="fortune-result-title">白音七 7タイプ診断</h1>
+
+          <p class="fortune-result-message" style="text-align:center; margin-bottom:26px;">
+            生まれた日の数字をほどき<br />
+            7つの響きにそっと分けて<br />
+            あなたの持つ気配を見つけます
+          </p>
+
+          <div class="fortune-result-card highlight">
+            <h2>7タイプ診断について</h2>
+            <p>
+              白音七の7タイプ診断は、生年月日から導く小さな読みものです。<br />
+              結果は毎回変わりません。今日の鑑定に少しだけ、あなたらしい読み方を添えるための入口です。
+            </p>
+          </div>
+
+          <div class="fortune-result-card">
+            <h2>判定のしくみ</h2>
+            <p>
+              生まれた日の数字をひとつずつ足し、7つの響きに分けます。<br />
+              たとえば 1998年4月12日なら、1 + 9 + 9 + 8 + 4 + 1 + 2 = 34。<br />
+              その数字を7つのタイプへそっと分けて、あなたの響きを見つけます。
+            </p>
+          </div>
+
+          <div class="shirone-type-grid">
+            {shironeTypes.map((type) => (
+              <a
+                href={`#${type.slug}`}
+                class="fortune-card shirone-type-card"
+              >
+                <span class="fortune-number">{type.displayNumber}</span>
+                <div class="shirone-type-card-title">
+                  <h2>{type.typeName}</h2>
+                  <span>{type.reading}</span>
+                </div>
+                <p class="shirone-type-card-catch">{type.catchphrase}</p>
+                <p class="shirone-type-card-meta">
+                  {type.motif}<br />
+                  {type.colorsText}
+                </p>
+              </a>
+            ))}
+          </div>
+
+          <div class="fortune-result-card highlight shirone-type-cta">
+            <h2>あなたの響きを見にいく</h2>
+            <p>
+              今日の鑑定では、名前と生年月日から今の流れを読み解きます。<br />
+              7タイプは、これから少しずつ鑑定の読み方にも添えていく予定です。
+            </p>
+            <div class="fortune-result-actions" style="justify-content:flex-start;">
+              <a href="/diagnosis" class="fortune-btn primary">今日の占いへ進む</a>
+              <a href="/" class="fortune-btn secondary">TOPへ戻る</a>
+            </div>
+          </div>
+
+          <section class="shirone-type-detail-list" aria-label="7タイプの詳細">
+            {shironeTypes.map((type) => (
+              <article id={type.slug} class="fortune-result-card shirone-type-detail-card" style="scroll-margin-top:96px;">
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:12px;">
+                  <span class="fortune-number" style="margin-bottom:0;">{type.displayNumber}</span>
+                  <div>
+                    <h2 style="margin:0 0 4px;">{type.typeName}</h2>
+                    <p style="margin:0; color:rgba(255,236,179,0.68); line-height:1.6;">
+                      {type.reading} / {type.slug}
+                    </p>
+                  </div>
+                </div>
+
+                <p style="color:#f2dd9a; font-size:1.02rem;">{type.catchphrase}</p>
+                <p>{type.summary}</p>
+
+                <div
+                  style="display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin-top:16px;"
+                >
+                  <div>
+                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">強み</h3>
+                    <p>{type.strengths}</p>
+                  </div>
+                  <div>
+                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">気をつけたいこと</h3>
+                    <p>{type.weakness}</p>
+                  </div>
+                  <div>
+                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">恋愛</h3>
+                    <p>{type.love}</p>
+                  </div>
+                  <div>
+                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">仕事</h3>
+                    <p>{type.work}</p>
+                  </div>
+                  <div>
+                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">人間関係</h3>
+                    <p>{type.relationship}</p>
+                  </div>
+                  <div>
+                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">相性の見方</h3>
+                    <p>{type.compatibilityHint}</p>
+                  </div>
+                </div>
+
+                <div
+                  style="margin-top:18px; padding:16px 18px; border-radius:18px; border:1px solid rgba(202,168,79,0.18); background:rgba(255,255,255,0.025);"
+                >
+                  <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">今日の占いに添える言葉</h3>
+                  <p style="white-space:pre-line;">{type.todayMessage}</p>
+                </div>
+
+                <p style="white-space:pre-line; color:#f2dd9a; margin-top:14px;">{type.gentleMessage}</p>
+              </article>
+            ))}
+          </section>
+
+          <div class="fortune-result-actions">
+            <a href="/diagnosis" class="fortune-btn primary">今日の占いへ進む</a>
+            <a href="/compat" class="fortune-btn violet">相性占いを見る</a>
+            <a href="/" class="fortune-btn secondary">TOPへ戻る</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="fortune-footer">
+      <div class="fortune-container fortune-footer-inner">
+        <div>© {new Date().getFullYear()} 白音七</div>
+        <nav class="fortune-footer-links" aria-label="フッターナビゲーション">
+          <a href="/terms">利用規約</a>
+          <a href="/privacy">プライバシーポリシー</a>
+          <a href="/commercial-transactions">特定商取引法に基づく表記</a>
+          <a href="/disclaimer">免責事項</a>
+          <a href="/contact">お問い合わせ</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      const authArea = document.getElementById("authArea");
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("loginEmail");
+
+      if (authArea) {
+        if (token && email) {
+          authArea.innerHTML = `
+            <span class="fortune-user">${email}</span>
+            <button id="logoutBtn" class="fortune-nav-logout" type="button">ログアウト</button>
+          `;
+
+          document.getElementById("logoutBtn")?.addEventListener("click", () => {
+            localStorage.removeItem("token");
+            localStorage.removeItem("loginEmail");
+            localStorage.removeItem("user_id");
+            localStorage.removeItem("userId");
+            window.location.href = "/";
+          });
+        } else {
+          authArea.innerHTML = `
+            <a href="/login" class="fortune-nav-pill">会員ログイン</a>
+          `;
+        }
+      }
+    </script>
+  </body>
+</html>
