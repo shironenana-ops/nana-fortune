@@ -3,7 +3,7 @@ const BILLING_API_URL = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws
 const BILLING_PREPARATION_MESSAGE =
   "このお申し込みの扉は、現在静かに準備中です。\n正式なご案内まで、今しばらくお待ちください。\n料金が発生することはありません。";
 const BILLING_PREPARATION_INLINE_MESSAGE =
-  "特別な鑑定への扉は、現在準備中です。\nすべての準備が整いましたら、内容と価格を確認できる形でご案内します。";
+  "特別な鑑定への扉は、現在準備中です。\nすべての準備が整いましたら、内容を確認できる形でご案内します。";
 
 function getCanonicalUserId() {
   return localStorage.getItem("user_id") || localStorage.getItem("userId") || "";
