@@ -1361,10 +1361,10 @@ body.members-page-body {
         </div>
 
         <h2 id="updatedAtDisplay">-</h2>
-        <p class="status-caption">決済やプラン更新が反映された最新時刻です。</p>
+        <p class="status-caption">アカウント情報が更新された時刻です。</p>
 
         <div class="submail-box">
-          <span class="submail-box__label">Stripeメール</span>
+          <span class="submail-box__label">ご登録メール</span>
           <strong id="stripeMail">-</strong>
         </div>
       </article>
@@ -1386,10 +1386,10 @@ body.members-page-body {
       <div class="section-head">
         <div class="section-chip">PLAN SELECT</div>
         <h2>必要に応じて、次の一手へ</h2>
-        <p>現在の会員状態に応じて、アップグレードや単発追加を選べます。</p>
+        <p>今後、深い鑑定や追加機能を段階的に整えていきます。</p>
       </div>
 
-      <div class="plan-guide" aria-label="無料版、有料版、音声鑑定の違い">
+      <div class="plan-guide" aria-label="無料鑑定、深掘り鑑定、音声鑑定の違い">
         <h3 class="plan-guide__title">あなたに合う受け取り方</h3>
 
         <div class="plan-guide__grid">
@@ -1399,7 +1399,7 @@ body.members-page-body {
           </div>
 
           <div class="plan-guide__item">
-            <strong>有料版では</strong>
+            <strong>深掘り鑑定では</strong>
             <p>詳しい鑑定と履歴保存を利用できます</p>
           </div>
 
@@ -1657,7 +1657,7 @@ body.members-page-body {
     function buildPremiumCard(sourcePath) {
       return `
         <article class="plan-card plan-card--premium" data-plan-card="premium">
-          <span class="plan-card__tag">人気No.1 プレミアム</span>
+          <span class="plan-card__tag">プレミアム</span>
           <h3>プレミアム会員</h3>
           <p>プレミアム会員は、より深い鑑定や受け取り方を選びたい方向けに準備しています。</p>
           <div class="plan-card__price">料金は準備中</div>
@@ -1706,7 +1706,7 @@ body.members-page-body {
       } else if (plan === "normal") {
         html = buildPremiumCard(sourcePath) + buildExtraCard(sourcePath);
         setBillingMessage(
-          "現在ライト会員です。プレミアムへのアップグレードと単発追加のみ表示しています。"
+          "現在ライト会員です。プレミアムのご案内と単発追加のみ表示しています。"
         );
       } else {
         html = buildNormalCard(sourcePath) + buildPremiumCard(sourcePath) + buildExtraCard(sourcePath);
