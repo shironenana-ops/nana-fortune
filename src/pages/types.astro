@@ -28,15 +28,42 @@ import { shironeTypes } from "../lib/shironeTypes";
         flex-direction: column;
         min-height: 214px;
         height: 100%;
+        padding: 24px 22px;
         text-decoration: none;
+        letter-spacing: 0;
+      }
+
+      .shirone-attribute-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+
+      .shirone-attribute-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: 1px solid rgba(242, 221, 154, 0.42);
+        background:
+          radial-gradient(circle at 32% 24%, rgba(255, 240, 191, 0.28), transparent 48%),
+          rgba(255, 255, 255, 0.045);
+        color: #fff0bf;
+        font-size: 1.15rem;
+        line-height: 1;
+        box-shadow: 0 0 22px rgba(202, 168, 79, 0.12);
       }
 
       .shirone-type-card-title {
         display: flex;
         align-items: baseline;
         justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 10px;
+        gap: 10px 12px;
+        flex: 1;
       }
 
       .shirone-type-card-title h2 {
@@ -52,15 +79,17 @@ import { shironeTypes } from "../lib/shironeTypes";
       }
 
       .shirone-type-card-catch {
-        margin: 0 0 12px;
+        margin: 0 0 14px;
         color: #f2dd9a;
-        line-height: 1.75;
+        line-height: 1.9;
+        letter-spacing: 0;
       }
 
       .shirone-type-card-meta {
         margin: auto 0 0;
         color: rgba(255, 236, 179, 0.72);
-        line-height: 1.8;
+        line-height: 1.95;
+        letter-spacing: 0;
       }
 
       .shirone-type-cta {
@@ -77,10 +106,98 @@ import { shironeTypes } from "../lib/shironeTypes";
         position: relative;
         overflow: hidden;
         box-sizing: border-box;
+        letter-spacing: 0;
+      }
+
+      .shirone-type-detail-card p {
+        line-height: 1.9;
+        letter-spacing: 0;
       }
 
       .shirone-type-detail-card * {
         box-sizing: border-box;
+      }
+
+      .shirone-attribute-detail-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 16px;
+        margin-bottom: 14px;
+      }
+
+      .shirone-attribute-detail-head h2 {
+        margin: 0 0 4px;
+      }
+
+      .shirone-attribute-reading {
+        margin: 0;
+        color: rgba(255, 236, 179, 0.68);
+        line-height: 1.6;
+      }
+
+      .attribute-phase-guide {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .attribute-note-card,
+      .attribute-phase-guide-card,
+      .attribute-detail-section {
+        background: transparent;
+      }
+
+      .attribute-phase-guide-card {
+        padding: 4px 0 4px 14px;
+        border-left: 1px solid rgba(202, 168, 79, 0.34);
+      }
+
+      .attribute-phase-guide-card strong {
+        display: block;
+        margin-bottom: 4px;
+        color: #f2dd9a;
+        font-size: 0.92rem;
+        font-weight: 600;
+      }
+
+      .attribute-note-card {
+        margin: 14px 0 18px;
+        padding: 2px 0 2px 14px;
+        border-left: 1px solid rgba(202, 168, 79, 0.34);
+      }
+
+      .attribute-phase-guide-card h3,
+      .attribute-detail-section h4 {
+        margin: 0 0 8px;
+        color: #fff0bf;
+        font-size: 0.96rem;
+        font-weight: 600;
+        letter-spacing: 0;
+      }
+
+      .attribute-phase-guide-card p,
+      .attribute-note-card p,
+      .attribute-detail-section p {
+        margin: 0;
+      }
+
+      .attribute-phase-guide-note {
+        margin-top: 16px;
+      }
+
+      .attribute-detail-sections {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 22px;
+        margin-top: 18px;
+        border-top: 1px solid rgba(202, 168, 79, 0.16);
+      }
+
+      .attribute-detail-section {
+        padding: 17px 0;
+        border-bottom: 1px solid rgba(202, 168, 79, 0.12);
       }
 
       @media (max-width: 640px) {
@@ -94,9 +211,22 @@ import { shironeTypes } from "../lib/shironeTypes";
           min-height: 0;
         }
 
+        .shirone-type-card-title {
+          display: block;
+        }
+
+        .shirone-type-card-title span {
+          display: block;
+          margin-top: 4px;
+        }
+
         .shirone-type-detail-list {
           gap: 18px;
           margin-top: 26px;
+        }
+
+        .attribute-detail-sections {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -161,21 +291,63 @@ import { shironeTypes } from "../lib/shironeTypes";
             </p>
           </div>
 
+          <div class="fortune-result-card">
+            <h2>属性と相について</h2>
+            <div class="attribute-phase-guide">
+              <section class="attribute-phase-guide-card">
+                <h3>属性</h3>
+                <strong>その人が持ちやすい質</strong>
+                <p>
+                  月灯・星詠・水鏡など、<br />
+                  生まれた日に宿りやすい気配を表します。
+                </p>
+              </section>
+              <section class="attribute-phase-guide-card">
+                <h3>相</h3>
+                <strong>その質のあらわれ方</strong>
+                <p>
+                  陽の相は外へひらき、<br />
+                  行動や表現として出やすい読み方。<br />
+                  月の相は内側で深まり、<br />
+                  感受性や気配として出やすい読み方です。
+                </p>
+              </section>
+              <section class="attribute-phase-guide-card">
+                <h3>読み方</h3>
+                <strong>属性と相を重ねる</strong>
+                <p>
+                  基本属性は、<br />
+                  陽の相・月の相を重ねて読みます。<br />
+                  澄音・双音・天音は相に分けず、<br />
+                  属性そのものの響きとして読みます。
+                </p>
+              </section>
+            </div>
+            <p class="attribute-phase-guide-note">
+              優劣ではなく、読み方の違いとして扱います。
+            </p>
+          </div>
+
           <div class="shirone-type-grid">
             {shironeTypes.map((type) => (
               <a
                 href={`#${type.slug}`}
                 class="fortune-card shirone-type-card"
               >
-                <span class="fortune-number">{type.displayNumber}</span>
-                <div class="shirone-type-card-title">
-                  <h2>{type.typeName}</h2>
-                  <span>{type.reading}</span>
+                <div class="shirone-attribute-head">
+                  <span class="shirone-attribute-icon" aria-hidden="true">{type.icon}</span>
+                  <div class="shirone-type-card-title">
+                    <h2>{type.typeName}</h2>
+                    <span>{type.reading}</span>
+                  </div>
                 </div>
                 <p class="shirone-type-card-catch">{type.catchphrase}</p>
                 <p class="shirone-type-card-meta">
                   {type.motif}<br />
-                  {type.colorsText}
+                  {type.colorsText}<br />
+                  {type.kind === "base"
+                    ? "陽の相・月の相で読み分けます"
+                    : "属性そのものの響きとして読みます"}
                 </p>
               </a>
             ))}
@@ -196,53 +368,49 @@ import { shironeTypes } from "../lib/shironeTypes";
           <section class="shirone-type-detail-list" aria-label="属性の詳細">
             {shironeTypes.map((type) => (
               <article id={type.slug} class="fortune-result-card shirone-type-detail-card" style="scroll-margin-top:96px;">
-                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:12px;">
-                  <span class="fortune-number" style="margin-bottom:0;">{type.displayNumber}</span>
+                <div class="shirone-attribute-detail-head">
+                  <span class="shirone-attribute-icon" aria-hidden="true">{type.icon}</span>
                   <div>
-                    <h2 style="margin:0 0 4px;">{type.typeName}</h2>
-                    <p style="margin:0; color:rgba(255,236,179,0.68); line-height:1.6;">
+                    <h2>{type.typeName}</h2>
+                    <p class="shirone-attribute-reading">
                       {type.reading} / {type.slug}
                     </p>
                   </div>
                 </div>
 
                 <p style="color:#f2dd9a; font-size:1.02rem;">{type.catchphrase}</p>
+                {type.specialNote ? (
+                  <div class="attribute-note-card">
+                    <p>{type.specialNote}</p>
+                  </div>
+                ) : null}
                 <p>{type.summary}</p>
 
-                <div
-                  style="display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin-top:16px;"
-                >
-                  <div>
-                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">強み</h3>
+                <div class="attribute-detail-sections">
+                  <section class="attribute-detail-section">
+                    <h4>強み</h4>
                     <p>{type.strengths}</p>
-                  </div>
-                  <div>
-                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">気をつけたいこと</h3>
+                  </section>
+                  <section class="attribute-detail-section">
+                    <h4>気をつけたいこと</h4>
                     <p>{type.weakness}</p>
-                  </div>
-                  <div>
-                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">恋愛</h3>
+                  </section>
+                  <section class="attribute-detail-section">
+                    <h4>恋愛</h4>
                     <p>{type.love}</p>
-                  </div>
-                  <div>
-                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">仕事</h3>
+                  </section>
+                  <section class="attribute-detail-section">
+                    <h4>仕事</h4>
                     <p>{type.work}</p>
-                  </div>
-                  <div>
-                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">人間関係</h3>
+                  </section>
+                  <section class="attribute-detail-section">
+                    <h4>人間関係</h4>
                     <p>{type.relationship}</p>
-                  </div>
-                  <div>
-                    <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">相性の見方</h3>
+                  </section>
+                  <section class="attribute-detail-section">
+                    <h4>相性の見方</h4>
                     <p>{type.compatibilityHint}</p>
-                  </div>
-                </div>
-
-                <div
-                  style="margin-top:18px; padding:16px 18px; border-radius:18px; border:1px solid rgba(202,168,79,0.18); background:rgba(255,255,255,0.025);"
-                >
-                  <h3 style="margin:0 0 8px; color:#fff0bf; font-size:1rem;">今日の占いに添える言葉</h3>
-                  <p style="white-space:pre-line;">{type.todayMessage}</p>
+                  </section>
                 </div>
 
                 <p style="white-space:pre-line; color:#f2dd9a; margin-top:14px;">{type.gentleMessage}</p>
