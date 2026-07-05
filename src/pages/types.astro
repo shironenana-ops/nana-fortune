@@ -1,8 +1,6 @@
 ---
 import "../styles/global.css";
 import { shironeTypes } from "../lib/shironeTypes";
-
-const toAttributeName = (typeName: string) => typeName.replace(/タイプ$/, "属性");
 ---
 
 <!DOCTYPE html>
@@ -171,7 +169,7 @@ const toAttributeName = (typeName: string) => typeName.replace(/タイプ$/, "�
               >
                 <span class="fortune-number">{type.displayNumber}</span>
                 <div class="shirone-type-card-title">
-                  <h2>{toAttributeName(type.typeName)}</h2>
+                  <h2>{type.typeName}</h2>
                   <span>{type.reading}</span>
                 </div>
                 <p class="shirone-type-card-catch">{type.catchphrase}</p>
@@ -201,7 +199,7 @@ const toAttributeName = (typeName: string) => typeName.replace(/タイプ$/, "�
                 <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:12px;">
                   <span class="fortune-number" style="margin-bottom:0;">{type.displayNumber}</span>
                   <div>
-                    <h2 style="margin:0 0 4px;">{toAttributeName(type.typeName)}</h2>
+                    <h2 style="margin:0 0 4px;">{type.typeName}</h2>
                     <p style="margin:0; color:rgba(255,236,179,0.68); line-height:1.6;">
                       {type.reading} / {type.slug}
                     </p>

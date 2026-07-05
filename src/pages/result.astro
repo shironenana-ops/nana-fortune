@@ -164,10 +164,6 @@ import "../styles/global.css";
         return escapeHtml(value).replaceAll("\n", "<br />");
       }
 
-      function toAttributeName(typeName) {
-        return String(typeName || "").replace(/タイプ$/, "属性");
-      }
-
       const iconHintTones = new Set(["gold", "purple", "blue", "green", "gray"]);
 
       function normalizeIconHintTone(tone) {
@@ -250,7 +246,7 @@ import "../styles/global.css";
             <div class="fortune-seven-type-label">あなたの属性</div>
             <div class="fortune-seven-type-main">
               <div>
-                <h2>${escapeHtml(toAttributeName(shironeType.typeName))}</h2>
+                <h2>${escapeHtml(shironeType.typeName)}</h2>
                 <p>${escapeHtml(shironeType.catchphrase)}</p>
               </div>
               <span>${escapeHtml(shironeType.reading)}</span>
