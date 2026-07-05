@@ -1311,7 +1311,7 @@ body.members-page-body {
     <section class="status-grid reveal">
       <article class="status-card status-main">
         <div class="status-card__head">
-          <span class="status-chip">CURRENT PLAN</span>
+          <span class="status-chip">ACCOUNT STATUS</span>
           <span id="statusDot" class="status-dot"></span>
         </div>
 
@@ -1379,14 +1379,14 @@ body.members-page-body {
     <section class="action-row reveal">
       <a class="action-btn action-btn--gold" href="/diagnosis">今日の占いへ</a>
       <a class="action-btn action-btn--ghost" href="/history">履歴を見る</a>
-      <a class="action-btn action-btn--accent" href="/premium">会員限定鑑定へ</a>
+      <a class="action-btn action-btn--accent" href="/types">属性を見る</a>
     </section>
 
     <section class="plan-area reveal">
       <div class="section-head">
-        <div class="section-chip">PLAN SELECT</div>
-        <h2>必要に応じて、次の一手へ</h2>
-        <p>今後、深い鑑定や追加機能を段階的に整えていきます。</p>
+        <div class="section-chip">COMING SOON</div>
+        <h2>深い鑑定は準備中です</h2>
+        <p>現在は、今日の占いと履歴確認を中心にお使いいただけます。</p>
       </div>
 
       <div class="plan-guide" aria-label="無料鑑定、深掘り鑑定、音声鑑定の違い">
@@ -1410,7 +1410,7 @@ body.members-page-body {
         </div>
 
         <p class="plan-guide__safe">
-          確認画面なしに料金が発生することはありません
+          深い鑑定や音声での受け取りは、準備が整い次第ご案内します。
         </p>
       </div>
 
@@ -1627,6 +1627,16 @@ body.members-page-body {
       window.ShironeBilling?.showBillingPreparationMessage?.();
     }
 
+    function buildBillingOffGuideCard() {
+      return `
+        <article class="plan-card" data-plan-card="billing-off-guide">
+          <span class="plan-card__tag">準備中</span>
+          <h3>これから整える鑑定</h3>
+          <p>深い鑑定や音声での受け取りは、現在準備中です。今は今日の占いと履歴確認を中心にお使いいただけます。</p>
+        </article>
+      `;
+    }
+
     function buildExtraCard(sourcePath) {
       return `
         <article class="plan-card" data-plan-card="extra">
@@ -1686,6 +1696,15 @@ body.members-page-body {
       const grid = document.getElementById("planCards");
       if (!grid) return;
 
+      if (isBillingDisabled()) {
+        grid.innerHTML = buildBillingOffGuideCard();
+        setBillingMessage(
+          window.ShironeBilling?.getBillingPreparationInlineMessage?.() ||
+            "特別な鑑定への扉は、現在準備中です。すべての準備が整いましたら、内容を確認できる形でご案内します。"
+        );
+        return;
+      }
+
       const sourcePath = "/members";
       const visiblePendingPlan = shouldShowPlanChangeNotice(plan, pendingPlan) ? pendingPlan : "";
       const isPendingLight = visiblePendingPlan
@@ -1717,13 +1736,6 @@ body.members-page-body {
       bindPlanButtons();
       updateRenderedPlanStates(plan, visiblePendingPlan, currentPeriodEnd);
 
-      if (isBillingDisabled()) {
-        window.ShironeBilling?.prepareBillingButtons?.("#planCards [data-plan]");
-        setBillingMessage(
-          window.ShironeBilling?.getBillingPreparationInlineMessage?.() ||
-            "特別な鑑定への扉は、現在準備中です。すべての準備が整いましたら、内容と価格を確認できる形でご案内します。"
-        );
-      }
     }
 
     function updateRenderedPlanStates(plan, pendingPlan = "", currentPeriodEnd = "") {
