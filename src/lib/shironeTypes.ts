@@ -21,7 +21,7 @@ export type ShironeType = {
 export const shironeTypes = [
   {
     slug: "moonlight",
-    typeName: "月灯タイプ",
+    typeName: "月灯属性",
     reading: "つきあかり",
     displayNumber: 1,
     catchphrase: "静かな光で人を照らす人",
@@ -42,13 +42,13 @@ export const shironeTypes = [
     todayMessage:
       "今日は無理に明るくしなくて大丈夫\n小さな灯りをひとつ守れたら十分です",
     compatibilityHint:
-      "火結タイプに背中を押され、風渡タイプに視野を広げられます。",
+      "火結属性に背中を押され、風渡属性に視野を広げられます。",
     gentleMessage:
       "あなたの静けさは\n誰かにとって帰る場所になります",
   },
   {
     slug: "stargazer",
-    typeName: "星詠タイプ",
+    typeName: "星詠属性",
     reading: "ほしよみ",
     displayNumber: 2,
     catchphrase: "遠くの意味を見つける人",
@@ -69,13 +69,13 @@ export const shironeTypes = [
     todayMessage:
       "今日は答えを急がなくて大丈夫\n見上げた先に次の目印が出てきます",
     compatibilityHint:
-      "水鏡タイプと内面を深め、風渡タイプと可能性を広げます。",
+      "水鏡属性と内面を深め、風渡属性と可能性を広げます。",
     gentleMessage:
       "あなたが見つける意味は\n誰かの夜道の星になります",
   },
   {
     slug: "water-mirror",
-    typeName: "水鏡タイプ",
+    typeName: "水鏡属性",
     reading: "みずかがみ",
     displayNumber: 3,
     catchphrase: "心の揺れを映して整える人",
@@ -96,13 +96,13 @@ export const shironeTypes = [
     todayMessage:
       "今日は心の水面を静かにして\n本当の気持ちを映してみてください",
     compatibilityHint:
-      "月灯タイプに安心し、星詠タイプに言葉をもらえます。",
+      "月灯属性に安心し、星詠属性に言葉をもらえます。",
     gentleMessage:
       "揺れる心は弱さではなく\n深く感じられる力です",
   },
   {
     slug: "flower-keeper",
-    typeName: "花守タイプ",
+    typeName: "花守属性",
     reading: "はなもり",
     displayNumber: 4,
     catchphrase: "小さな美しさを育てる人",
@@ -123,13 +123,13 @@ export const shironeTypes = [
     todayMessage:
       "今日は小さな手入れの日\nひとつ整えるだけで運が息を吹き返します",
     compatibilityHint:
-      "月灯タイプと安心を育て、火結タイプから行動力をもらえます。",
+      "月灯属性と安心を育て、火結属性から行動力をもらえます。",
     gentleMessage:
       "あなたが大切にしたものは\nゆっくり花を開いていきます",
   },
   {
     slug: "windpath",
-    typeName: "風渡タイプ",
+    typeName: "風渡属性",
     reading: "かぜわたり",
     displayNumber: 5,
     catchphrase: "変化の流れを読む人",
@@ -150,13 +150,13 @@ export const shironeTypes = [
     todayMessage:
       "今日は風向きが少し変わります\n予定外の流れにも小さなヒントがあります",
     compatibilityHint:
-      "星詠タイプに方向をもらい、白音タイプに落ち着きをもらえます。",
+      "星詠属性に方向をもらい、白音属性に落ち着きをもらえます。",
     gentleMessage:
       "変わっていくあなたも\nちゃんとあなたのままです",
   },
   {
     slug: "fire-knot",
-    typeName: "火結タイプ",
+    typeName: "火結属性",
     reading: "ひむすび",
     displayNumber: 6,
     catchphrase: "情熱を形に結ぶ人",
@@ -177,13 +177,13 @@ export const shironeTypes = [
     todayMessage:
       "今日は小さく火を灯す日\n全部を変えなくても一歩で流れは動きます",
     compatibilityHint:
-      "月灯タイプに落ち着きをもらい、花守タイプに持続力をもらえます。",
+      "月灯属性に落ち着きをもらい、花守属性に持続力をもらえます。",
     gentleMessage:
       "あなたの熱は\n未来を温めるためにあります",
   },
   {
     slug: "shirone",
-    typeName: "白音タイプ",
+    typeName: "白音属性",
     reading: "しろね",
     displayNumber: 7,
     catchphrase: "余白の奥に本音を響かせる人",
@@ -204,7 +204,7 @@ export const shironeTypes = [
     todayMessage:
       "今日は言葉にならない感覚を信じて\n静かな違和感が道しるべになります",
     compatibilityHint:
-      "風渡タイプに動きをもらい、水鏡タイプに深く映してもらえます。",
+      "風渡属性に動きをもらい、水鏡属性に深く映してもらえます。",
     gentleMessage:
       "うまく説明できないあなたの感覚にも\nちゃんと名前のない価値があります",
   },
