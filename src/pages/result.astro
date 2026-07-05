@@ -118,6 +118,7 @@ import "../styles/global.css";
       // @ts-nocheck
       import { buildDailyFortune } from "../lib/fortuneEngine";
       import { runShironeEngine } from "../lib/shironeEngine";
+      import { getShironeTypeByBirthDate } from "../lib/shironeTypes";
 
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
@@ -232,6 +233,25 @@ import "../styles/global.css";
                 )
                 .join("")}
             </div>
+          </section>
+        `;
+      }
+
+      function renderShironeTypeCard(birthDate) {
+        const shironeType = getShironeTypeByBirthDate(String(birthDate || ""));
+        if (!shironeType) return "";
+
+        return `
+          <section class="fortune-seven-type-card" aria-label="あなたの7タイプ">
+            <div class="fortune-seven-type-label">あなたの7タイプ</div>
+            <div class="fortune-seven-type-main">
+              <div>
+                <h2>${escapeHtml(shironeType.typeName)}</h2>
+                <p>${escapeHtml(shironeType.catchphrase)}</p>
+              </div>
+              <span>${escapeHtml(shironeType.reading)}</span>
+            </div>
+            <a href="/types">7タイプ一覧を見る</a>
           </section>
         `;
       }
@@ -393,6 +413,8 @@ import "../styles/global.css";
               <p><strong>名前ナンバー：</strong>${fortune.nameNumber}</p>
               <p><strong>キーワード：</strong>${escapeHtml(fortune.keyword)}</p>
             </div>
+
+            ${renderShironeTypeCard(birthday)}
 
             ${renderIconHints(fortune)}
 
@@ -684,6 +706,61 @@ import "../styles/global.css";
     </script>
 
     <style is:global>
+      .fortune-seven-type-card {
+        margin: 1rem 0 1.2rem;
+        padding: 1rem 1.05rem;
+        border: 1px solid rgba(226, 191, 92, 0.2);
+        border-radius: 18px;
+        background:
+          linear-gradient(135deg, rgba(182, 140, 255, 0.08), rgba(127, 181, 255, 0.03)),
+          rgba(255, 255, 255, 0.025);
+      }
+
+      .fortune-seven-type-label {
+        margin-bottom: 0.55rem;
+        color: rgba(255, 236, 179, 0.68);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+
+      .fortune-seven-type-main {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .fortune-seven-type-main h2 {
+        margin: 0 0 0.35rem;
+        color: #fff0bf;
+        font-size: 1.15rem;
+        letter-spacing: 0;
+      }
+
+      .fortune-seven-type-main p {
+        margin: 0;
+        color: rgba(255, 236, 179, 0.86);
+        line-height: 1.7;
+      }
+
+      .fortune-seven-type-main span {
+        flex: 0 0 auto;
+        color: rgba(255, 236, 179, 0.62);
+        font-size: 0.84rem;
+        white-space: nowrap;
+      }
+
+      .fortune-seven-type-card a {
+        display: inline-flex;
+        width: fit-content;
+        margin-top: 0.75rem;
+        color: #ffe58f;
+        font-size: 0.84rem;
+        text-decoration: underline;
+        text-underline-offset: 0.25em;
+      }
+
       .fortune-icon-hints-section {
         margin: 1.2rem 0;
       }
@@ -797,6 +874,15 @@ import "../styles/global.css";
       }
 
       @media (max-width: 720px) {
+        .fortune-seven-type-main {
+          display: grid;
+          gap: 0.45rem;
+        }
+
+        .fortune-seven-type-main span {
+          white-space: normal;
+        }
+
         .fortune-icon-hints-grid {
           grid-template-columns: 1fr;
         }
