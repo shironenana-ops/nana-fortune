@@ -164,6 +164,10 @@ import "../styles/global.css";
         return escapeHtml(value).replaceAll("\n", "<br />");
       }
 
+      function toAttributeName(typeName) {
+        return String(typeName || "").replace(/タイプ$/, "属性");
+      }
+
       const iconHintTones = new Set(["gold", "purple", "blue", "green", "gray"]);
 
       function normalizeIconHintTone(tone) {
@@ -242,16 +246,16 @@ import "../styles/global.css";
         if (!shironeType) return "";
 
         return `
-          <section class="fortune-seven-type-card" aria-label="あなたの7タイプ">
-            <div class="fortune-seven-type-label">あなたの7タイプ</div>
+          <section class="fortune-seven-type-card" aria-label="あなたの属性">
+            <div class="fortune-seven-type-label">あなたの属性</div>
             <div class="fortune-seven-type-main">
               <div>
-                <h2>${escapeHtml(shironeType.typeName)}</h2>
+                <h2>${escapeHtml(toAttributeName(shironeType.typeName))}</h2>
                 <p>${escapeHtml(shironeType.catchphrase)}</p>
               </div>
               <span>${escapeHtml(shironeType.reading)}</span>
             </div>
-            <a href="/types">7タイプ一覧を見る</a>
+            <a href="/types">属性一覧を見る</a>
           </section>
         `;
       }

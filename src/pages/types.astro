@@ -1,6 +1,8 @@
 ---
 import "../styles/global.css";
 import { shironeTypes } from "../lib/shironeTypes";
+
+const toAttributeName = (typeName: string) => typeName.replace(/タイプ$/, "属性");
 ---
 
 <!DOCTYPE html>
@@ -8,10 +10,10 @@ import { shironeTypes } from "../lib/shironeTypes";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>白音七 7タイプ診断 | 白音七</title>
+    <title>白音七 属性診断 | 白音七</title>
     <meta
       name="description"
-      content="白音七オリジナルの7タイプ診断。生年月日から導く7つの響きと、それぞれの気配を紹介します。"
+      content="白音七オリジナルの属性診断。生まれた日の数字から、あなたに宿りやすい属性を読み解きます。"
     />
     <style>
       .shirone-type-grid {
@@ -124,6 +126,7 @@ import { shironeTypes } from "../lib/shironeTypes";
 
         <nav class="fortune-nav" id="navArea">
           <a href="/">TOP</a>
+          <a href="/types">属性</a>
           <a href="/diagnosis">今日の鑑定</a>
           <a href="/history">履歴一覧</a>
           <a href="/compat">相性占い</a>
@@ -136,30 +139,27 @@ import { shironeTypes } from "../lib/shironeTypes";
     <main class="fortune-result">
       <section class="fortune-container">
         <div class="fortune-result-frame" style="max-width: 980px;">
-          <div class="fortune-detail-kicker">SHIRONE SEVEN TYPES</div>
+          <div class="fortune-detail-kicker">SHIRONE ATTRIBUTES</div>
 
-          <h1 class="fortune-result-title">白音七 7タイプ診断</h1>
+          <h1 class="fortune-result-title">白音七 属性診断</h1>
 
           <p class="fortune-result-message" style="text-align:center; margin-bottom:26px;">
             生まれた日の数字をほどき<br />
-            7つの響きにそっと分けて<br />
-            あなたの持つ気配を見つけます
+            あなたに宿りやすい属性を<br />
+            読み解きます
           </p>
 
           <div class="fortune-result-card highlight">
-            <h2>7タイプ診断について</h2>
+            <h2>属性診断について</h2>
             <p>
-              白音七の7タイプ診断は、生年月日から導く小さな読みものです。<br />
-              結果は毎回変わりません。今日の鑑定に少しだけ、あなたらしい読み方を添えるための入口です。
-            </p>
-          </div>
-
-          <div class="fortune-result-card">
-            <h2>判定のしくみ</h2>
-            <p>
-              生まれた日の数字をひとつずつ足し、7つの響きに分けます。<br />
-              たとえば 1998年4月12日なら、1 + 9 + 9 + 8 + 4 + 1 + 2 = 34。<br />
-              その数字を7つのタイプへそっと分けて、あなたの響きを見つけます。
+              白音七の属性診断は<br />
+              生年月日から<br />
+              あなたに宿りやすい属性を読み解く小さな鑑定です<br /><br />
+              これは性格を決めつけるものではなく<br />
+              今日の占いを少しだけ<br />
+              あなたらしく受け取るための手がかりです<br /><br />
+              結果は今日の占いの中で<br />
+              あわせてお伝えします
             </p>
           </div>
 
@@ -171,7 +171,7 @@ import { shironeTypes } from "../lib/shironeTypes";
               >
                 <span class="fortune-number">{type.displayNumber}</span>
                 <div class="shirone-type-card-title">
-                  <h2>{type.typeName}</h2>
+                  <h2>{toAttributeName(type.typeName)}</h2>
                   <span>{type.reading}</span>
                 </div>
                 <p class="shirone-type-card-catch">{type.catchphrase}</p>
@@ -184,10 +184,10 @@ import { shironeTypes } from "../lib/shironeTypes";
           </div>
 
           <div class="fortune-result-card highlight shirone-type-cta">
-            <h2>あなたの響きを見にいく</h2>
+            <h2>わたしの属性を見る</h2>
             <p>
               今日の鑑定では、名前と生年月日から今の流れを読み解きます。<br />
-              7タイプは、これから少しずつ鑑定の読み方にも添えていく予定です。
+              属性は、これから少しずつ鑑定の読み方にも添えていく予定です。
             </p>
             <div class="fortune-result-actions" style="justify-content:flex-start;">
               <a href="/diagnosis" class="fortune-btn primary">今日の占いへ進む</a>
@@ -195,13 +195,13 @@ import { shironeTypes } from "../lib/shironeTypes";
             </div>
           </div>
 
-          <section class="shirone-type-detail-list" aria-label="7タイプの詳細">
+          <section class="shirone-type-detail-list" aria-label="属性の詳細">
             {shironeTypes.map((type) => (
               <article id={type.slug} class="fortune-result-card shirone-type-detail-card" style="scroll-margin-top:96px;">
                 <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:12px;">
                   <span class="fortune-number" style="margin-bottom:0;">{type.displayNumber}</span>
                   <div>
-                    <h2 style="margin:0 0 4px;">{type.typeName}</h2>
+                    <h2 style="margin:0 0 4px;">{toAttributeName(type.typeName)}</h2>
                     <p style="margin:0; color:rgba(255,236,179,0.68); line-height:1.6;">
                       {type.reading} / {type.slug}
                     </p>
