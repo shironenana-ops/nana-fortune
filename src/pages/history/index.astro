@@ -790,7 +790,7 @@ export const prerender = false;
             過去の鑑定を見返したあとに、必要な深さだけ追加できます。
           </p>
           <p style="margin-bottom: 24px; color: var(--gold);">
-            会員状態に応じて、表示される申込み内容が変わります。
+            会員状態に応じて、表示されるご案内内容が変わります。
           </p>
 
           <div id="billingMessage" class="billing-message"></div>
@@ -1402,7 +1402,7 @@ export const prerender = false;
             <button class="btn btn-secondary" type="button" data-checkout-plan="extra" data-source-path="/history">
               単発音声（準備中）
             </button>
-            <div class="plan-note">正式なご案内では、内容と価格を確認できる形でお知らせします。</div>
+            <div class="plan-note">正式なご案内では、内容を確認できる形でお知らせします。</div>
           </article>
         `;
       }
@@ -1414,7 +1414,7 @@ export const prerender = false;
 
         const cancelText = statusInfo.cancelAtPeriodEnd
           ? "解約予約中です。次回更新日まではプレミアム特典を利用できます。"
-          : "プレミアム会員のため、このページから月額申込みは表示していません。";
+          : "プレミアム会員のため、このページから月額プランのご案内は表示していません。";
 
         return `
           <article class="member-status-card current">
@@ -1435,7 +1435,7 @@ export const prerender = false;
           <article class="member-status-card">
             <div class="member-status-badge free">会員状態確認中</div>
             <h3>会員状態を判定できませんでした</h3>
-            <p>安全のため、このページでは月額申込みを表示していません。</p>
+            <p>安全のため、このページでは月額プランのご案内を表示していません。</p>
             <div class="plan-note">会員ページから状態を確認してください。</div>
             <div class="btn-row" style="margin-top:16px;">
               <a class="btn btn-secondary" href="/members">会員ページへ</a>
@@ -1544,14 +1544,14 @@ export const prerender = false;
             showBillingMessage(
               normalized.cancelAtPeriodEnd
                 ? "現在プレミアム会員です。解約予約中ですが、次回更新日までは利用できます。"
-                : "現在プレミアム会員です。このページでは月額の重複申込みを表示していません。",
+                : "現在プレミアム会員です。このページでは月額プランのご案内は表示していません。",
               false
             );
           } else if (normalized.plan === "normal") {
             showBillingMessage(
               normalized.cancelAtPeriodEnd
                 ? "現在ライト会員です。解約予約中ですが、次回更新日までは利用できます。"
-                : "現在ライト会員です。このページでは月額の重複申込みを表示していません。",
+                : "現在ライト会員です。このページでは月額プランのご案内は表示していません。",
               false
             );
           } else {
@@ -1562,7 +1562,7 @@ export const prerender = false;
         } catch (error) {
           console.error("user status load error:", error);
           showBillingMessage(
-            "会員状態を確認できませんでした。安全のため、月額申込みは表示していません。",
+            "会員状態を確認できませんでした。安全のため、月額プランのご案内は表示していません。",
             true
           );
           renderPlanCards(null);
