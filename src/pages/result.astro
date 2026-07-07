@@ -150,6 +150,8 @@ import "../styles/global.css";
       const saveMessage = document.getElementById("saveMessage");
       const resultActions = document.getElementById("resultActions");
       const premiumBtn = document.getElementById("premiumBtn");
+      const HISTORY_SAVE_API =
+        "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod/history";
 
       function escapeHtml(value) {
         return String(value)
@@ -611,8 +613,12 @@ import "../styles/global.css";
             saveBtn.textContent = "記録中...";
           }
 
+          let historyId = "";
+          let saveResponseStatus = null;
+          let saveResponseBody = null;
+
           try {
-            const historyId = crypto.randomUUID();
+            historyId = crypto.randomUUID();
             const createdAt = new Date().toISOString();
 
             const savePayload = {
@@ -646,22 +652,24 @@ import "../styles/global.css";
               }
             };
 
-            const res = await fetch(
-              "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod/history",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: "Bearer " + token
-                },
-                body: JSON.stringify(savePayload)
-              }
-            );
+            const res = await fetch(HISTORY_SAVE_API, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + token
+              },
+              body: JSON.stringify(savePayload)
+            });
 
             const data = await res.json().catch(() => ({}));
+            saveResponseStatus = res.status;
+            saveResponseBody = data;
 
             if (!res.ok) {
-              throw new Error(getSaveErrorMessage(data?.message || data?.error, res.status));
+              const saveError = new Error(getSaveErrorMessage(data?.message || data?.error, res.status));
+              saveError.status = res.status;
+              saveError.response = data;
+              throw saveError;
             }
 
             const savedItems = JSON.parse(localStorage.getItem("savedFortunes") || "[]");
@@ -688,7 +696,16 @@ import "../styles/global.css";
 
             renderSavedState({ mode: "saved" });
           } catch (error) {
-            console.error(error);
+            console.error("fortune result save failed", {
+              error,
+              endpoint: HISTORY_SAVE_API,
+              origin: window.location.origin,
+              status: error?.status || saveResponseStatus,
+              response: error?.response || saveResponseBody,
+              hasToken: Boolean(token),
+              hasUserId: Boolean(userId),
+              historyId
+            });
 
             if (saveBtn) {
               saveBtn.disabled = false;
