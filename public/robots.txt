@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+Disallow: /members
+Disallow: /history
+Disallow: /login
+Disallow: /signup
+Disallow: /result
+Disallow: /premium/voice-processing
+
+Sitemap: https://www.nana-fortune.com/sitemap-index.xml
