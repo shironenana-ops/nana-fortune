@@ -1,5 +1,10 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
+
+const pageTitle = "白音七 無料鑑定｜名前と生年月日から今日を読み解く";
+const pageDescription =
+  "名前と生年月日をもとに、今日の流れや心の向きを静かに読み解きます。白音七の無料鑑定をお試しいただけます。";
 ---
 
 <!DOCTYPE html>
@@ -7,7 +12,7 @@ import "../styles/global.css";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>占い診断 | 白音七</title>
+    <SeoHead title={pageTitle} description={pageDescription} />
   </head>
 
   <body class="fortune-body">

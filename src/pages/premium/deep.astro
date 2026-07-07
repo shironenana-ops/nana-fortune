@@ -1,5 +1,10 @@
 ---
 import "../../styles/global.css";
+import SeoHead from "../../components/SeoHead.astro";
+
+const pageTitle = "深掘り鑑定 | 白音七";
+const pageDescription =
+  "白音七の深掘り鑑定案内ページです。現在は正式公開に向けて準備中です。";
 ---
 
 <!DOCTYPE html>
@@ -7,11 +12,7 @@ import "../../styles/global.css";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>深掘り鑑定 | 白音七</title>
-    <meta
-      name="description"
-      content="白音七の深掘り鑑定案内ページです。現在は正式公開に向けて準備中です。"
-    />
+    <SeoHead title={pageTitle} description={pageDescription} />
   </head>
 
   <body class="fortune-body reading-deep-body">

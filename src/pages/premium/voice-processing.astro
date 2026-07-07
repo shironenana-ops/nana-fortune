@@ -2,6 +2,11 @@
 export const prerender = false;
 
 import "../../styles/global.css";
+import SeoHead from "../../components/SeoHead.astro";
+
+const pageTitle = "音声鑑定の準備中 | 白音七";
+const pageDescription =
+  "白音七の音声鑑定受付は現在準備中です。正式なご案内までお待ちください。";
 ---
 
 <!DOCTYPE html>
@@ -9,11 +14,7 @@ import "../../styles/global.css";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>音声鑑定の準備中 | 白音七</title>
-    <meta
-      name="description"
-      content="白音七の音声鑑定受付は現在準備中です。正式なご案内までお待ちください。"
-    />
+    <SeoHead title={pageTitle} description={pageDescription} noindex />
   </head>
 
   <body class="fortune-body voice-processing-body">

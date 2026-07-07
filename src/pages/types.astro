@@ -1,6 +1,11 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
 import { shironeTypes } from "../lib/shironeTypes";
+
+const pageTitle = "白音七の属性一覧｜月灯・星詠・水鏡などの星音タイプ";
+const pageDescription =
+  "白音七の属性一覧ページです。月灯、星詠、水鏡、花守、風音、火織、白音など、それぞれの属性と相の特徴を確認できます。";
 
 const typeIconImages: Record<string, string> = {
   moonlight: "/images/types-icons/moon-lantern.png",
@@ -21,11 +26,7 @@ const typeIconImages: Record<string, string> = {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>白音七 属性診断 | 白音七</title>
-    <meta
-      name="description"
-      content="白音七オリジナルの属性診断。生まれた日の数字から、あなたに宿りやすい属性を読み解きます。"
-    />
+    <SeoHead title={pageTitle} description={pageDescription} />
     <style>
       .shirone-type-grid {
         display: grid;
