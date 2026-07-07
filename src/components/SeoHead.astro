@@ -1,0 +1,33 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  noindex?: boolean;
+  jsonLd?: Record<string, unknown>;
+}
+
+const { title, description, noindex = false, jsonLd } = Astro.props as Props;
+const site = Astro.site ?? new URL("https://www.nana-fortune.com");
+const pathname =
+  Astro.url.pathname === "/"
+    ? "/"
+    : `${Astro.url.pathname.replace(/\/$/, "")}/`;
+const canonicalUrl = new URL(pathname, site).toString();
+---
+
+<title>{title}</title>
+<meta name="title" content={title} />
+<meta name="description" content={description} />
+<link rel="canonical" href={canonicalUrl} />
+{noindex && <meta name="robots" content="noindex, nofollow" />}
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonicalUrl} />
+
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+
+{jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}

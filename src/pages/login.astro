@@ -1,8 +1,10 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
 
 const siteTitle = "白音七";
-const siteCatch = "ログインして鑑定結果を記録する";
+const pageTitle = `${siteTitle} | ログイン`;
+const pageDescription = "ログインして鑑定結果を記録する";
 ---
 
 <!DOCTYPE html>
@@ -10,8 +12,7 @@ const siteCatch = "ログインして鑑定結果を記録する";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{siteTitle} | ログイン</title>
-    <meta name="description" content={siteCatch} />
+    <SeoHead title={pageTitle} description={pageDescription} noindex />
   </head>
 
   <body class="fortune-body">

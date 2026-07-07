@@ -1,5 +1,10 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
+
+const pageTitle = "免責事項｜白音七";
+const pageDescription =
+  "白音七の免責事項です。鑑定結果の受け取り方、医療・法律・金融など専門判断に関する注意事項を記載しています。";
 ---
 
 <!DOCTYPE html>
@@ -7,11 +12,7 @@ import "../styles/global.css";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>免責事項 | 白音七</title>
-    <meta
-      name="description"
-      content="白音七の免責事項です。占いコンテンツの性質、医療・法律・投資等に関する注意事項を記載しています。"
-    />
+    <SeoHead title={pageTitle} description={pageDescription} />
   </head>
 
   <body class="fortune-body">

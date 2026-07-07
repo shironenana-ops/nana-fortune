@@ -1,5 +1,10 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
+
+const pageTitle = "プライバシーポリシー｜白音七";
+const pageDescription =
+  "白音七のプライバシーポリシーです。個人情報の取り扱い、利用目的、外部サービスの利用について記載しています。";
 ---
 
 <!DOCTYPE html>
@@ -7,11 +12,7 @@ import "../styles/global.css";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>プライバシーポリシー | 白音七</title>
-    <meta
-      name="description"
-      content="白音七のプライバシーポリシーです。個人情報の取り扱い、利用目的、管理方法について記載しています。"
-    />
+    <SeoHead title={pageTitle} description={pageDescription} />
   </head>
 
   <body class="fortune-body">

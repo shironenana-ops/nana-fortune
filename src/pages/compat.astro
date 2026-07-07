@@ -1,5 +1,10 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
+
+const pageTitle = "白音七 相性占い｜ふたりの流れと距離感を読み解く";
+const pageDescription =
+  "ふたりの名前と生年月日から、関係の流れや距離感を静かに読み解く相性占いです。恋愛、家族、友人など幅広い関係にお使いいただけます。";
 ---
 
 <!DOCTYPE html>
@@ -7,11 +12,7 @@ import "../styles/global.css";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>相性占い | 白音七</title>
-    <meta
-      name="description"
-      content="白音七メソッドの相性占い。生年月日と名前から、ふたりの流れ・距離感・相性のヒントを読み解きます。"
-    />
+    <SeoHead title={pageTitle} description={pageDescription} />
   </head>
 
   <body class="fortune-body">

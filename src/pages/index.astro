@@ -1,8 +1,32 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
 
 const siteTitle = "白音七";
-const siteCatch = "今日のあなたに静かな灯りを 名前と生年月日から今の流れと次の一歩を読み解く占い";
+const pageTitle = "白音七｜名前と生年月日から今日を読み解く静かな占い";
+const pageDescription =
+  "白音七は、名前と生年月日から今日の流れや心の向きを静かに読み解くWeb鑑定サービスです。無料鑑定、属性診断、相性占いをお試しいただけます。";
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://www.nana-fortune.com/#website",
+      name: siteTitle,
+      url: "https://www.nana-fortune.com/",
+      description:
+        "名前と生年月日から今日の流れや心の向きを静かに読み解くWeb鑑定サービスです。",
+      inLanguage: "ja",
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://www.nana-fortune.com/#organization",
+      name: siteTitle,
+      url: "https://www.nana-fortune.com/",
+      sameAs: ["https://x.com/shirone_nana"],
+    },
+  ],
+};
 ---
 
 <!DOCTYPE html>
@@ -10,8 +34,7 @@ const siteCatch = "今日のあなたに静かな灯りを 名前と生年月日
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{siteTitle} | TOP</title>
-    <meta name="description" content={siteCatch} />
+    <SeoHead title={pageTitle} description={pageDescription} jsonLd={jsonLd} />
   </head>
 
   <body class="fortune-body">

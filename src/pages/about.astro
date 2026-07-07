@@ -1,5 +1,10 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
+
+const pageTitle = "白音七とは｜静かに届くWeb鑑定サービス";
+const pageDescription =
+  "白音七は、名前の響き、生年月日の数字、星の流れ、白音七属性を重ねて、今日のあなたを静かに読み解くWeb鑑定サービスです。";
 ---
 
 <!DOCTYPE html>
@@ -7,11 +12,7 @@ import "../styles/global.css";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>白音七とは | 白音七</title>
-    <meta
-      name="description"
-      content="白音七とは。数秘術・占星術・姓名判断を組み合わせて、日々の流れと心の整え方を読み解く占いサービスです。"
-    />
+    <SeoHead title={pageTitle} description={pageDescription} />
   </head>
 
   <body class="fortune-body">

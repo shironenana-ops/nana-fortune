@@ -1,5 +1,10 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
+
+const pageTitle = "利用規約｜白音七";
+const pageDescription =
+  "白音七の利用規約です。サービスのご利用条件、禁止事項、免責事項などを記載しています。";
 ---
 
 <!DOCTYPE html>
@@ -7,11 +12,7 @@ import "../styles/global.css";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>利用規約 | 白音七</title>
-    <meta
-      name="description"
-      content="白音七の利用規約です。サービスの目的、会員登録、履歴保存、有料機能、禁止事項、免責事項について記載しています。"
-    />
+    <SeoHead title={pageTitle} description={pageDescription} />
   </head>
 
   <body class="fortune-body">

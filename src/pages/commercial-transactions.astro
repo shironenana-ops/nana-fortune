@@ -1,5 +1,10 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
+
+const pageTitle = "特定商取引法に基づく表記｜白音七";
+const pageDescription =
+  "白音七の特定商取引法に基づく表記です。販売事業者、販売価格、支払い方法、返品・キャンセル等について記載しています。";
 
 const rows = [
   ["販売事業者", "白音七 運営事務局（正式表記確認中）"],
@@ -24,11 +29,7 @@ const rows = [
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>特定商取引法に基づく表記 | 白音七</title>
-    <meta
-      name="description"
-      content="白音七の特定商取引法に基づく表記です。販売価格、支払い方法、返品・解約等について記載しています。"
-    />
+    <SeoHead title={pageTitle} description={pageDescription} />
   </head>
 
   <body class="fortune-body">

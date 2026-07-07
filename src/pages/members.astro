@@ -1,7 +1,10 @@
 ---
 import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
 
 const pageTitle = "会員ページ | 白音七";
+const pageDescription =
+  "白音七の会員ページです。会員状態、音声鑑定の利用回数、プラン情報を確認できます。";
 ---
 
 <!DOCTYPE html>
@@ -9,11 +12,7 @@ const pageTitle = "会員ページ | 白音七";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{pageTitle}</title>
-    <meta
-      name="description"
-      content="白音七の会員ページです。会員状態、音声鑑定の利用回数、プラン情報を確認できます。"
-    />
+    <SeoHead title={pageTitle} description={pageDescription} noindex />
 
     <style is:global>
 /* Dynamic plan cards are injected with innerHTML, so these rules must be global. */

@@ -1,4 +1,9 @@
 ﻿---
+import SeoHead from "../../components/SeoHead.astro";
+
+const pageTitle = "鑑定履歴 | 白音七";
+const pageDescription = "白音七の鑑定履歴一覧";
+
 export const prerender = false;
 ---
 
@@ -7,8 +12,7 @@ export const prerender = false;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>鑑定履歴 | 白音七</title>
-    <meta name="description" content="白音七の鑑定履歴一覧" />
+    <SeoHead title={pageTitle} description={pageDescription} noindex />
 
     <style is:global>
       :root {
