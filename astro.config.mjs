@@ -6,8 +6,28 @@ import sitemap from "@astrojs/sitemap";
 import vercel from "@astrojs/vercel/serverless";
 
 export default defineConfig({
-  site: "https://nana-fortune.vercel.app",
+  site: "https://www.nana-fortune.com",
   output: "server",
   adapter: vercel({}),
-  integrations: [mdx(), sitemap()],
+  integrations: [
+    mdx(),
+    sitemap({
+      filter: (page) => {
+        const excludedPaths = [
+          "/checkout/success",
+          "/history",
+          "/login",
+          "/members",
+          "/result",
+          "/signup",
+          "/premium/voice-processing",
+        ];
+        const pathname = new URL(page).pathname;
+
+        return !excludedPaths.some((path) => {
+          return pathname === path || pathname.startsWith(`${path}/`);
+        });
+      },
+    }),
+  ],
 });
