@@ -79,6 +79,7 @@ import "../styles/global.css";
                     id="birthdayA"
                     class="fortune-input"
                     type="date"
+                    min="1900-01-01"
                     required
                   />
                 </div>
@@ -100,6 +101,7 @@ import "../styles/global.css";
                     id="birthdayB"
                     class="fortune-input"
                     type="date"
+                    min="1900-01-01"
                     required
                   />
                 </div>
@@ -167,6 +169,22 @@ import "../styles/global.css";
       const compatForm = document.getElementById("compatForm");
       const clearBtn = document.getElementById("clearBtn");
       const compatResultArea = document.getElementById("compatResultArea");
+      const birthdayAInput = document.getElementById("birthdayA");
+      const birthdayBInput = document.getElementById("birthdayB");
+      const MIN_BIRTHDAY = "1900-01-01";
+      const MAX_BIRTHDAY = getTodayInputValue();
+
+      function getTodayInputValue() {
+        const now = new Date();
+        const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+        return localDate.toISOString().slice(0, 10);
+      }
+
+      [birthdayAInput, birthdayBInput].forEach((input) => {
+        if (!input) return;
+        input.min = MIN_BIRTHDAY;
+        input.max = MAX_BIRTHDAY;
+      });
 
       function escapeHtml(str) {
         return String(str ?? "")
@@ -182,6 +200,35 @@ import "../styles/global.css";
           .replace(/\D/g, "")
           .split("")
           .reduce((sum, n) => sum + Number(n), 0);
+      }
+
+      function isValidBirthDate(value) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
+          return false;
+        }
+
+        const [year, month, day] = value.split("-").map(Number);
+
+        if (year < 1900 || month < 1 || month > 12 || day < 1 || day > 31) {
+          return false;
+        }
+
+        const date = new Date(Date.UTC(year, month - 1, day));
+        const isRealDate =
+          date.getUTCFullYear() === year &&
+          date.getUTCMonth() === month - 1 &&
+          date.getUTCDate() === day;
+
+        return isRealDate && value >= MIN_BIRTHDAY && value <= MAX_BIRTHDAY;
+      }
+
+      function renderCompatInputError(message) {
+        compatResultArea.innerHTML = `
+          <div class="fortune-result-card">
+            <h2>入力を確認してください</h2>
+            <p>${escapeHtml(message)}</p>
+          </div>
+        `;
       }
 
       function reduceNumber(num) {
@@ -442,12 +489,12 @@ import "../styles/global.css";
         };
 
         if (!input.nameA || !input.birthdayA || !input.nameB || !input.birthdayB) {
-          compatResultArea.innerHTML = `
-            <div class="fortune-result-card">
-              <h2>入力が足りません</h2>
-              <p>ふたりのお名前と生年月日を入力してください。</p>
-            </div>
-          `;
+          renderCompatInputError("ふたりのお名前と生年月日を入力してください。");
+          return;
+        }
+
+        if (!isValidBirthDate(input.birthdayA) || !isValidBirthDate(input.birthdayB)) {
+          renderCompatInputError("生年月日を正しい形で入力してください。");
           return;
         }
 
