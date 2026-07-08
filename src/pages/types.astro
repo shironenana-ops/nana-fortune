@@ -1,7 +1,11 @@
 ---
 import "../styles/global.css";
 import SeoHead from "../components/SeoHead.astro";
-import { shironeTypes } from "../lib/shironeTypes";
+import {
+  getShironePhaseDetail,
+  getShironeTypeDisplayName,
+  shironeTypes,
+} from "../lib/shironeTypes";
 
 const pageTitle = "白音七の属性一覧｜月灯・星詠・水鏡などの星音タイプ";
 const pageDescription =
@@ -306,9 +310,37 @@ const typeIconImages: Record<string, string> = {
         border-top: 1px solid rgba(202, 168, 79, 0.16);
       }
 
-      .attribute-detail-section {
+      .attribute-phase-detail-sections {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 22px;
+        margin-top: 20px;
+        border-top: 1px solid rgba(202, 168, 79, 0.18);
+        border-bottom: 1px solid rgba(202, 168, 79, 0.12);
+      }
+
+      .attribute-detail-section,
+      .attribute-phase-detail-section {
         padding: 17px 0;
         border-bottom: 1px solid rgba(202, 168, 79, 0.12);
+      }
+
+      .attribute-phase-detail-section {
+        border-bottom: 0;
+      }
+
+      .attribute-phase-detail-section h4 {
+        margin: 0 0 8px;
+        color: #fff0bf;
+        font-size: 0.98rem;
+        font-weight: 600;
+        letter-spacing: 0;
+      }
+
+      .attribute-phase-detail-section p {
+        margin: 0;
+        line-height: 1.9;
+        letter-spacing: 0;
       }
 
       @media (max-width: 640px) {
@@ -369,6 +401,14 @@ const typeIconImages: Record<string, string> = {
 
         .attribute-detail-sections {
           grid-template-columns: 1fr;
+        }
+
+        .attribute-phase-detail-sections {
+          grid-template-columns: 1fr;
+        }
+
+        .attribute-phase-detail-section {
+          border-bottom: 1px solid rgba(202, 168, 79, 0.12);
         }
       }
 
@@ -470,7 +510,7 @@ const typeIconImages: Record<string, string> = {
               <summary>属性診断</summary>
               <div class="shirone-nav-attribute-links" aria-label="属性詳細へのリンク">
                 {shironeTypes.map((type) => (
-                  <a href={`#${type.slug}`}>{type.typeName.replace("属性", "")}</a>
+                  <a href={`#${type.slug}`}>{getShironeTypeDisplayName(type)}</a>
                 ))}
               </div>
             </details>
@@ -574,36 +614,39 @@ const typeIconImages: Record<string, string> = {
           </div>
 
           <div class="shirone-type-grid">
-            {shironeTypes.map((type) => (
-              <a
-                href={`#${type.slug}`}
-                class="fortune-card shirone-type-card"
-              >
-                <div class="shirone-attribute-head">
-                  <span class="shirone-attribute-icon">
-                    <img
-                      src={typeIconImages[type.slug]}
-                      alt={`${type.typeName}の紋章`}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </span>
-                  <div class="shirone-type-card-title">
-                    <h2>{type.typeName}</h2>
-                    <span>{type.reading}</span>
+            {shironeTypes.map((type) => {
+              const displayName = getShironeTypeDisplayName(type);
+              return (
+                <a
+                  href={`#${type.slug}`}
+                  class="fortune-card shirone-type-card"
+                >
+                  <div class="shirone-attribute-head">
+                    <span class="shirone-attribute-icon">
+                      <img
+                        src={typeIconImages[type.slug]}
+                        alt={`${displayName}の紋章`}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </span>
+                    <div class="shirone-type-card-title">
+                      <h2>{displayName}</h2>
+                      <span>{type.reading}</span>
+                    </div>
                   </div>
-                </div>
-                <p class="shirone-type-card-catch">{type.catchphrase}</p>
-                <p class="shirone-type-card-meta">
-                  {type.motif}<br />
-                  {type.colorsText}<br />
-                  {type.kind === "base"
-                    ? "陽の相・月の相で読み分けます"
-                    : "属性そのものの響きとして読みます"}
-                </p>
-                <span class="shirone-type-card-link">詳しく見る</span>
-              </a>
-            ))}
+                  <p class="shirone-type-card-catch">{type.catchphrase}</p>
+                  <p class="shirone-type-card-meta">
+                    {type.motif}<br />
+                    {type.colorsText}<br />
+                    {type.kind === "base"
+                      ? "陽の相・月の相で読み分けます"
+                      : "属性そのものの響きとして読みます"}
+                  </p>
+                  <span class="shirone-type-card-link">詳しく見る</span>
+                </a>
+              );
+            })}
           </div>
 
           <div class="fortune-result-card highlight shirone-type-cta">
@@ -619,63 +662,79 @@ const typeIconImages: Record<string, string> = {
           </div>
 
           <section class="shirone-type-detail-list" aria-label="属性の詳細">
-            {shironeTypes.map((type) => (
-              <article id={type.slug} class="fortune-result-card shirone-type-detail-card" style="scroll-margin-top:96px;">
-                <div class="shirone-attribute-detail-head">
-                  <span class="shirone-attribute-icon">
-                    <img
-                      src={typeIconImages[type.slug]}
-                      alt={`${type.typeName}の紋章`}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </span>
-                  <div>
-                    <h2>{type.typeName}</h2>
-                    <p class="shirone-attribute-reading">
-                      {type.reading} / {type.slug}
-                    </p>
+            {shironeTypes.map((type) => {
+              const displayName = getShironeTypeDisplayName(type);
+              return (
+                <article id={type.slug} class="fortune-result-card shirone-type-detail-card" style="scroll-margin-top:96px;">
+                  <div class="shirone-attribute-detail-head">
+                    <span class="shirone-attribute-icon">
+                      <img
+                        src={typeIconImages[type.slug]}
+                        alt={`${displayName}の紋章`}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </span>
+                    <div>
+                      <h2>{displayName}</h2>
+                      <p class="shirone-attribute-reading">
+                        {type.reading} / {type.slug}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                <p style="color:#f2dd9a; font-size:1.02rem;">{type.catchphrase}</p>
-                {type.specialNote ? (
-                  <div class="attribute-note-card">
-                    <p>{type.specialNote}</p>
+                  <p style="color:#f2dd9a; font-size:1.02rem;">{type.catchphrase}</p>
+                  {type.specialNote ? (
+                    <div class="attribute-note-card">
+                      <p>{type.specialNote}</p>
+                    </div>
+                  ) : null}
+                  <p>{type.summary}</p>
+
+                  {type.kind === "base" ? (
+                    <div class="attribute-phase-detail-sections" aria-label={`${displayName}の相`}>
+                      <section class="attribute-phase-detail-section">
+                        <h4>陽の相</h4>
+                        <p>{getShironePhaseDetail(type, "sun")}</p>
+                      </section>
+                      <section class="attribute-phase-detail-section">
+                        <h4>月の相</h4>
+                        <p>{getShironePhaseDetail(type, "moon")}</p>
+                      </section>
+                    </div>
+                  ) : null}
+
+                  <div class="attribute-detail-sections">
+                    <section class="attribute-detail-section">
+                      <h4>強み</h4>
+                      <p>{type.strengths}</p>
+                    </section>
+                    <section class="attribute-detail-section">
+                      <h4>気をつけたいこと</h4>
+                      <p>{type.weakness}</p>
+                    </section>
+                    <section class="attribute-detail-section">
+                      <h4>恋愛</h4>
+                      <p>{type.love}</p>
+                    </section>
+                    <section class="attribute-detail-section">
+                      <h4>仕事</h4>
+                      <p>{type.work}</p>
+                    </section>
+                    <section class="attribute-detail-section">
+                      <h4>人間関係</h4>
+                      <p>{type.relationship}</p>
+                    </section>
+                    <section class="attribute-detail-section">
+                      <h4>相性の見方</h4>
+                      <p>{type.compatibilityHint}</p>
+                    </section>
                   </div>
-                ) : null}
-                <p>{type.summary}</p>
 
-                <div class="attribute-detail-sections">
-                  <section class="attribute-detail-section">
-                    <h4>強み</h4>
-                    <p>{type.strengths}</p>
-                  </section>
-                  <section class="attribute-detail-section">
-                    <h4>気をつけたいこと</h4>
-                    <p>{type.weakness}</p>
-                  </section>
-                  <section class="attribute-detail-section">
-                    <h4>恋愛</h4>
-                    <p>{type.love}</p>
-                  </section>
-                  <section class="attribute-detail-section">
-                    <h4>仕事</h4>
-                    <p>{type.work}</p>
-                  </section>
-                  <section class="attribute-detail-section">
-                    <h4>人間関係</h4>
-                    <p>{type.relationship}</p>
-                  </section>
-                  <section class="attribute-detail-section">
-                    <h4>相性の見方</h4>
-                    <p>{type.compatibilityHint}</p>
-                  </section>
-                </div>
-
-                <p style="white-space:pre-line; color:#f2dd9a; margin-top:14px;">{type.gentleMessage}</p>
-              </article>
-            ))}
+                  <p style="white-space:pre-line; color:#f2dd9a; margin-top:14px;">{type.gentleMessage}</p>
+                </article>
+              );
+            })}
           </section>
 
           <div class="fortune-result-actions">
