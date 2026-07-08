@@ -63,6 +63,7 @@ export const prerender = false;
 
     <script>
       const API_BASE = "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod";
+      import { shironeIconMap } from "../../lib/shironeIconMap";
 
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
@@ -119,6 +120,7 @@ export const prerender = false;
         return {
           icon: icon || "・",
           label: label || "手がかり",
+          key: String(hint.key || "").trim(),
           value,
           tone: normalizeIconHintTone(hint.tone)
         };
@@ -144,6 +146,31 @@ export const prerender = false;
         return rawHints.map(normalizeIconHint).filter(Boolean);
       }
 
+      function renderIllustrationIcon(src, alt, className = "") {
+        if (!src) return "";
+
+        return `
+          <img
+            class="${escapeHtml(className)}"
+            src="${escapeHtml(src)}"
+            alt="${escapeHtml(alt)}"
+            loading="lazy"
+            decoding="async"
+          />
+        `;
+      }
+
+      function getHintIconName(hint) {
+        const key = String(hint?.key || "").toLowerCase();
+        const label = String(hint?.label || "");
+        const value = String(hint?.value || "");
+
+        if (key.includes("numerology") || label.includes("数") || value.includes("LP")) return "lpBadge";
+        if (key.includes("astrology") || label.includes("星")) return "zodiac";
+        if (key.includes("biorhythm") || label.includes("波")) return "thinkingWave";
+        return "";
+      }
+
       function renderIconHints(source) {
         const iconHints = Array.isArray(source)
           ? source.map(normalizeIconHint).filter(Boolean)
@@ -156,13 +183,62 @@ export const prerender = false;
             <h2 class="fortune-icon-hints-title">今日の小さな手がかり</h2>
             <div class="fortune-icon-hints-grid">
               ${iconHints
-                .map(
-                  (hint) => `
+                .map((hint) => {
+                  const iconName = getHintIconName(hint);
+                  const iconSrc = shironeIconMap[iconName];
+                  const iconAlt = iconName === "lpBadge"
+                    ? "数秘の手がかりを示すアイコン"
+                    : iconName === "zodiac"
+                      ? "星の手がかりを示すアイコン"
+                      : iconName === "thinkingWave"
+                        ? "波の手がかりを示すアイコン"
+                        : "";
+
+                  return `
                     <article class="fortune-icon-hint-card tone-${hint.tone}">
-                      <div class="fortune-icon-hint-symbol">${escapeHtml(hint.icon)}</div>
+                      <div class="fortune-illustration-icon fortune-icon-hint-symbol">
+                        ${iconSrc ? renderIllustrationIcon(iconSrc, iconAlt, "fortune-illustration-icon-image") : escapeHtml(hint.icon)}
+                      </div>
                       <div class="fortune-icon-hint-text">
                         <div class="fortune-icon-hint-label">${escapeHtml(hint.label)}</div>
                         <div class="fortune-icon-hint-value">${escapeHtml(hint.value)}</div>
+                      </div>
+                    </article>
+                  `;
+                })
+                .join("")}
+            </div>
+          </section>
+        `;
+      }
+
+      function renderHistoryKeyCards(result) {
+        const cards = [
+          { label: "鑑定日", value: result.fortuneDate, icon: shironeIconMap.calendar, alt: "月の暦のアイコン" },
+          { label: "星座", value: result.zodiac, icon: shironeIconMap.zodiac, alt: "星座盤のアイコン" },
+          { label: "ライフパス", value: result.lifePathNumber, icon: shironeIconMap.lifepath, alt: "星の道のアイコン" },
+          { label: "パーソナルデイ", value: result.personalDayNumber, icon: shironeIconMap.personalDay, alt: "今日の光のアイコン" },
+          { label: "名前ナンバー", value: result.nameNumber, icon: shironeIconMap.nameNumber, alt: "名前とペンのアイコン" },
+          { label: "キーワード", value: result.keyword, icon: shironeIconMap.keyword, alt: "鍵とリボンのアイコン", featured: true }
+        ].filter((card) => card.value);
+
+        if (!cards.length) return "";
+
+        return `
+          <section class="fortune-key-section" aria-label="今日の鍵">
+            <div class="fortune-section-head">
+              <span class="fortune-section-kicker">TODAY'S KEY</span>
+              <h2>今日の鍵</h2>
+            </div>
+            <div class="fortune-key-grid">
+              ${cards
+                .map(
+                  (card) => `
+                    <article class="fortune-key-card${card.featured ? " is-featured" : ""}">
+                      <span class="fortune-illustration-icon fortune-key-symbol">${renderIllustrationIcon(card.icon, card.alt, "fortune-illustration-icon-image")}</span>
+                      <div>
+                        <p class="fortune-key-label">${escapeHtml(card.label)}</p>
+                        <p class="fortune-key-value">${escapeHtml(card.value)}</p>
                       </div>
                     </article>
                   `
@@ -391,6 +467,7 @@ export const prerender = false;
           ${renderMeta(item, title, "通常鑑定")}
 
           ${renderIconHints(item)}
+          ${renderHistoryKeyCards(result)}
 
           <section class="fortune-detail-section">
             <h2 class="fortune-detail-section-title">今日の鍵</h2>
@@ -799,6 +876,149 @@ export const prerender = false;
     </script>
 
     <style is:global>
+      .fortune-section-head {
+        display: grid;
+        gap: 0.35rem;
+        margin: 0 0 0.85rem;
+      }
+
+      .fortune-section-kicker {
+        color: rgba(255, 240, 189, 0.58);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+      }
+
+      .fortune-section-head h2 {
+        margin: 0;
+        color: #fff0bd;
+        font-size: clamp(1.08rem, 2vw, 1.28rem);
+        letter-spacing: 0;
+      }
+
+      .fortune-key-section {
+        margin: 1.25rem 0;
+      }
+
+      .fortune-key-section + .fortune-detail-section {
+        display: none;
+      }
+
+      .fortune-key-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+
+      .fortune-key-card {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        min-height: 86px;
+        gap: 0.78rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid rgba(226, 191, 92, 0.16);
+        border-radius: 16px;
+        background:
+          radial-gradient(circle at 54px 50%, rgba(216, 190, 117, 0.18), transparent 46px),
+          rgba(13, 15, 36, 0.96);
+      }
+
+      .fortune-key-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(
+            90deg,
+            rgba(13, 15, 36, 0) 0%,
+            rgba(13, 15, 36, 0.18) 72px,
+            rgba(13, 15, 36, 0.78) 112px,
+            rgba(13, 15, 36, 0.94) 100%
+          );
+      }
+
+      .fortune-key-card > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .fortune-key-card.is-featured {
+        border-color: rgba(255, 224, 141, 0.34);
+        background:
+          radial-gradient(circle at 54px 50%, rgba(255, 224, 141, 0.22), transparent 48px),
+          rgba(14, 14, 38, 0.97);
+      }
+
+      .fortune-key-card.is-featured::after {
+        background:
+          linear-gradient(
+            90deg,
+            rgba(14, 14, 38, 0) 0%,
+            rgba(14, 14, 38, 0.2) 72px,
+            rgba(14, 14, 38, 0.8) 112px,
+            rgba(14, 14, 38, 0.95) 100%
+          );
+      }
+
+      .fortune-key-symbol,
+      .fortune-icon-hint-symbol {
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255, 236, 179, 0.2);
+        background:
+          radial-gradient(circle at 36% 24%, rgba(255, 236, 179, 0.13), transparent 55%),
+          rgba(255, 255, 255, 0.045);
+        color: #ffe8a3;
+        box-shadow: 0 0 16px rgba(226, 191, 92, 0.09);
+      }
+
+      .fortune-key-symbol {
+        flex: 0 0 54px;
+        width: 54px;
+        height: 54px;
+        border-radius: 18px;
+      }
+
+      .fortune-illustration-icon-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 14px;
+        object-fit: contain;
+      }
+
+      .fortune-key-symbol .fortune-illustration-icon-image {
+        width: 48px;
+        height: 48px;
+      }
+
+      .fortune-key-label,
+      .fortune-key-value {
+        margin: 0;
+        letter-spacing: 0;
+      }
+
+      .fortune-key-label {
+        color: rgba(255, 240, 189, 0.66);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.34);
+      }
+
+      .fortune-key-value {
+        color: #fff4cf;
+        font-size: clamp(1rem, 2vw, 1.18rem);
+        font-weight: 900;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+        text-shadow: 0 1px 10px rgba(0, 0, 0, 0.42);
+      }
+
       .fortune-icon-hints-section {
         margin: 1.2rem 0;
       }
@@ -818,6 +1038,9 @@ export const prerender = false;
       }
 
       .fortune-icon-hint-card {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
         display: flex;
         align-items: center;
         min-height: 82px;
@@ -825,20 +1048,45 @@ export const prerender = false;
         padding: 0.9rem 1rem;
         border: 1px solid rgba(226, 191, 92, 0.18);
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.035);
+        background:
+          radial-gradient(circle at 50px 50%, rgba(216, 190, 117, 0.14), transparent 44px),
+          rgba(13, 15, 36, 0.94);
         box-shadow: none;
       }
 
+      .fortune-icon-hint-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(
+            90deg,
+            rgba(13, 15, 36, 0) 0%,
+            rgba(13, 15, 36, 0.16) 68px,
+            rgba(13, 15, 36, 0.76) 104px,
+            rgba(13, 15, 36, 0.93) 100%
+          );
+      }
+
+      .fortune-icon-hint-card > * {
+        position: relative;
+        z-index: 1;
+      }
+
       .fortune-icon-hint-symbol {
-        display: grid;
-        flex: 0 0 38px;
-        width: 38px;
-        height: 38px;
-        place-items: center;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.055);
-        color: #ffe8a3;
+        flex: 0 0 48px;
+        width: 48px;
+        height: 48px;
+        border-radius: 17px;
         font-weight: 800;
+      }
+
+      .fortune-icon-hint-symbol .fortune-illustration-icon-image {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
       }
 
       .fortune-icon-hint-label {
@@ -871,10 +1119,12 @@ export const prerender = false;
       }
 
       @media (max-width: 720px) {
+        .fortune-key-grid,
         .fortune-icon-hints-grid {
           grid-template-columns: 1fr;
         }
 
+        .fortune-key-card,
         .fortune-icon-hint-card {
           min-height: auto;
         }
