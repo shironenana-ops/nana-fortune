@@ -121,7 +121,11 @@ const pageDescription = "白音七の鑑定結果ページ";
       // @ts-nocheck
       import { buildDailyFortune } from "../lib/fortuneEngine";
       import { runShironeEngine } from "../lib/shironeEngine";
-      import { getShironeTypeByBirthDate } from "../lib/shironeTypes";
+      import {
+        getShironePhaseDetail,
+        getShironeTypeByBirthDate,
+        getShironeTypeDisplayName,
+      } from "../lib/shironeTypes";
 
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
@@ -245,10 +249,14 @@ const pageDescription = "白音七の鑑定結果ページ";
       function renderShironeTypeCard(birthDate) {
         const shironeType = getShironeTypeByBirthDate(String(birthDate || ""));
         if (!shironeType) return "";
+        const displayName = getShironeTypeDisplayName(shironeType);
+        const phaseDetail = shironeType.phase
+          ? getShironePhaseDetail(shironeType, shironeType.phase.key)
+          : "";
         const phaseHtml = shironeType.phase
           ? `
               <p>${escapeHtml(shironeType.phase.label)}</p>
-              <p>${escapeHtml(shironeType.phase.description)}</p>
+              <p>${escapeHtml(phaseDetail || shironeType.phase.description)}</p>
             `
           : shironeType.specialNote
             ? `<p>${escapeHtml(shironeType.specialNote)}</p>`
@@ -259,7 +267,7 @@ const pageDescription = "白音七の鑑定結果ページ";
             <div class="fortune-seven-type-label">あなたの属性</div>
             <div class="fortune-seven-type-main">
               <div>
-                <h2>${escapeHtml(shironeType.typeName)}</h2>
+                <h2>${escapeHtml(displayName)}${shironeType.phase ? `・${escapeHtml(shironeType.phase.label)}` : ""}</h2>
                 <p>${escapeHtml(shironeType.catchphrase)}</p>
                 ${phaseHtml}
               </div>

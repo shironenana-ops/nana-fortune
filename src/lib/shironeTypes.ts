@@ -14,6 +14,7 @@ export type ShironeType = {
   kind: "base" | "special";
   phases?: readonly ShironePhase[];
   phase?: ShironePhase;
+  phaseDetails?: Readonly<Record<ShironePhaseKey, string>>;
   specialNote?: string;
   catchphrase: string;
   motif: string;
@@ -54,6 +55,12 @@ export const shironeBaseTypes = [
     displayNumber: 1,
     kind: "base",
     phases: shironePhases,
+    phaseDetails: {
+      sun:
+        "静かなやさしさを、行動や言葉として外へ届けていく相です。迷っている人のそばに立ち、小さな灯りを差し出すように場を整えます。",
+      moon:
+        "人の気配や心の陰りを、内側で深く受け取る相です。無理に明るくするより、静かに寄り添うことで安心を育てます。",
+    },
     catchphrase: "静かな光で人を照らす人",
     motif: "月、灯、夜道",
     colorsText: "月白、淡い金、深い紺",
@@ -72,7 +79,7 @@ export const shironeBaseTypes = [
     todayMessage:
       "今日は無理に明るくしなくて大丈夫\n小さな灯りをひとつ守れたら十分です",
     compatibilityHint:
-      "火織属性に背中を押され、風音属性に視野を広げられます。",
+      "火織に背中を押され、風音に視野を広げられます。",
     gentleMessage:
       "あなたの静けさは\n誰かにとって帰る場所になります",
   },
@@ -83,6 +90,12 @@ export const shironeBaseTypes = [
     displayNumber: 2,
     kind: "base",
     phases: shironePhases,
+    phaseDetails: {
+      sun:
+        "見つけた意味を、言葉や提案として外へ差し出す相です。遠くの星を指さすように、周りへ次の目印を伝えます。",
+      moon:
+        "出来事の奥にある意味を、内側でじっくり読み解く相です。考える時間の中で、自分だけの星図を静かに育てます。",
+    },
     catchphrase: "遠くの意味を見つける人",
     motif: "星図、夜空、羅針盤",
     colorsText: "群青、銀、淡い紫",
@@ -101,7 +114,7 @@ export const shironeBaseTypes = [
     todayMessage:
       "今日は答えを急がなくて大丈夫\n見上げた先に次の目印が出てきます",
     compatibilityHint:
-      "水鏡属性と内面を深め、風音属性と可能性を広げます。",
+      "水鏡と内面を深め、風音と可能性を広げます。",
     gentleMessage:
       "あなたが見つける意味は\n誰かの夜道の星になります",
   },
@@ -112,6 +125,12 @@ export const shironeBaseTypes = [
     displayNumber: 3,
     kind: "base",
     phases: shironePhases,
+    phaseDetails: {
+      sun:
+        "感じ取ったことを、調整や対話として外へ活かす相です。揺れている場に水を差すように、関係の温度を整えます。",
+      moon:
+        "心の水面に映る気配を、深く受け止める相です。急いで答えを出さず、静かな感受性で本音を見つけていきます。",
+    },
     catchphrase: "心の揺れを映して整える人",
     motif: "水面、鏡、雫",
     colorsText: "青緑、水色、透明感のある白",
@@ -130,7 +149,7 @@ export const shironeBaseTypes = [
     todayMessage:
       "今日は心の水面を静かにして\n本当の気持ちを映してみてください",
     compatibilityHint:
-      "月灯属性に安心し、星詠属性に言葉をもらえます。",
+      "月灯に安心し、星詠に言葉をもらえます。",
     gentleMessage:
       "揺れる心は弱さではなく\n深く感じられる力です",
   },
@@ -141,6 +160,12 @@ export const shironeBaseTypes = [
     displayNumber: 4,
     kind: "base",
     phases: shironePhases,
+    phaseDetails: {
+      sun:
+        "育てたいものに手を伸ばし、日々の中で形にしていく相です。人や場所に小さな手入れを重ね、やさしい変化を起こします。",
+      moon:
+        "美しさや小さな喜びを、内側で大切に守る相です。誰かのためだけでなく、自分の心にも水を注ぐことで整います。",
+    },
     catchphrase: "小さな美しさを育てる人",
     motif: "花、庭、つぼみ",
     colorsText: "桜、若葉、生成り",
@@ -159,7 +184,7 @@ export const shironeBaseTypes = [
     todayMessage:
       "今日は小さな手入れの日\nひとつ整えるだけで運が息を吹き返します",
     compatibilityHint:
-      "月灯属性と安心を育て、火織属性から行動力をもらえます。",
+      "月灯と安心を育て、火織から行動力をもらえます。",
     gentleMessage:
       "あなたが大切にしたものは\nゆっくり花を開いていきます",
   },
@@ -170,6 +195,12 @@ export const shironeBaseTypes = [
     displayNumber: 5,
     kind: "base",
     phases: shironePhases,
+    phaseDetails: {
+      sun:
+        "変化を恐れず、風向きを読んで外へ動いていく相です。新しい場所や人との出会いが、次の流れを連れてきます。",
+      moon:
+        "心の中を通る風を感じ取り、必要な変化を静かに待つ相です。すぐに動かない時間にも、次の道を選ぶ感覚が育ちます。",
+    },
     catchphrase: "変化の流れを読む人",
     motif: "風、旅、羽",
     colorsText: "薄灰、空色、白",
@@ -188,7 +219,7 @@ export const shironeBaseTypes = [
     todayMessage:
       "今日は風向きが少し変わります\n予定外の流れにも小さなヒントがあります",
     compatibilityHint:
-      "星詠属性に方向をもらい、白音属性に落ち着きをもらえます。",
+      "星詠に方向をもらい、白音に落ち着きをもらえます。",
     gentleMessage:
       "変わっていくあなたも\nちゃんとあなたのままです",
   },
@@ -199,6 +230,12 @@ export const shironeBaseTypes = [
     displayNumber: 6,
     kind: "base",
     phases: shironePhases,
+    phaseDetails: {
+      sun:
+        "胸の熱を行動へ移し、思いを形にしていく相です。小さな一歩でも、周りに温度を渡す力があります。",
+      moon:
+        "内側に灯る火を大切に守り、必要な時まで育てる相です。急がず熱を整えることで、まっすぐな力が戻ります。",
+    },
     catchphrase: "情熱を形に結ぶ人",
     motif: "火、結び、朝焼け",
     colorsText: "朱、琥珀、深い赤",
@@ -217,7 +254,7 @@ export const shironeBaseTypes = [
     todayMessage:
       "今日は小さく火を灯す日\n全部を変えなくても一歩で流れは動きます",
     compatibilityHint:
-      "月灯属性に落ち着きをもらい、花守属性に持続力をもらえます。",
+      "月灯に落ち着きをもらい、花守に持続力をもらえます。",
     gentleMessage:
       "あなたの熱は\n未来を温めるためにあります",
   },
@@ -228,6 +265,12 @@ export const shironeBaseTypes = [
     displayNumber: 7,
     kind: "base",
     phases: shironePhases,
+    phaseDetails: {
+      sun:
+        "自分の感性を、言葉や表現として外へ響かせる相です。大きな声でなくても、静かな一音が誰かに届きます。",
+      moon:
+        "余白の奥にある本音を、内側で深く聴く相です。説明できない感覚を急いで形にせず、静かに育てることで整います。",
+    },
     catchphrase: "余白の奥に本音を響かせる人",
     motif: "白い音、余白、鈴",
     colorsText: "白、真珠、淡い金",
@@ -246,7 +289,7 @@ export const shironeBaseTypes = [
     todayMessage:
       "今日は言葉にならない感覚を信じて\n静かな違和感が道しるべになります",
     compatibilityHint:
-      "風音属性に動きをもらい、水鏡属性に深く映してもらえます。",
+      "風音に動きをもらい、水鏡に深く映してもらえます。",
     gentleMessage:
       "うまく説明できないあなたの感覚にも\nちゃんと名前のない価値があります",
   },
@@ -278,7 +321,7 @@ export const shironeSpecialTypes = [
     todayMessage:
       "今日は言葉にする前の感覚を大切に\n小さな違和感が道を整えてくれます",
     compatibilityHint:
-      "白音属性と静けさを深め、水鏡属性と感覚を映し合えます。",
+      "白音と静けさを深め、水鏡と感覚を映し合えます。",
     gentleMessage:
       "あなたが受け取る小さな気配は\n誰かをそっと守る力になります",
   },
@@ -307,7 +350,7 @@ export const shironeSpecialTypes = [
     todayMessage:
       "今日は二つの選択を敵にしなくて大丈夫\n重ね方を変えると新しい形が見えてきます",
     compatibilityHint:
-      "花守属性と育てる力を重ね、火織属性と形にする力を強めます。",
+      "花守と育てる力を重ね、火織と形にする力を強めます。",
     gentleMessage:
       "違うものをつなげられるあなたは\n世界にやさしい形を増やせます",
   },
@@ -336,7 +379,7 @@ export const shironeSpecialTypes = [
     todayMessage:
       "今日は無理に大きな声を出さなくて大丈夫\n必要な言葉は静かに届いていきます",
     compatibilityHint:
-      "星詠属性と言葉を広げ、月灯属性とやさしい安心を育てます。",
+      "星詠と言葉を広げ、月灯とやさしい安心を育てます。",
     gentleMessage:
       "あなたの中に届く音は\n誰かの心をやわらかく照らします",
   },
@@ -346,6 +389,17 @@ export const shironeTypes = [
   ...shironeBaseTypes,
   ...shironeSpecialTypes,
 ] as const satisfies readonly ShironeType[];
+
+export function getShironeTypeDisplayName(type: Pick<ShironeType, "typeName">): string {
+  return type.typeName.replace(/属性$/, "");
+}
+
+export function getShironePhaseDetail(
+  type: ShironeType,
+  phaseKey: ShironePhaseKey
+): string {
+  return type.phaseDetails?.[phaseKey] ?? "";
+}
 
 export function getShironeTypeByBirthDate(birthDate: string): ShironeType | null {
   const digits = birthDate.replace(/\D/g, "");
