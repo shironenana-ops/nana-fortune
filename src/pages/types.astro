@@ -784,6 +784,34 @@ const typeIconImages: Record<string, string> = {
           `;
         }
       }
+
+      const typeNavArea = document.getElementById("navArea");
+      const typeMenuButton = document.querySelector(".fortune-mobile-menu-button");
+
+      function closeTypeMobileMenu() {
+        if (!(typeNavArea instanceof HTMLElement)) return;
+
+        typeNavArea.classList.remove("is-open");
+
+        if (typeMenuButton instanceof HTMLElement) {
+          typeMenuButton.setAttribute("aria-expanded", "false");
+          typeMenuButton.setAttribute("aria-label", "メニューを開く");
+        }
+
+        typeNavArea.querySelectorAll(".shirone-nav-attribute-details[open]").forEach((details) => {
+          details.removeAttribute("open");
+        });
+      }
+
+      typeNavArea?.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+
+        const link = target.closest("a");
+        if (!link || !typeNavArea.contains(link)) return;
+
+        closeTypeMobileMenu();
+      });
     </script>
   </body>
 </html>
