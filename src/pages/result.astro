@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import SeoHead from "../components/SeoHead.astro";
+import { shironeIconMap } from "../lib/shironeIconMap";
 
 const pageTitle = "鑑定結果 | 白音七";
 const pageDescription = "白音七の鑑定結果ページ";
@@ -83,22 +84,58 @@ const pageDescription = "白音七の鑑定結果ページ";
 
               <div class="fortune-premium-content">
                 <div class="fortune-premium-item">
-                  <h3>🔢 数秘術（本質）</h3>
+                  <h3 class="fortune-premium-heading">
+                    <img
+                      class="fortune-premium-icon"
+                      src={shironeIconMap.lpBadge}
+                      alt="数秘術のイラスト"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <span>数秘術（本質）</span>
+                  </h3>
                   <p>ピタゴラス式チャートで、生まれ持つ資質と人生の役割を解析</p>
                 </div>
 
                 <div class="fortune-premium-item">
-                  <h3>🌙 占星術（流れ）</h3>
+                  <h3 class="fortune-premium-heading">
+                    <img
+                      class="fortune-premium-icon"
+                      src={shironeIconMap.zodiac}
+                      alt="占星術のイラスト"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <span>占星術（流れ）</span>
+                  </h3>
                   <p>運気の波とタイミングを読み取り、最適な行動時期を導く</p>
                 </div>
 
                 <div class="fortune-premium-item">
-                  <h3>🧬 姓名判断・手相</h3>
+                  <h3 class="fortune-premium-heading">
+                    <img
+                      class="fortune-premium-icon"
+                      src={shironeIconMap.nameNumber}
+                      alt="姓名判断・手相のイラスト"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <span>姓名判断・手相</span>
+                  </h3>
                   <p>あなたの現在地と変化の兆しを多角的に分析</p>
                 </div>
 
                 <div class="fortune-premium-item">
-                  <h3>📈 バイオリズム</h3>
+                  <h3 class="fortune-premium-heading">
+                    <img
+                      class="fortune-premium-icon"
+                      src={shironeIconMap.thinkingWave}
+                      alt="バイオリズムのイラスト"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <span>バイオリズム</span>
+                  </h3>
                   <p>日々の流れを可視化し、運気の上げ方を具体化</p>
                 </div>
               </div>
@@ -121,6 +158,7 @@ const pageDescription = "白音七の鑑定結果ページ";
       // @ts-nocheck
       import { buildDailyFortune } from "../lib/fortuneEngine";
       import { runShironeEngine } from "../lib/shironeEngine";
+      import { shironeIconMap } from "../lib/shironeIconMap";
       import {
         getShironePhaseDetail,
         getShironeTypeByBirthDate,
@@ -174,6 +212,44 @@ const pageDescription = "白音七の鑑定結果ページ";
       }
 
       const iconHintTones = new Set(["gold", "purple", "blue", "green", "gray"]);
+      const typeIconImages = {
+        moonlight: "/images/types-icons/moon-lantern.png",
+        stargazer: "/images/types-icons/sky-compass.png",
+        "water-mirror": "/images/types-icons/water-mirror.png",
+        "flower-keeper": "/images/types-icons/sakura-emblem.png",
+        windpath: "/images/types-icons/wind-feather.png",
+        "fire-knot": "/images/types-icons/fire-knot.png",
+        shirone: "/images/types-icons/magic-circle.png",
+        sumine: "/images/types-icons/crystal-geometry.png",
+        futane: "/images/types-icons/twin-moons.png",
+        amane: "/images/types-icons/holy-light.png"
+      };
+      const biorhythmLabels = {
+        physical: "体",
+        emotional: "心",
+        intellectual: "思考"
+      };
+      const biorhythmLevelLabels = {
+        low: "静める",
+        middle: "整える",
+        high: "満ちる"
+      };
+      const biorhythmLevelValues = {
+        low: 1,
+        middle: 2,
+        high: 3
+      };
+      const biorhythmWaveSeries = [
+        { key: "physical", label: "身体", period: 23, className: "physical" },
+        { key: "emotional", label: "感情", period: 28, className: "emotional" },
+        { key: "intellectual", label: "思考", period: 33, className: "intellectual" }
+      ];
+      const biorhythmWaveRange = 15;
+      const biorhythmSvgWidth = 600;
+      const biorhythmSvgHeight = 220;
+      const biorhythmSvgPaddingX = 32;
+      const biorhythmSvgMidY = 108;
+      const biorhythmSvgAmplitude = 68;
 
       function normalizeIconHintTone(tone) {
         const value = String(tone || "gray");
@@ -309,6 +385,377 @@ const pageDescription = "白音七の鑑定結果ページ";
         `;
       }
 
+      function renderLineIcon(name) {
+        const icons = {
+          calendar: `
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <rect x="8" y="9" width="16" height="15" rx="3"></rect>
+              <path d="M11 7v5M21 7v5M8 14h16M12 18h2M18 18h2"></path>
+            </svg>
+          `,
+          zodiac: `
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M16 6l1.7 5.2H23l-4.3 3.1 1.7 5.1-4.4-3.2-4.4 3.2 1.7-5.1L9 11.2h5.3L16 6z"></path>
+              <path d="M7 24c5-3.2 11-3.2 18 0" opacity=".7"></path>
+            </svg>
+          `,
+          path: `
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M8 23c5-11 12 1 16-10"></path>
+              <circle cx="8" cy="23" r="2"></circle>
+              <circle cx="24" cy="13" r="2"></circle>
+            </svg>
+          `,
+          daylight: `
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <circle cx="16" cy="16" r="4"></circle>
+              <path d="M16 6v4M16 22v4M6 16h4M22 16h4M9.4 9.4l2.8 2.8M19.8 19.8l2.8 2.8M22.6 9.4l-2.8 2.8M12.2 19.8l-2.8 2.8"></path>
+            </svg>
+          `,
+          name: `
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M10 8h12a3 3 0 013 3v10a3 3 0 01-3 3H10a3 3 0 01-3-3V11a3 3 0 013-3z"></path>
+              <path d="M12 14h8M12 19h5"></path>
+              <path d="M12 8c.4-2 1.7-3 4-3s3.6 1 4 3"></path>
+            </svg>
+          `,
+          key: `
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <circle cx="12" cy="16" r="4"></circle>
+              <path d="M16 16h9M22 16v4M19 16v3"></path>
+            </svg>
+          `,
+          moon: `
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M21 7c-5 1.5-8 5.5-8 10.1 0 3.8 2.2 6.9 5.8 8.4C12.7 25.1 8 20.5 8 14.9 8 9.8 12 5.7 17.2 5c1.2-.1 2.5.6 3.8 2z"></path>
+            </svg>
+          `,
+          starline: `
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <circle cx="9" cy="20" r="1.8"></circle>
+              <circle cx="16" cy="10" r="1.8"></circle>
+              <circle cx="23" cy="18" r="1.8"></circle>
+              <path d="M10.3 18.6l4.4-6.5M17.4 11.4l4.3 5.2"></path>
+            </svg>
+          `,
+          wave: `
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M6 13c3.3-3 6.7 3 10 0s6.7-3 10 0"></path>
+              <path d="M6 20c3.3-3 6.7 3 10 0s6.7-3 10 0" opacity=".72"></path>
+            </svg>
+          `
+        };
+
+        return icons[name] || "";
+      }
+
+      function getHintIconName(hint) {
+        const key = String(hint?.key || "").toLowerCase();
+        const label = String(hint?.label || "");
+        const value = String(hint?.value || "");
+
+        if (key.includes("numerology") || label.includes("数") || value.includes("LP")) return "lpBadge";
+        if (key.includes("astrology") || label.includes("星")) return "zodiac";
+        if (key.includes("biorhythm") || label.includes("波")) return "thinkingWave";
+        return "";
+      }
+
+      function renderIllustrationIcon(src, alt, className = "") {
+        if (!src) return "";
+
+        return `
+          <img
+            class="${escapeHtml(className)}"
+            src="${escapeHtml(src)}"
+            alt="${escapeHtml(alt)}"
+            loading="lazy"
+            decoding="async"
+          />
+        `;
+      }
+
+      function renderDailyKeyCards(fortune) {
+        const cards = [
+          { label: "鑑定日", value: fortune.fortuneDate, icon: shironeIconMap.calendar, alt: "月の暦のアイコン" },
+          { label: "星座", value: fortune.zodiac, icon: shironeIconMap.zodiac, alt: "星座盤のアイコン" },
+          { label: "ライフパス", value: fortune.lifePathNumber, icon: shironeIconMap.lifepath, alt: "星の道のアイコン" },
+          { label: "パーソナルデイ", value: fortune.personalDayNumber, icon: shironeIconMap.personalDay, alt: "今日の光のアイコン" },
+          { label: "名前ナンバー", value: fortune.nameNumber, icon: shironeIconMap.nameNumber, alt: "名前とペンのアイコン" },
+          { label: "キーワード", value: fortune.keyword, icon: shironeIconMap.keyword, alt: "鍵とリボンのアイコン", featured: true }
+        ];
+
+        return `
+          <section class="fortune-key-section" aria-label="今日の鍵">
+            <div class="fortune-section-head">
+              <span class="fortune-section-kicker">TODAY'S KEY</span>
+              <h2>今日の鍵</h2>
+            </div>
+            <div class="fortune-key-grid">
+              ${cards
+                .map(
+                  (card) => `
+                    <article class="fortune-key-card${card.featured ? " is-featured" : ""}">
+                      <span class="fortune-illustration-icon fortune-key-symbol">${renderIllustrationIcon(card.icon, card.alt, "fortune-illustration-icon-image")}</span>
+                      <div>
+                        <p class="fortune-key-label">${escapeHtml(card.label)}</p>
+                        <p class="fortune-key-value">${escapeHtml(card.value)}</p>
+                      </div>
+                    </article>
+                  `
+                )
+                .join("")}
+            </div>
+          </section>
+        `;
+      }
+
+      function extractBiorhythm(source) {
+        if (!source || typeof source !== "object") return null;
+
+        const candidates = [
+          source.knowledgePayload?.context?.biorhythm,
+          source.knowledge_payload?.context?.biorhythm,
+          source.historyPayloadV2?.knowledgePayload?.context?.biorhythm,
+          source.history_payload_v2?.knowledgePayload?.context?.biorhythm,
+          source.result?.knowledgePayload?.context?.biorhythm,
+          source.result?.knowledge_payload?.context?.biorhythm,
+          source.result?.historyPayloadV2?.knowledgePayload?.context?.biorhythm,
+          source.result?.history_payload_v2?.knowledgePayload?.context?.biorhythm
+        ];
+
+        return (
+          candidates.find(
+            (candidate) =>
+              candidate &&
+              typeof candidate === "object" &&
+              candidate.physical &&
+              candidate.emotional &&
+              candidate.intellectual
+          ) || null
+        );
+      }
+
+      function normalizeBiorhythmLevel(level) {
+        const value = String(level || "middle");
+        return Object.prototype.hasOwnProperty.call(biorhythmLevelValues, value) ? value : "middle";
+      }
+
+      function parseDateValue(value) {
+        const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return null;
+
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const date = new Date(Date.UTC(year, month - 1, day));
+
+        if (
+          date.getUTCFullYear() !== year ||
+          date.getUTCMonth() !== month - 1 ||
+          date.getUTCDate() !== day
+        ) {
+          return null;
+        }
+
+        return date;
+      }
+
+      function daysBetween(fromDate, toDate) {
+        const dayMs = 24 * 60 * 60 * 1000;
+        return Math.round((toDate.getTime() - fromDate.getTime()) / dayMs);
+      }
+
+      function getWavePoint(dayOffset, elapsedDays, period) {
+        const graphWidth = biorhythmSvgWidth - biorhythmSvgPaddingX * 2;
+        const x =
+          biorhythmSvgPaddingX +
+          ((dayOffset + biorhythmWaveRange) / (biorhythmWaveRange * 2)) * graphWidth;
+        const wave = Math.sin((2 * Math.PI * (elapsedDays + dayOffset)) / period);
+        const y = biorhythmSvgMidY - wave * biorhythmSvgAmplitude;
+
+        return { x, y };
+      }
+
+      function renderBiorhythmWavePath(elapsedDays, period) {
+        return Array.from({ length: biorhythmWaveRange * 2 + 1 }, (_, index) => {
+          const dayOffset = index - biorhythmWaveRange;
+          const point = getWavePoint(dayOffset, elapsedDays, period);
+          return `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+        }).join(" ");
+      }
+
+      function renderBiorhythmWaveGraph(birthDate, fortuneDate) {
+        const birth = parseDateValue(birthDate);
+        const today = parseDateValue(fortuneDate);
+        if (!birth || !today) return "";
+
+        const elapsedDays = daysBetween(birth, today);
+        const todayX = biorhythmSvgWidth / 2;
+        const paths = biorhythmWaveSeries
+          .map((series) => {
+            const todayPoint = getWavePoint(0, elapsedDays, series.period);
+            return `
+              <path class="fortune-bio-wave-line ${series.className}" d="${renderBiorhythmWavePath(elapsedDays, series.period)}" />
+              <circle class="fortune-bio-wave-point ${series.className}" cx="${todayPoint.x.toFixed(1)}" cy="${todayPoint.y.toFixed(1)}" r="4.2" />
+            `;
+          })
+          .join("");
+
+        return `
+          <div class="fortune-bio-wave-wrap">
+            <p class="fortune-bio-wave-lead">
+              今日を中心に<br />
+              身体・感情・思考の波を静かに映しています
+            </p>
+            <svg class="fortune-bio-wave" viewBox="0 0 ${biorhythmSvgWidth} ${biorhythmSvgHeight}" role="img" aria-label="今日を中心にしたバイオリズムの波形">
+              <line class="fortune-bio-wave-axis" x1="${biorhythmSvgPaddingX}" y1="${biorhythmSvgMidY}" x2="${biorhythmSvgWidth - biorhythmSvgPaddingX}" y2="${biorhythmSvgMidY}" />
+              <line class="fortune-bio-wave-today" x1="${todayX}" y1="24" x2="${todayX}" y2="${biorhythmSvgHeight - 34}" />
+              <text class="fortune-bio-wave-label" x="${biorhythmSvgPaddingX}" y="${biorhythmSvgHeight - 12}">-15日</text>
+              <text class="fortune-bio-wave-label today" x="${todayX}" y="${biorhythmSvgHeight - 12}">今日</text>
+              <text class="fortune-bio-wave-label end" x="${biorhythmSvgWidth - biorhythmSvgPaddingX}" y="${biorhythmSvgHeight - 12}">+15日</text>
+              ${paths}
+            </svg>
+            <div class="fortune-bio-wave-legend" aria-label="波形の凡例">
+              ${biorhythmWaveSeries
+                .map(
+                  (series) => `
+                    <span class="${series.className}">
+                      <i></i>${escapeHtml(series.label)}
+                    </span>
+                  `
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      function renderBiorhythmGauge(source, birthDate, fortuneDate) {
+        const biorhythm = extractBiorhythm(source);
+        if (!biorhythm) return "";
+        const waveGraph = renderBiorhythmWaveGraph(birthDate, fortuneDate);
+
+        const rows = ["physical", "emotional", "intellectual"].map((key) => {
+          const level = normalizeBiorhythmLevel(biorhythm[key]);
+          const value = biorhythmLevelValues[level];
+
+          return `
+            <article class="fortune-bio-card level-${level}">
+              <div class="fortune-bio-card-head">
+                <span>${escapeHtml(biorhythmLabels[key])}</span>
+                <strong>${escapeHtml(biorhythmLevelLabels[level])}</strong>
+              </div>
+              <div class="fortune-bio-gauge" aria-label="${escapeHtml(biorhythmLabels[key])} ${escapeHtml(biorhythmLevelLabels[level])}">
+                ${[1, 2, 3]
+                  .map((step) => `<span class="${step <= value ? "is-lit" : ""}"></span>`)
+                  .join("")}
+              </div>
+              <p>${escapeHtml(level)}</p>
+            </article>
+          `;
+        });
+
+        return `
+          <section class="fortune-biorhythm-section" aria-label="今日の波">
+            <div class="fortune-section-head">
+              <span class="fortune-section-kicker">TODAY'S WAVE</span>
+              <h2>今日の波</h2>
+            </div>
+            ${waveGraph}
+            <div class="fortune-bio-grid">
+              ${rows.join("")}
+            </div>
+          </section>
+        `;
+      }
+
+      function renderVisualIconHints(source) {
+        const iconHints = Array.isArray(source)
+          ? source.map(normalizeIconHint).filter(Boolean)
+          : extractIconHints(source);
+
+        if (!iconHints.length) return "";
+
+        return `
+          <section class="fortune-icon-hints-section" aria-label="今日の小さな手がかり">
+            <div class="fortune-section-head">
+              <span class="fortune-section-kicker">SMALL SIGNS</span>
+              <h2>今日の小さな手がかり</h2>
+            </div>
+            <div class="fortune-icon-hints-grid">
+              ${iconHints
+                .map((hint) => {
+                  const iconName = getHintIconName(hint);
+                  const iconSrc = shironeIconMap[iconName];
+                  const iconAlt = iconName === "lpBadge"
+                    ? "数秘の手がかりを示すアイコン"
+                    : iconName === "zodiac"
+                      ? "星の手がかりを示すアイコン"
+                      : iconName === "thinkingWave"
+                        ? "波の手がかりを示すアイコン"
+                        : "";
+
+                  return `
+                    <article class="fortune-icon-hint-card tone-${hint.tone}">
+                      <div class="fortune-illustration-icon fortune-icon-hint-symbol">
+                        ${iconSrc ? renderIllustrationIcon(iconSrc, iconAlt, "fortune-illustration-icon-image") : escapeHtml(hint.icon)}
+                      </div>
+                      <div class="fortune-icon-hint-text">
+                        <div class="fortune-icon-hint-label">${escapeHtml(hint.label)}</div>
+                        <div class="fortune-icon-hint-value">${escapeHtml(hint.value)}</div>
+                      </div>
+                    </article>
+                  `;
+                })
+                .join("")}
+            </div>
+          </section>
+        `;
+      }
+
+      function renderVisualShironeTypeCard(birthDate) {
+        const shironeType = getShironeTypeByBirthDate(String(birthDate || ""));
+        if (!shironeType) return "";
+        const displayName = getShironeTypeDisplayName(shironeType);
+        const phaseLabel = shironeType.phase ? shironeType.phase.label : "";
+        const title = phaseLabel ? `${displayName}・${phaseLabel}` : displayName;
+        const iconSrc = typeIconImages[shironeType.slug];
+        const phaseDetail = shironeType.phase
+          ? getShironePhaseDetail(shironeType, shironeType.phase.key)
+          : "";
+        const phaseHtml = shironeType.phase
+          ? `
+              <div class="fortune-seven-type-phase">
+                <span>${escapeHtml(shironeType.phase.label)}</span>
+                <p>${escapeHtml(phaseDetail || shironeType.phase.description)}</p>
+              </div>
+            `
+          : shironeType.specialNote
+            ? `<div class="fortune-seven-type-phase"><p>${escapeHtml(shironeType.specialNote)}</p></div>`
+            : "";
+        const iconHtml = iconSrc
+          ? renderIllustrationIcon(iconSrc, `${displayName}の属性を示すアイコン`, "fortune-illustration-icon-image")
+          : `<span>${escapeHtml(shironeType.icon || displayName.slice(0, 1))}</span>`;
+
+        return `
+          <section class="fortune-seven-type-card" aria-label="あなたの属性">
+            <div class="fortune-seven-type-label">あなたの属性</div>
+            <div class="fortune-seven-type-main">
+              <div class="fortune-seven-type-icon">
+                ${iconHtml}
+              </div>
+              <div class="fortune-seven-type-copy">
+                <h2>${escapeHtml(title)}</h2>
+                <span>${escapeHtml(shironeType.reading)}</span>
+                <p>${escapeHtml(shironeType.catchphrase)}</p>
+                ${phaseHtml}
+              </div>
+            </div>
+            <a href="/types">属性一覧を見る</a>
+          </section>
+        `;
+      }
+
       if (!input || !input.name || !input.birthday) {
         if (resultHeadArea) {
           resultHeadArea.innerHTML = `
@@ -426,19 +873,13 @@ const pageDescription = "白音七の鑑定結果ページ";
 
         if (resultBodyArea) {
           resultBodyArea.innerHTML = `
-            <div class="fortune-result-card">
-              <h2>今日の鍵</h2>
-              <p><strong>鑑定日：</strong>${escapeHtml(fortune.fortuneDate)}</p>
-              <p><strong>星座：</strong>${escapeHtml(fortune.zodiac)}</p>
-              <p><strong>ライフパス：</strong>${fortune.lifePathNumber}</p>
-              <p><strong>パーソナルデイ：</strong>${fortune.personalDayNumber}</p>
-              <p><strong>名前ナンバー：</strong>${fortune.nameNumber}</p>
-              <p><strong>キーワード：</strong>${escapeHtml(fortune.keyword)}</p>
-            </div>
+            ${renderDailyKeyCards(fortune)}
 
-            ${renderShironeTypeCard(birthday)}
+            ${renderVisualShironeTypeCard(birthday)}
 
-            ${renderIconHints(fortune)}
+            ${renderVisualIconHints(fortune)}
+
+            ${renderBiorhythmGauge(fortune, birthday, fortune.fortuneDate)}
 
             <div class="fortune-result-card highlight">
               <h2>今日のテーマ</h2>
@@ -743,9 +1184,177 @@ const pageDescription = "白音七の鑑定結果ページ";
     </script>
 
     <style is:global>
+      .fortune-premium-heading {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        min-height: 36px;
+      }
+
+      .fortune-premium-icon {
+        display: block;
+        flex: 0 0 auto;
+        width: 34px;
+        height: 34px;
+        border: 1px solid rgba(255, 236, 179, 0.18);
+        border-radius: 11px;
+        background:
+          radial-gradient(circle at 35% 22%, rgba(255, 236, 179, 0.14), transparent 55%),
+          rgba(255, 255, 255, 0.04);
+        box-shadow: 0 0 12px rgba(226, 191, 92, 0.08);
+        object-fit: contain;
+      }
+
+      .fortune-section-head {
+        display: grid;
+        gap: 0.28rem;
+        margin: 0 0 0.85rem;
+      }
+
+      .fortune-section-kicker {
+        width: fit-content;
+        padding: 0.25rem 0.55rem;
+        border: 1px solid rgba(226, 191, 92, 0.22);
+        border-radius: 999px;
+        color: rgba(255, 236, 179, 0.66);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+
+      .fortune-section-head h2 {
+        margin: 0;
+        color: #fff0bd;
+        font-size: clamp(1.05rem, 2vw, 1.25rem);
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      .fortune-key-section,
+      .fortune-biorhythm-section {
+        margin: 1rem 0 1.2rem;
+      }
+
+      .fortune-key-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+
+      .fortune-key-card {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        min-height: 86px;
+        gap: 0.78rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid rgba(226, 191, 92, 0.16);
+        border-radius: 16px;
+        background:
+          radial-gradient(circle at 54px 50%, rgba(216, 190, 117, 0.18), transparent 46px),
+          rgba(13, 15, 36, 0.96);
+      }
+
+      .fortune-key-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(
+            90deg,
+            rgba(13, 15, 36, 0) 0%,
+            rgba(13, 15, 36, 0.18) 72px,
+            rgba(13, 15, 36, 0.78) 112px,
+            rgba(13, 15, 36, 0.94) 100%
+          );
+      }
+
+      .fortune-key-card > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .fortune-key-card.is-featured {
+        border-color: rgba(255, 224, 141, 0.34);
+        background:
+          radial-gradient(circle at 54px 50%, rgba(255, 224, 141, 0.22), transparent 48px),
+          rgba(14, 14, 38, 0.97);
+      }
+
+      .fortune-key-card.is-featured::after {
+        background:
+          linear-gradient(
+            90deg,
+            rgba(14, 14, 38, 0) 0%,
+            rgba(14, 14, 38, 0.2) 72px,
+            rgba(14, 14, 38, 0.8) 112px,
+            rgba(14, 14, 38, 0.95) 100%
+          );
+      }
+
+      .fortune-key-symbol {
+        display: grid;
+        flex: 0 0 54px;
+        width: 54px;
+        height: 54px;
+        place-items: center;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 236, 179, 0.24);
+        background:
+          radial-gradient(circle at 36% 24%, rgba(255, 236, 179, 0.14), transparent 55%),
+          rgba(255, 255, 255, 0.045);
+        color: #ffe9a8;
+        font-size: 0.9rem;
+        font-weight: 900;
+        box-shadow: 0 0 18px rgba(226, 191, 92, 0.1);
+      }
+
+      .fortune-illustration-icon {
+        color: #ffe8a3;
+      }
+
+      .fortune-illustration-icon-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 14px;
+        object-fit: contain;
+      }
+
+      .fortune-key-symbol .fortune-illustration-icon-image {
+        width: 48px;
+        height: 48px;
+      }
+
+      .fortune-key-label,
+      .fortune-key-value {
+        margin: 0;
+        letter-spacing: 0;
+      }
+
+      .fortune-key-label {
+        color: rgba(255, 240, 189, 0.66);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.34);
+      }
+
+      .fortune-key-value {
+        color: #fff4cf;
+        font-size: clamp(1rem, 2vw, 1.18rem);
+        font-weight: 900;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+        text-shadow: 0 1px 10px rgba(0, 0, 0, 0.42);
+      }
+
       .fortune-seven-type-card {
         margin: 1rem 0 1.2rem;
-        padding: 1rem 1.05rem;
+        padding: 1.05rem;
         border: 1px solid rgba(226, 191, 92, 0.2);
         border-radius: 18px;
         background:
@@ -764,8 +1373,38 @@ const pageDescription = "白音七の鑑定結果ページ";
       .fortune-seven-type-main {
         display: flex;
         align-items: flex-start;
-        justify-content: space-between;
-        gap: 1rem;
+        gap: 1.05rem;
+      }
+
+      .fortune-seven-type-icon {
+        display: grid;
+        flex: 0 0 86px;
+        width: 86px;
+        height: 86px;
+        place-items: center;
+        border-radius: 24px;
+        border: 1px solid rgba(242, 221, 154, 0.36);
+        background:
+          radial-gradient(circle at 34% 24%, rgba(255, 240, 191, 0.22), transparent 52%),
+          rgba(255, 255, 255, 0.04);
+        box-shadow: 0 0 24px rgba(226, 191, 92, 0.12);
+      }
+
+      .fortune-seven-type-icon img {
+        display: block;
+        width: 78px;
+        height: 78px;
+        border-radius: 20px;
+        object-fit: contain;
+      }
+
+      .fortune-seven-type-icon span {
+        color: #fff0bf;
+        font-weight: 900;
+      }
+
+      .fortune-seven-type-copy {
+        min-width: 0;
       }
 
       .fortune-seven-type-main h2 {
@@ -786,6 +1425,20 @@ const pageDescription = "白音七の鑑定結果ページ";
         color: rgba(255, 236, 179, 0.62);
         font-size: 0.84rem;
         white-space: nowrap;
+      }
+
+      .fortune-seven-type-phase {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .fortune-seven-type-phase span {
+        display: inline-flex;
+        margin-bottom: 0.32rem;
+        color: rgba(255, 236, 179, 0.78);
+        font-size: 0.82rem;
+        font-weight: 800;
       }
 
       .fortune-seven-type-card a {
@@ -817,6 +1470,9 @@ const pageDescription = "白音七の鑑定結果ページ";
       }
 
       .fortune-icon-hint-card {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
         display: flex;
         align-items: center;
         min-height: 82px;
@@ -824,20 +1480,231 @@ const pageDescription = "白音七の鑑定結果ページ";
         padding: 0.9rem 1rem;
         border: 1px solid rgba(226, 191, 92, 0.18);
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.035);
+        background:
+          radial-gradient(circle at 50px 50%, rgba(216, 190, 117, 0.14), transparent 44px),
+          rgba(13, 15, 36, 0.94);
         box-shadow: none;
+      }
+
+      .fortune-icon-hint-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(
+            90deg,
+            rgba(13, 15, 36, 0) 0%,
+            rgba(13, 15, 36, 0.16) 68px,
+            rgba(13, 15, 36, 0.76) 104px,
+            rgba(13, 15, 36, 0.93) 100%
+          );
+      }
+
+      .fortune-icon-hint-card > * {
+        position: relative;
+        z-index: 1;
       }
 
       .fortune-icon-hint-symbol {
         display: grid;
-        flex: 0 0 38px;
-        width: 38px;
-        height: 38px;
+        flex: 0 0 48px;
+        width: 48px;
+        height: 48px;
         place-items: center;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.055);
+        border-radius: 17px;
+        border: 1px solid rgba(255, 236, 179, 0.18);
+        background:
+          radial-gradient(circle at 36% 24%, rgba(255, 236, 179, 0.12), transparent 55%),
+          rgba(255, 255, 255, 0.045);
         color: #ffe8a3;
         font-weight: 800;
+        box-shadow: 0 0 14px rgba(226, 191, 92, 0.08);
+      }
+
+      .fortune-icon-hint-symbol .fortune-illustration-icon-image {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+      }
+
+      .fortune-bio-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+
+      .fortune-bio-wave-wrap {
+        margin: 0 0 0.85rem;
+        padding: 1rem;
+        border: 1px solid rgba(226, 191, 92, 0.18);
+        border-radius: 18px;
+        background:
+          radial-gradient(circle at 50% 8%, rgba(255, 232, 163, 0.1), transparent 42%),
+          rgba(255, 255, 255, 0.028);
+        overflow: hidden;
+      }
+
+      .fortune-bio-wave-lead {
+        margin: 0 0 0.75rem;
+        color: rgba(255, 247, 218, 0.76);
+        font-size: 0.9rem;
+        line-height: 1.75;
+        letter-spacing: 0;
+      }
+
+      .fortune-bio-wave {
+        display: block;
+        width: 100%;
+        height: auto;
+        min-height: 170px;
+      }
+
+      .fortune-bio-wave-axis {
+        stroke: rgba(255, 255, 255, 0.12);
+        stroke-width: 1;
+      }
+
+      .fortune-bio-wave-today {
+        stroke: rgba(255, 236, 179, 0.42);
+        stroke-width: 1.2;
+        stroke-dasharray: 4 6;
+      }
+
+      .fortune-bio-wave-line {
+        fill: none;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .fortune-bio-wave-line.physical {
+        stroke: rgba(255, 236, 179, 0.88);
+      }
+
+      .fortune-bio-wave-line.emotional {
+        stroke: rgba(224, 204, 255, 0.82);
+      }
+
+      .fortune-bio-wave-line.intellectual {
+        stroke: rgba(197, 222, 255, 0.78);
+      }
+
+      .fortune-bio-wave-point {
+        stroke: rgba(8, 8, 18, 0.85);
+        stroke-width: 1.4;
+      }
+
+      .fortune-bio-wave-point.physical {
+        fill: #ffe9a8;
+      }
+
+      .fortune-bio-wave-point.emotional {
+        fill: #dfccff;
+      }
+
+      .fortune-bio-wave-point.intellectual {
+        fill: #c5deff;
+      }
+
+      .fortune-bio-wave-label {
+        fill: rgba(255, 247, 218, 0.52);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .fortune-bio-wave-label.today {
+        fill: rgba(255, 236, 179, 0.78);
+        text-anchor: middle;
+      }
+
+      .fortune-bio-wave-label.end {
+        text-anchor: end;
+      }
+
+      .fortune-bio-wave-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem 0.9rem;
+        margin-top: 0.65rem;
+      }
+
+      .fortune-bio-wave-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        color: rgba(255, 247, 218, 0.72);
+        font-size: 0.82rem;
+        font-weight: 800;
+      }
+
+      .fortune-bio-wave-legend i {
+        display: inline-block;
+        width: 20px;
+        height: 2px;
+        border-radius: 999px;
+        background: rgba(255, 236, 179, 0.8);
+      }
+
+      .fortune-bio-wave-legend .emotional i {
+        background: rgba(224, 204, 255, 0.82);
+      }
+
+      .fortune-bio-wave-legend .intellectual i {
+        background: rgba(197, 222, 255, 0.78);
+      }
+
+      .fortune-bio-card {
+        padding: 0.9rem 1rem;
+        border: 1px solid rgba(226, 191, 92, 0.16);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.032);
+      }
+
+      .fortune-bio-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .fortune-bio-card-head span {
+        color: rgba(255, 240, 189, 0.68);
+        font-size: 0.82rem;
+        font-weight: 800;
+      }
+
+      .fortune-bio-card-head strong {
+        color: #fff2c1;
+        font-size: 0.95rem;
+      }
+
+      .fortune-bio-gauge {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.42rem;
+      }
+
+      .fortune-bio-gauge span {
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .fortune-bio-gauge span.is-lit {
+        background: linear-gradient(90deg, rgba(226, 191, 92, 0.7), rgba(255, 239, 186, 0.88));
+        box-shadow: 0 0 14px rgba(226, 191, 92, 0.14);
+      }
+
+      .fortune-bio-card p {
+        margin: 0.5rem 0 0;
+        color: rgba(255, 255, 255, 0.56);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
       }
 
       .fortune-icon-hint-label {
@@ -911,9 +1778,28 @@ const pageDescription = "白音七の鑑定結果ページ";
       }
 
       @media (max-width: 720px) {
+        .fortune-key-grid,
+        .fortune-bio-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .fortune-key-card {
+          min-height: auto;
+        }
+
         .fortune-seven-type-main {
           display: grid;
-          gap: 0.45rem;
+          gap: 0.8rem;
+        }
+
+        .fortune-seven-type-icon {
+          width: 72px;
+          height: 72px;
+        }
+
+        .fortune-seven-type-icon img {
+          width: 64px;
+          height: 64px;
         }
 
         .fortune-seven-type-main span {

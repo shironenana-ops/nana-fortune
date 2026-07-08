@@ -1,0 +1,85 @@
+{
+  "package": "shirone_nana_illustration_assets_v02_generic",
+  "version": "v02_generic",
+  "policy": {
+    "fixed_user_values_removed": true,
+    "note": "ライフパス、パーソナルデイ、名前ナンバー、キーワード、星座など、ユーザーごとに変わる値は画像内に焼き込まない方針です。実際の数値や文言はUIテキストで表示してください。"
+  },
+  "recommended_public_path": "public/images/icons/shirone-nana/",
+  "assets": [
+    {
+      "key": "calendar_moon_generic",
+      "png": "png_512/shirone_nana_icon_calendar_moon_generic.png",
+      "webp": "webp_512/shirone_nana_icon_calendar_moon_generic.webp"
+    },
+    {
+      "key": "zodiac_star_chart_generic",
+      "png": "png_512/shirone_nana_icon_zodiac_star_chart_generic.png",
+      "webp": "webp_512/shirone_nana_icon_zodiac_star_chart_generic.webp"
+    },
+    {
+      "key": "lifepath_starroad_generic",
+      "png": "png_512/shirone_nana_icon_lifepath_starroad_generic.png",
+      "webp": "webp_512/shirone_nana_icon_lifepath_starroad_generic.webp"
+    },
+    {
+      "key": "personalday_sun_moon_generic",
+      "png": "png_512/shirone_nana_icon_personalday_sun_moon_generic.png",
+      "webp": "webp_512/shirone_nana_icon_personalday_sun_moon_generic.webp"
+    },
+    {
+      "key": "name_number_book_pen_generic",
+      "png": "png_512/shirone_nana_icon_name_number_book_pen_generic.png",
+      "webp": "webp_512/shirone_nana_icon_name_number_book_pen_generic.webp"
+    },
+    {
+      "key": "keyword_key_ribbon_generic",
+      "png": "png_512/shirone_nana_icon_keyword_key_ribbon_generic.png",
+      "webp": "webp_512/shirone_nana_icon_keyword_key_ribbon_generic.webp"
+    },
+    {
+      "key": "attribute_shirone_sun_tuningfork",
+      "png": "png_512/shirone_nana_icon_attribute_shirone_sun_tuningfork.png",
+      "webp": "webp_512/shirone_nana_icon_attribute_shirone_sun_tuningfork.webp"
+    },
+    {
+      "key": "lp_badge_generic",
+      "png": "png_512/shirone_nana_icon_lp_badge_generic.png",
+      "webp": "webp_512/shirone_nana_icon_lp_badge_generic.webp"
+    },
+    {
+      "key": "thinking_wave_generic",
+      "png": "png_512/shirone_nana_icon_thinking_wave_generic.png",
+      "webp": "webp_512/shirone_nana_icon_thinking_wave_generic.webp"
+    },
+    {
+      "key": "types_link_guide",
+      "png": "png_512/shirone_nana_icon_types_link_guide.png",
+      "webp": "webp_512/shirone_nana_icon_types_link_guide.webp"
+    },
+    {
+      "key": "daily_guidance_lantern",
+      "png": "png_512/shirone_nana_icon_daily_guidance_lantern.png",
+      "webp": "webp_512/shirone_nana_icon_daily_guidance_lantern.webp"
+    },
+    {
+      "key": "voice_fortune_orb",
+      "png": "png_512/shirone_nana_icon_voice_fortune_orb.png",
+      "webp": "webp_512/shirone_nana_icon_voice_fortune_orb.webp"
+    }
+  ],
+  "old_to_new_suggestions": {
+    "calendar_moon": "calendar_moon_generic",
+    "taurus_constellation": "zodiac_star_chart_generic",
+    "lifepath_9_starroad": "lifepath_starroad_generic",
+    "personal_day_3_sun_moon": "personalday_sun_moon_generic",
+    "name_number_7_book_pen": "name_number_book_pen_generic",
+    "keyword_key_ribbon_align": "keyword_key_ribbon_generic",
+    "attribute_shirone_sun_tuningfork": "attribute_shirone_sun_tuningfork",
+    "lp9_small_badge": "lp_badge_generic",
+    "thinking_wave_middle": "thinking_wave_generic",
+    "types_link_guide": "types_link_guide",
+    "daily_guidance_lantern": "daily_guidance_lantern",
+    "voice_fortune_orb": "voice_fortune_orb"
+  }
+}
