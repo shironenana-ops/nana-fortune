@@ -1068,6 +1068,7 @@ const pageDescription = "白音七の鑑定結果ページ";
           let historyId = "";
           let saveResponseStatus = null;
           let saveResponseBody = null;
+          let saveRequestPayloadSummary = null;
 
           try {
             historyId = crypto.randomUUID();
@@ -1101,6 +1102,31 @@ const pageDescription = "白音七の鑑定結果ページ";
               result: {
                 ...resultPayload,
                 dedupeKey
+              }
+            };
+            saveRequestPayloadSummary = {
+              history_id: savePayload.history_id,
+              type: savePayload.type,
+              source: savePayload.source,
+              dedupe_key: savePayload.dedupe_key,
+              title: savePayload.title,
+              input_title: savePayload.input_title,
+              name: savePayload.name,
+              birth_date: savePayload.birth_date,
+              gender: savePayload.gender,
+              category: savePayload.category,
+              status: savePayload.status,
+              created_at: savePayload.created_at,
+              updated_at: savePayload.updated_at,
+              result_preview: savePayload.result_preview,
+              summary: savePayload.summary,
+              hasResultText: Boolean(savePayload.result_text),
+              resultTextLength: String(savePayload.result_text || "").length,
+              result: {
+                hasHistoryPayloadV2: Boolean(savePayload.result?.historyPayloadV2),
+                hasKnowledgePayload: Boolean(savePayload.result?.knowledgePayload),
+                hasIconHints: Array.isArray(savePayload.result?.iconHints),
+                hasSections: Array.isArray(savePayload.result?.sections)
               }
             };
 
@@ -1154,6 +1180,7 @@ const pageDescription = "白音七の鑑定結果ページ";
               origin: window.location.origin,
               status: error?.status || saveResponseStatus,
               response: error?.response || saveResponseBody,
+              requestPayload: saveRequestPayloadSummary,
               hasToken: Boolean(token),
               hasUserId: Boolean(userId),
               historyId
