@@ -1,0 +1,368 @@
+---
+import "../../styles/global.css";
+import SeoHead from "../../components/SeoHead.astro";
+import { runShironeEngine, type ShironePlan } from "../../lib/shironeEngine";
+
+if (!import.meta.env.DEV) {
+  return new Response("Not found", { status: 404 });
+}
+
+const plans = ["free", "light", "deep"] as const satisfies readonly ShironePlan[];
+const planParam = Astro.url.searchParams.get("plan");
+const selectedPlan = plans.includes(planParam as ShironePlan) ? (planParam as ShironePlan) : "free";
+const sampleInput = {
+  name: "荒井 龍起",
+  birthDate: "1984-04-10",
+  today: "2026-07-08",
+  question: "これからの仕事と日々の流れを知りたい",
+};
+const preview = runShironeEngine({
+  ...sampleInput,
+  plan: selectedPlan,
+});
+const comparison = plans.map((plan) => {
+  const result = runShironeEngine({
+    ...sampleInput,
+    plan,
+  });
+  return {
+    plan,
+    sectionCount: result.sections.length,
+    bodyLength: result.sections.reduce((total, section) => total + section.body.length, 0),
+    lengthRange: result.lengthRange,
+  };
+});
+const totalBodyLength = preview.sections.reduce((total, section) => total + section.body.length, 0);
+const pageTitle = "白音七 鑑定文プレビュー";
+const pageDescription = "開発確認用の鑑定文プレビューページです。保存処理は実行しません。";
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <SeoHead title={pageTitle} description={pageDescription} noindex={true} />
+    <style>
+      .preview-shell {
+        width: min(100% - 32px, 1080px);
+        margin: 48px auto 72px;
+      }
+
+      .preview-hero,
+      .preview-panel,
+      .preview-section {
+        border: 1px solid rgba(216, 190, 117, 0.24);
+        border-radius: 22px;
+        background:
+          radial-gradient(circle at 16% 0%, rgba(216, 190, 117, 0.12), transparent 30%),
+          rgba(11, 13, 32, 0.88);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+      }
+
+      .preview-hero {
+        padding: clamp(28px, 5vw, 48px);
+      }
+
+      .preview-kicker {
+        margin: 0 0 14px;
+        color: rgba(242, 221, 154, 0.72);
+        font-size: 0.78rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .preview-title {
+        margin: 0;
+        color: #fff0bf;
+        font-size: clamp(2rem, 6vw, 3.6rem);
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      .preview-note {
+        margin: 18px 0 0;
+        color: rgba(246, 240, 218, 0.78);
+        line-height: 1.9;
+      }
+
+      .preview-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 26px 0 0;
+      }
+
+      .preview-tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 0 18px;
+        border: 1px solid rgba(216, 190, 117, 0.3);
+        border-radius: 999px;
+        color: rgba(246, 240, 218, 0.86);
+        text-decoration: none;
+        letter-spacing: 0.04em;
+      }
+
+      .preview-tab[aria-current="page"] {
+        background: linear-gradient(135deg, rgba(216, 190, 117, 0.96), rgba(246, 220, 132, 0.84));
+        color: #18101d;
+        box-shadow: 0 0 22px rgba(216, 190, 117, 0.24);
+      }
+
+      .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+        margin: 22px 0;
+      }
+
+      .preview-panel {
+        padding: 22px;
+      }
+
+      .preview-panel h2,
+      .preview-section h2,
+      .preview-section h3 {
+        margin: 0;
+        color: #fff0bf;
+        letter-spacing: 0;
+      }
+
+      .preview-panel p,
+      .preview-section p {
+        color: rgba(246, 240, 218, 0.82);
+        line-height: 1.9;
+      }
+
+      .preview-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin: 22px 0;
+      }
+
+      .preview-meta-card {
+        padding: 16px;
+        border: 1px solid rgba(216, 190, 117, 0.16);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .preview-meta-card span {
+        display: block;
+        color: rgba(242, 221, 154, 0.72);
+        font-size: 0.78rem;
+      }
+
+      .preview-meta-card strong {
+        display: block;
+        margin-top: 6px;
+        color: rgba(255, 250, 230, 0.96);
+        font-size: 1.08rem;
+      }
+
+      .preview-section {
+        margin-top: 18px;
+        padding: clamp(22px, 4vw, 34px);
+      }
+
+      .preview-section-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .preview-section-length {
+        color: rgba(242, 221, 154, 0.72);
+        font-size: 0.84rem;
+      }
+
+      .preview-body {
+        white-space: pre-wrap;
+        color: rgba(250, 245, 226, 0.88);
+        font-size: 1rem;
+        line-height: 2;
+      }
+
+      .preview-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .preview-tags li {
+        padding: 7px 10px;
+        border: 1px solid rgba(216, 190, 117, 0.2);
+        border-radius: 999px;
+        color: rgba(246, 240, 218, 0.78);
+        font-size: 0.82rem;
+      }
+
+      .preview-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 14px;
+        color: rgba(246, 240, 218, 0.84);
+      }
+
+      .preview-table th,
+      .preview-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid rgba(216, 190, 117, 0.16);
+        text-align: left;
+      }
+
+      .preview-table th {
+        color: rgba(242, 221, 154, 0.82);
+        font-weight: 600;
+      }
+
+      @media (max-width: 640px) {
+        .preview-shell {
+          width: min(100% - 24px, 1080px);
+          margin-top: 28px;
+        }
+
+        .preview-hero,
+        .preview-panel,
+        .preview-section {
+          border-radius: 18px;
+        }
+
+        .preview-table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="preview-shell">
+      <section class="preview-hero">
+        <p class="preview-kicker">Development Preview</p>
+        <h1 class="preview-title">白音七 鑑定文プレビュー</h1>
+        <p class="preview-note">
+          開発確認用のページです。保存処理、履歴API、課金APIは呼びません。<br />
+          同一入力で free / light / deep の鑑定文を切り替えて確認できます。
+        </p>
+
+        <nav class="preview-tabs" aria-label="plan切り替え">
+          {
+            plans.map((plan) => (
+              <a class="preview-tab" href={`/dev/shirone-preview?plan=${plan}`} aria-current={selectedPlan === plan ? "page" : undefined}>
+                {plan}
+              </a>
+            ))
+          }
+        </nav>
+      </section>
+
+      <section class="preview-grid" aria-label="サンプル入力">
+        <div class="preview-panel">
+          <h2>サンプル入力</h2>
+          <p>
+            名前: {sampleInput.name}<br />
+            生年月日: {sampleInput.birthDate}<br />
+            今日: {sampleInput.today}<br />
+            相談: {sampleInput.question}
+          </p>
+        </div>
+
+        <div class="preview-panel">
+          <h2>plan比較</h2>
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th>plan</th>
+                <th>sections</th>
+                <th>本文</th>
+                <th>range</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                comparison.map((item) => (
+                  <tr>
+                    <td>{item.plan}</td>
+                    <td>{item.sectionCount}</td>
+                    <td>{item.bodyLength.toLocaleString()}字</td>
+                    <td>
+                      {item.lengthRange.min.toLocaleString()}〜{item.lengthRange.max.toLocaleString()}字
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="preview-panel">
+        <h2>出力情報</h2>
+        <div class="preview-meta">
+          <div class="preview-meta-card">
+            <span>plan</span>
+            <strong>{preview.plan}</strong>
+          </div>
+          <div class="preview-meta-card">
+            <span>lengthRange</span>
+            <strong>
+              {preview.lengthRange.min.toLocaleString()}〜{preview.lengthRange.max.toLocaleString()}字
+            </strong>
+          </div>
+          <div class="preview-meta-card">
+            <span>セクション数</span>
+            <strong>{preview.sections.length}</strong>
+          </div>
+          <div class="preview-meta-card">
+            <span>sections本文合計</span>
+            <strong>{totalBodyLength.toLocaleString()}字</strong>
+          </div>
+        </div>
+
+        <p>
+          <strong>summary:</strong> {preview.historyPayloadV2.summary.shortSummary}
+        </p>
+
+        <h3>tags</h3>
+        <ul class="preview-tags">
+          {preview.knowledgePayload.tags.map((tag) => <li>{tag}</li>)}
+        </ul>
+      </section>
+
+      <section class="preview-section">
+        <h2>todayMessage</h2>
+        <div class="preview-body">{preview.todayMessage}</div>
+      </section>
+
+      <section class="preview-section">
+        <h2>audioScript</h2>
+        <div class="preview-body">{preview.audioScript}</div>
+      </section>
+
+      {
+        preview.sections.map((section) => (
+          <section class="preview-section">
+            <div class="preview-section-header">
+              <div>
+                <h2>{section.title}</h2>
+                <p>{section.summary}</p>
+              </div>
+              <span class="preview-section-length">{section.body.length.toLocaleString()}字</span>
+            </div>
+            <div class="preview-body">{section.body}</div>
+          </section>
+        ))
+      }
+    </main>
+  </body>
+</html>

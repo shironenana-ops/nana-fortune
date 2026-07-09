@@ -130,13 +130,13 @@ const pageDescription = "白音七の鑑定結果ページ";
                     <img
                       class="fortune-premium-icon"
                       src={shironeIconMap.thinkingWave}
-                      alt="バイオリズムのイラスト"
+                      alt="今日の波のイラスト"
                       loading="lazy"
                       decoding="async"
                     />
-                    <span>バイオリズム</span>
+                    <span>今日の波</span>
                   </h3>
-                  <p>日々の流れを可視化し、運気の上げ方を具体化</p>
+                  <p>心と体と思考の波を見つめ、流れの受け取り方をほどく</p>
                 </div>
               </div>
 
@@ -230,9 +230,9 @@ const pageDescription = "白音七の鑑定結果ページ";
         intellectual: "思考"
       };
       const biorhythmLevelLabels = {
-        low: "静める",
-        middle: "整える",
-        high: "満ちる"
+        low: "静かな波",
+        middle: "穏やか",
+        high: "満ちる波"
       };
       const biorhythmLevelValues = {
         low: 1,
@@ -301,8 +301,8 @@ const pageDescription = "白音七の鑑定結果ページ";
         if (!iconHints.length) return "";
 
         return `
-          <section class="fortune-icon-hints-section" aria-label="今日の小さな手がかり">
-            <h2 class="fortune-icon-hints-title">今日の小さな手がかり</h2>
+          <section class="fortune-icon-hints-section" aria-label="小さな手がかり">
+            <h2 class="fortune-icon-hints-title">小さな手がかり</h2>
             <div class="fortune-icon-hints-grid">
               ${iconHints
                 .map(
@@ -604,10 +604,10 @@ const pageDescription = "白音七の鑑定結果ページ";
         return `
           <div class="fortune-bio-wave-wrap">
             <p class="fortune-bio-wave-lead">
-              今日を中心に<br />
+              この日を中心に<br />
               身体・感情・思考の波を静かに映しています
             </p>
-            <svg class="fortune-bio-wave" viewBox="0 0 ${biorhythmSvgWidth} ${biorhythmSvgHeight}" role="img" aria-label="今日を中心にしたバイオリズムの波形">
+            <svg class="fortune-bio-wave" viewBox="0 0 ${biorhythmSvgWidth} ${biorhythmSvgHeight}" role="img" aria-label="この日を中心にした心と体と思考の波形">
               <line class="fortune-bio-wave-axis" x1="${biorhythmSvgPaddingX}" y1="${biorhythmSvgMidY}" x2="${biorhythmSvgWidth - biorhythmSvgPaddingX}" y2="${biorhythmSvgMidY}" />
               <line class="fortune-bio-wave-today" x1="${todayX}" y1="24" x2="${todayX}" y2="${biorhythmSvgHeight - 34}" />
               <text class="fortune-bio-wave-label" x="${biorhythmSvgPaddingX}" y="${biorhythmSvgHeight - 12}">-15日</text>
@@ -650,7 +650,7 @@ const pageDescription = "白音七の鑑定結果ページ";
                   .map((step) => `<span class="${step <= value ? "is-lit" : ""}"></span>`)
                   .join("")}
               </div>
-              <p>${escapeHtml(level)}</p>
+              <p>${escapeHtml(biorhythmLevelLabels[level])}</p>
             </article>
           `;
         });
@@ -677,10 +677,10 @@ const pageDescription = "白音七の鑑定結果ページ";
         if (!iconHints.length) return "";
 
         return `
-          <section class="fortune-icon-hints-section" aria-label="今日の小さな手がかり">
+          <section class="fortune-icon-hints-section" aria-label="小さな手がかり">
             <div class="fortune-section-head">
               <span class="fortune-section-kicker">SMALL SIGNS</span>
-              <h2>今日の小さな手がかり</h2>
+              <h2>小さな手がかり</h2>
             </div>
             <div class="fortune-icon-hints-grid">
               ${iconHints
@@ -897,17 +897,17 @@ const pageDescription = "白音七の鑑定結果ページ";
             </div>
 
             <div class="fortune-result-card">
-              <h2>外から見えるあなた</h2>
+              <h2>周囲に映るあなた</h2>
               <p>${toHtmlLines(fortune.outer)}</p>
             </div>
 
             <div class="fortune-result-card highlight">
-              <h2>今日の行動ヒント</h2>
+              <h2>今日の小さな一歩</h2>
               <p>${escapeHtml(fortune.action)}</p>
             </div>
 
             <div class="fortune-result-card">
-              <h2>避けたいこと</h2>
+              <h2>気をつけたい流れ</h2>
               <p>${escapeHtml(fortune.caution)}</p>
             </div>
 
