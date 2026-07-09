@@ -125,9 +125,9 @@ export const prerender = false;
         intellectual: "思考"
       };
       const biorhythmLevelLabels = {
-        low: "静かめ",
-        middle: "整える",
-        high: "満ちる"
+        low: "静かな波",
+        middle: "穏やか",
+        high: "満ちる波"
       };
       const biorhythmLevelValues = {
         low: 1,
@@ -434,7 +434,7 @@ export const prerender = false;
               今日を中心に<br />
               身体・感情・思考の波を静かに映しています
             </p>
-            <svg class="fortune-bio-wave" viewBox="0 0 ${biorhythmSvgWidth} ${biorhythmSvgHeight}" role="img" aria-label="今日を中心にしたバイオリズムの波形">
+            <svg class="fortune-bio-wave" viewBox="0 0 ${biorhythmSvgWidth} ${biorhythmSvgHeight}" role="img" aria-label="この日を中心にした心と体と思考の波形">
               <line class="fortune-bio-wave-axis" x1="${biorhythmSvgPaddingX}" y1="${biorhythmSvgMidY}" x2="${biorhythmSvgWidth - biorhythmSvgPaddingX}" y2="${biorhythmSvgMidY}" />
               <line class="fortune-bio-wave-today" x1="${todayX}" y1="24" x2="${todayX}" y2="${biorhythmSvgHeight - 34}" />
               <text class="fortune-bio-wave-label" x="${biorhythmSvgPaddingX}" y="${biorhythmSvgHeight - 12}">-15日</text>
@@ -477,7 +477,7 @@ export const prerender = false;
                   .map((step) => `<span class="${step <= value ? "is-lit" : ""}"></span>`)
                   .join("")}
               </div>
-              <p>${escapeHtml(level)}</p>
+              <p>${escapeHtml(biorhythmLevelLabels[level])}</p>
             </article>
           `;
         });
@@ -624,8 +624,11 @@ export const prerender = false;
         "今日の流れ",
         "心の向き",
         "外から見えるあなた",
+        "周囲に映るあなた",
         "今日の行動ヒント",
-        "避けたいこと"
+        "今日の小さな一歩",
+        "避けたいこと",
+        "気をつけたい流れ"
       ]);
 
       function normalizeReadingSection(section) {
@@ -951,7 +954,7 @@ export const prerender = false;
         if (result.outer) {
           html += `
             <section class="fortune-detail-section">
-              <h2 class="fortune-detail-section-title">外から見えるあなた</h2>
+              <h2 class="fortune-detail-section-title">周囲に映るあなた</h2>
               <div class="fortune-detail-main-card">
                 <p class="fortune-detail-main-text">${nl2br(result.outer)}</p>
               </div>
@@ -962,7 +965,7 @@ export const prerender = false;
         if (result.action || result.luckyAction) {
           html += `
             <section class="fortune-detail-section">
-              <h2 class="fortune-detail-section-title">今日の行動ヒント</h2>
+              <h2 class="fortune-detail-section-title">今日の小さな一歩</h2>
               <div class="fortune-detail-main-card">
                 <p class="fortune-detail-main-text">${nl2br(result.action || result.luckyAction)}</p>
               </div>
@@ -973,7 +976,7 @@ export const prerender = false;
         if (result.caution) {
           html += `
             <section class="fortune-detail-section">
-              <h2 class="fortune-detail-section-title">避けたいこと</h2>
+              <h2 class="fortune-detail-section-title">気をつけたい流れ</h2>
               <div class="fortune-detail-main-card">
                 <p class="fortune-detail-main-text">${nl2br(result.caution)}</p>
               </div>
@@ -1084,7 +1087,7 @@ export const prerender = false;
                   resultData.actionHint
                     ? `
                       <article class="fortune-detail-subcard">
-                        <h3>行動ヒント</h3>
+                        <h3>小さな一歩</h3>
                         <p>${nl2br(resultData.actionHint)}</p>
                       </article>
                     `
