@@ -10,7 +10,9 @@ You control the document. You update it when your work changes. You paste the re
 
 **Not a memory app. Not another prompt dump. A practical starter kit for giving AI the context it actually needs.**
 
-> This is a reusable text template. It does not create permanent AI memory, install software, or sync information between tools.
+> This is a reusable text template. It does not install software, connect accounts, sync data between tools, or create permanent AI memory.
+>
+> Results still depend on the AI tool, task, context quality, and human review.
 
 ### How to Use This Template
 
@@ -223,6 +225,8 @@ My request:
 
 Before using this template, remove anything that should not be shared with the selected AI tool.
 
+Do not include passwords, API keys, private customer records, confidential business information, or sensitive personal data unless you are authorized to use it with the selected AI tool.
+
 ### Do Not Include
 
 - Passwords, API keys, authentication tokens, or private access links
@@ -240,4 +244,4 @@ Before using this template, remove anything that should not be shared with the s
 - Share the minimum context needed for the task.
 - Review important output before using, publishing, or acting on it.
 
-> This template does not make an AI retain information permanently. It does not create perfect answers or replace your judgment.
+> This template does not make an AI retain information permanently. Results still depend on the AI tool, task, context quality, and human review.

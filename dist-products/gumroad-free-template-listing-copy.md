@@ -25,7 +25,13 @@ The **Free Personal AI Context Pack Template v0.1** gives you a simple, reusable
 Prompts tell AI what to do.  
 Context Packs tell AI who it is helping.
 
-There is no software to install, no plugin to configure, and no automatic sync. You keep the document, update it when your work changes, and paste it when needed.
+This is a reusable text template.
+
+It does not install software, connect accounts, sync data between tools, or create permanent AI memory. You keep the document, update it when your work changes, and paste it when needed.
+
+Results still depend on the AI tool, task, context quality, and human review.
+
+Do not include passwords, API keys, private customer records, confidential business information, or sensitive personal data unless you are authorized to use it with the selected AI tool.
 
 Built from real AI workflows across product development, coding agents, knowledge management, and role-based AI teams.
 
@@ -59,7 +65,7 @@ Built from real AI workflows across product development, coding agents, knowledg
 - People looking for automatic cross-tool syncing
 - People expecting an AI account to retain everything forever
 - People looking for a library of hundreds of generic prompts
-- People expecting software that manages their conversations for them
+- People expecting a tool that manages their conversations for them
 - People looking for specific business or performance outcomes
 
 ### What It Can Help With
@@ -72,10 +78,10 @@ Built from real AI workflows across product development, coding agents, knowledg
 
 ### What It Cannot Do
 
-- It cannot create permanent AI memory.
-- It cannot create perfect or consistently better answers.
+- It does not create permanent AI memory.
+- It does not connect accounts or sync data between tools.
 - It cannot replace human review or judgment.
-- It cannot sync context automatically between AI tools.
+- Results still depend on the AI tool, task, context quality, and human review.
 - It cannot provide business outcomes.
 
 ### Suggested Price
