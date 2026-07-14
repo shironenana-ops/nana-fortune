@@ -558,6 +558,8 @@ function buildPlanAudioScript(params: PlanTextParams, todayMessage: string, marg
 
 type SectionBuildParams = {
   plan: ShironePlan;
+  today: string;
+  identitySeed: string;
   title: string;
   todayMessage: string;
   marginMessage: string;
@@ -567,27 +569,104 @@ type SectionBuildParams = {
   question?: string;
 };
 
+function deterministicIndex(seed: string, salt: string, size: number): number {
+  let hash = 2166136261;
+  const value = `${salt}|${seed}`;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0) % size;
+}
+
 function buildFreeSections(params: SectionBuildParams): ShironeReadingSection[] {
-  const { title, todayMessage, marginMessage, oneStep } = params;
+  const { today, identitySeed, title, todayMessage, marginMessage, oneStep, avoidHint } = params;
+  const dailySeed = `${identitySeed}|${today}`;
+  const structureId = deterministicIndex(dailySeed, "free-structure", 3);
+  const toneId = deterministicIndex(dailySeed, "free-tone", 3);
+  const subthemeId = deterministicIndex(dailySeed, "free-subtheme", 3);
+  const receivingClosings = [
+    "すぐに答えへ変えなくても大丈夫です。\n心に残ったところだけ、今日の手元へ置いてください。",
+    "全部を覚えておく必要はありません。\n今の自分に響く言葉を、ひとつだけ残してみてください。",
+    "受け取り方を決めるのは、今日のあなたです。\n静かに残る感覚を大切にしてください。"
+  ];
+  const releasePerspectives = [
+    "今日は、うまく進めることより力の入れ方を選ぶ日です。",
+    "抱えたまま頑張る以外にも、選べる道は残っています。",
+    "止まることと後退することは同じではありません。"
+  ];
+  const forwardPerspectives = [
+    "可能性は、大きな決断より先に小さな選択として現れます。",
+    "今日の流れは、意識を向けた場所から少しずつ形になります。",
+    "まだ完成していなくても、選び直せることは前進の一部です。"
+  ];
+
+  if (structureId === 1) {
+    return [
+      {
+        id: "margin",
+        title: "今は急がなくてよいこと",
+        summary: "動かす前に、力の入り方を見直します",
+        body: `${marginMessage}\n${releasePerspectives[toneId]}`
+      },
+      {
+        id: "today-line",
+        title: "手放してよい力",
+        summary: title,
+        body: `今日は「${avoidHint}」を背負い続けなくてかまいません。\n${receivingClosings[subthemeId]}`
+      },
+      {
+        id: "one-step",
+        title: "静かに選べること",
+        summary: oneStep,
+        body: `今のあなたが選べるのは「${oneStep}」。\n無理に勢いをつけず、できる形にしてみてください。`
+      }
+    ];
+  }
+
+  if (structureId === 2) {
+    return [
+      {
+        id: "today-line",
+        title: "今日ひらく流れ",
+        summary: title,
+        body: todayMessage
+      },
+      {
+        id: "one-step",
+        title: "意識を向けたい場所",
+        summary: forwardPerspectives[subthemeId],
+        body: `${forwardPerspectives[subthemeId]}\n今すぐ結論にせず、次に動かせる場所を見つけてください。`
+      },
+      {
+        id: "margin",
+        title: "次に選ぶ一手",
+        summary: oneStep,
+        body: `今日の選択は「${oneStep}」。\n${receivingClosings[toneId]}`
+      }
+    ];
+  }
 
   return [
     {
       id: "today-line",
-      title: "今日の一文",
+      title: "今日の気配",
       summary: title,
       body: todayMessage
     },
     {
       id: "margin",
-      title: "今の余白",
-      summary: "休む幅を少しだけ残します",
-      body: marginMessage
+      title: "心に残しておくこと",
+      summary: "今日の流れから、大切な視点を受け取ります",
+      body: `${marginMessage}\n${receivingClosings[toneId]}`
     },
     {
       id: "one-step",
-      title: "無理しない一歩",
+      title: "今日ひとつだけ",
       summary: oneStep,
-      body: `今日できることは「${oneStep}」。\nここまでで大丈夫です。\n続きは、気力が戻った時に少しずつでかまいません。`
+      body: `今日ひとつ選ぶなら「${oneStep}」。\n${forwardPerspectives[subthemeId]}`
     }
   ];
 }
@@ -1063,6 +1142,8 @@ function buildResult(input: ShironeEngineInput, context: ShironeEngineContext, r
   const audioScript = buildPlanAudioScript(textParams, todayMessage, marginMessage);
   const sections = buildSections({
     plan,
+    today: resolvedToday,
+    identitySeed: `${input.name?.trim() ?? ""}|${input.birthDate}`,
     title,
     todayMessage,
     marginMessage,
