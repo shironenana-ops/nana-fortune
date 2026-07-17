@@ -13,6 +13,12 @@ export type AuditEvent = {
   deepEntitled?: boolean;
   deployVersion?: string;
   engineVersion?: string;
+  provider?: string;
+  promptVersion?: string;
+  inputCharacters?: number;
+  outputCharacters?: number;
+  inputTokens?: number;
+  outputTokens?: number;
 };
 
 type AuditSink = (line: string) => void;
@@ -49,6 +55,12 @@ export function writeSafeAuditLog(params: {
     ...(typeof event.deepEntitled === "boolean" ? { deep_entitled: event.deepEntitled } : {}),
     ...(event.deployVersion ? { deploy_version: clean(event.deployVersion, 64) } : {}),
     ...(event.engineVersion ? { engine_version: clean(event.engineVersion, 64) } : {}),
+    ...(event.provider ? { provider: clean(event.provider, 32) } : {}),
+    ...(event.promptVersion ? { prompt_version: clean(event.promptVersion, 64) } : {}),
+    ...(Number.isFinite(event.inputCharacters) ? { input_characters: Math.max(0, Math.trunc(event.inputCharacters!)) } : {}),
+    ...(Number.isFinite(event.outputCharacters) ? { output_characters: Math.max(0, Math.trunc(event.outputCharacters!)) } : {}),
+    ...(Number.isFinite(event.inputTokens) ? { input_tokens: Math.max(0, Math.trunc(event.inputTokens!)) } : {}),
+    ...(Number.isFinite(event.outputTokens) ? { output_tokens: Math.max(0, Math.trunc(event.outputTokens!)) } : {}),
     ...(userRef ? { user_ref: userRef } : {}),
   };
   const line = JSON.stringify(record);

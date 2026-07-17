@@ -11,6 +11,8 @@
     "test:reading-server": "node --test tests/shironeEngineServerParity.test.mjs",
     "test:reading-foundation": "node --test tests/readingServerFoundation.test.mjs",
     "test:reading-preparation": "node --test tests/readingRequestPreparation.test.mjs",
+    "test:reading-bedrock": "node --test tests/readingBedrockRenderer.test.mjs",
+    "test:reading-bedrock-smoke": "npm run build:reading-server && npm run build:reading-foundation && node scripts/smoke-reading-bedrock.mjs",
     "preview": "astro preview",
     "astro": "astro"
   },
@@ -19,6 +21,7 @@
     "@astrojs/rss": "^4.0.13",
     "@astrojs/sitemap": "^3.6.0",
     "@astrojs/vercel": "^8.2.11",
+    "@aws-sdk/client-bedrock-runtime": "3.1089.0",
     "@aws-sdk/client-dynamodb": "3.1089.0",
     "astro": "^5.15.4",
     "sharp": "^0.34.3"
