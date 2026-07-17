@@ -1,5 +1,7 @@
 # 鑑定サーバー境界の移行計画
 
+> 2026-07-17: PR3相当のうち、HTTP routeを除く入力検証・JST日付・Idempotency-Key形式検証・mode解決・内部コマンド構築までを実装しました。engine、history、idempotency store、AWS接続は未実装です。
+
 ## 1. 実行方式比較
 
 | 案 | 再利用 | 運用・認証 | 長所 | 主なリスク | 評価 |

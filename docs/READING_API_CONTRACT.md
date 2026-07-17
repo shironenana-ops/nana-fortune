@@ -1,91 +1,62 @@
-# 統合鑑定API契約案
+# 統合鑑定API契約（設計中）
 
-## 1. Endpoint
+## Endpoint
 
-第一候補は`POST /reading/generate`です。実装時は既存API Gatewayの命名、stage、許可Originを確認して最終決定します。現リポジトリにはAPI Gateway/IaC定義がないため、URLは未確定です。
+将来の入口は `POST /reading/generate` を想定します。現時点ではHTTP/Lambda handler、API Gateway、AWS接続は未実装です。
 
-## 2. 認証と信頼する値
+## 認証と信頼する値
 
-有料modeは`Authorization: Bearer <token>`必須です。既存HMAC tokenの署名、`iat`、`exp`、`user_id`を検証し、token由来user_idでusersテーブルを読みます。bodyのuser_id、plan、契約状態、deep権利は無視・拒否します。
+有料modeでは `Authorization: Bearer <token>` を検証し、token由来の `user_id` で会員情報を照会します。bodyの利用者ID、plan、契約状態、deep権利、履歴属性、時刻は信用しません。
 
-`Idempotency-Key`はUUID v4形式、1操作につき1つ必須です。tokenや秘密値をキーに含めません。
+`Idempotency-Key` は小文字canonical表現のUUID v4を1操作につき1つ必須とします。前後空白、大文字、複数値、カンマ結合値は拒否します。今回実装するのは形式検証のみで、保存、予約、重複応答は未実装です。
 
-## 3. Request
-
-```http
-POST /reading/generate
-Authorization: Bearer <token>
-Idempotency-Key: 123e4567-e89b-42d3-a456-426614174000
-Content-Type: application/json
-```
+## Request
 
 ```json
 {
   "name": "表示名",
   "birth_date": "2000-01-01",
-  "gender": "unspecified",
   "question": "相談内容",
   "requested_mode": "light"
 }
 ```
 
-各文字列は前後空白を除去し、長さ、日付、列挙値、総bodyサイズをサーバーで制限します。具体的上限は既存画面と法務・運用確認後に確定します。余分な権限属性は400とします。
+| 項目 | 必須 | 仕様 |
+|---|---|---|
+| `name` | 必須 | trim後1〜80 Unicode code points。NUL・制御文字は拒否 |
+| `birth_date` | 必須 | `YYYY-MM-DD`完全一致、実在日、1900-01-01以降、サーバー確定日以前 |
+| `question` | 任意 | trim後空なら未指定。最大2,000 Unicode code points。改行可、NUL拒否 |
+| `requested_mode` | 任意 | `free` / `light` / `deep` の小文字完全一致 |
 
-不明な`requested_mode`はfreeへ黙って落とさず422です。正しいmodeだが権限不足は403です。inactive会員はfreeのみ許可します。有料APIでは未ログインfreeを扱わず401とし、未ログインfree統合はレート制限・履歴方針決定後の別契約にします。
+`gender` は現在のサーバー鑑定エンジンの入力・計算に存在しないため、このAPIでは受け付けません。互換用metadataとしても保持しません。
 
-## 4. Response
+未知フィールド、camelCase別名、`user_id`、`plan`、`subscription_status`、`deep_enabled`、`today`、履歴・課金・Stripe・AWS属性は入力不正として拒否します。`today` はクライアントから受け取らず、サーバーが `Asia/Tokyo` の暦日として決定します。
 
-```json
-{
-  "history_id": "reading-uuid",
-  "resolved_mode": "light",
-  "status": "completed",
-  "result": {},
-  "created_at": "2026-07-17T00:00:00Z"
-}
-```
+`requested_mode` 未指定時は、既存の `getDefaultReadingMode()` を使用します。premium activeでも標準はlightです。deepは有効な権利があり、かつ明示指定された場合だけ許可します。正しいmode名でも権利がなければfreeへ黙ってfallbackせず拒否します。
 
-レスポンスは表示に必要なDTOだけとし、users項目、権利内部値、DynamoDBキー、入力ハッシュ、秘密情報を返しません。
+## PreparedReadingCommand
 
-## 5. Error contract
+HTTP層の後段へ渡す内部コマンドは、検証済み入力、token由来userId、解決済みmode、サーバー日付だけで新規構築します。raw body、会員item、メール、token、gender、履歴属性を含めません。現段階ではこのコマンドを作るだけで、鑑定エンジンとhistoryは実行しません。
+
+## Error contract
 
 | HTTP | code | 条件 |
 |---:|---|---|
-| 400 | `INVALID_INPUT` | 入力・header形式不正、余分な権限属性 |
-| 401 | `UNAUTHORIZED` | tokenなし・不正・期限切れ |
-| 403 | `MODE_NOT_ENTITLED` | 正しいmodeだが権限なし／inactive |
-| 404 | `USER_NOT_FOUND` | token user_idの会員レコードなし |
-| 409 | `REQUEST_IN_PROGRESS` | 同一keyがprocessing |
-| 409 | `IDEMPOTENCY_CONFLICT` | 同一keyで入力ハッシュ不一致 |
-| 422 | `UNKNOWN_MODE` | mode列挙外 |
-| 429 | `RATE_LIMITED` | user/IP/mode制限超過 |
-| 500 | `PERSISTENCE_FAILED` | 状態・履歴確定失敗 |
-| 502 | `GENERATION_FAILED` | engine実行失敗 |
+| 400 | `READING_REQUEST_INVALID` | body型、未知・特権field、name等の形式不正 |
+| 400 | `READING_INPUT_TOO_LONG` | name / question上限超過 |
+| 400 | `READING_BIRTH_DATE_INVALID` | 生年月日の形式・実在性・範囲不正 |
+| 400 | `READING_MODE_INVALID` | mode列挙外・表記不正 |
+| 400 | `IDEMPOTENCY_KEY_REQUIRED` | header未指定 |
+| 400 | `IDEMPOTENCY_KEY_INVALID` | UUID v4 canonical形式不正 |
+| 403 | `READING_MODE_NOT_AVAILABLE` | 正しいmodeだが現在の会員権限では利用不可 |
+| 500 | `INTERNAL_ERROR` | 想定外の内部エラー |
 
-エラー本文は`code`、安全なmessage、`request_id`、再試行可否だけを返します。
+公開エラーは固定 `code`、固定 `message`、`request_id` だけを返します。内部message、stack、入力値、token、userId、Idempotency-Keyは返しません。
 
-## 6. 再送と再生成
+## 未実装
 
-- completed済み同一key・同一入力：200で同じ確定結果を返す。
-- processing中：409と`Retry-After`。新規生成しない。
-- 同一key・異なる入力：409。どちらも変更しない。
-- failed：同じkeyでの再開可否はfailure分類とlease期限で決める。無条件再実行しない。
-- resultの更新・再生成：既存履歴を上書きせず、新しいIdempotency-Keyと新しいhistory_idを使う。権利を再確認する。
-
-## 7. mode解決
-
-サーバーはusers正本から`plan`、`subscription_status`、`deep_enabled`を取得し、共通`getMembershipEntitlements()`と`resolveReadingMode()`を実行します。premiumの未指定modeはlight、deepは明示要求かつ正式権利ありの場合だけです。
-
-## 8. 保存責務
-
-統合APIがhistory_id、type、source、reading_mode、status、時刻、本文を決定します。ブラウザ生成本文を受け付けません。既存`history_save.py`は統合APIの有料結果保存先として直接公開し続けない方針です。
-
-失敗履歴を利用者一覧に出すかは未確定です。監査用の失敗記録と利用者履歴を分離する案を優先し、個人情報を含む未完成本文は保存しません。
-
-## 9. CORSとログ
-
-- `Access-Control-Allow-Origin`は本番・承認済みpreviewのallow-listから一致したOriginだけを返す。
-- `Authorization`と`Idempotency-Key`を許可headerへ明示する。
-- 認証付き応答で`*`を使わない。
-- token、生年月日、相談、本文、完全メールはログへ出さない。
-- request_id、history_id、安全にHMAC化したuser識別子、mode、判定、状態、時間、deploy versionだけを記録する。
+- HTTP/Lambda handler、API Gateway、AWS接続
+- engine実行、結果生成、history保存
+- idempotency record、request hash、processing/completed/failed、TTL
+- deep権利の予約・消費・返却
+- rate limit、一般公開、UI接続

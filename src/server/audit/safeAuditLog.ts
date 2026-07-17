@@ -10,6 +10,7 @@ export type AuditEvent = {
   resolvedMode?: string;
   membershipPlan?: string;
   subscriptionActive?: boolean;
+  deepEntitled?: boolean;
   deployVersion?: string;
   engineVersion?: string;
 };
@@ -45,6 +46,7 @@ export function writeSafeAuditLog(params: {
     ...(event.resolvedMode ? { resolved_mode: clean(event.resolvedMode, 16) } : {}),
     ...(event.membershipPlan ? { membership_plan: clean(event.membershipPlan, 16) } : {}),
     ...(typeof event.subscriptionActive === "boolean" ? { subscription_active: event.subscriptionActive } : {}),
+    ...(typeof event.deepEntitled === "boolean" ? { deep_entitled: event.deepEntitled } : {}),
     ...(event.deployVersion ? { deploy_version: clean(event.deployVersion, 64) } : {}),
     ...(event.engineVersion ? { engine_version: clean(event.engineVersion, 64) } : {}),
     ...(userRef ? { user_ref: userRef } : {}),
