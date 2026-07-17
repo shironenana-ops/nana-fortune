@@ -60,7 +60,7 @@ const jsonLd = {
         <nav class="fortune-nav" id="navArea">
           <a href="/">TOP</a>
           <a href="/diagnosis">今日の鑑定</a>
-          <a href="/types">属性</a>
+          <a href="/types">属性一覧</a>
           <a href="/compat">相性占い</a>
           <a href="/history">履歴一覧</a>
           <span id="memberLinks"></span>
@@ -76,80 +76,136 @@ const jsonLd = {
             <div class="fortune-hero-ornament" aria-hidden="true"></div>
 
             <div class="top-hero-layout">
-              <div class="fortune-hero-main top-hero-main">
-              <div class="fortune-kicker">白音七式 星音術</div>
+              <div class="top-hero-visual-banner">
+                <picture>
+                  <source
+                    media="(max-width: 720px)"
+                    srcset="/images/shirone-nana-hero-960.webp"
+                    type="image/webp"
+                  />
+                  <source srcset="/images/shirone-nana-hero.webp" type="image/webp" />
+                  <img
+                    src="/images/shirone-nana-hero.png"
+                    alt="七つの属性の光を導く白音七"
+                    width="1672"
+                    height="941"
+                    fetchpriority="high"
+                  />
+                </picture>
 
-              <div class="fortune-title-wrap">
-                <div class="fortune-stars" aria-hidden="true">
-                  <span></span>
-                  <span></span>
-                  <span></span>
+                <div class="fortune-hero-main top-hero-main">
+                <div class="fortune-kicker">白音七式 星音術</div>
+
+                <div class="fortune-title-wrap">
+                  <div class="fortune-stars" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+
+                  <div class="fortune-title-line"></div>
+
+                  <h1 class="fortune-hero-title">
+                    <span class="line line-1">生年月日から</span>
+                    <span class="line line-2">あなたの属性を読み解きます</span>
+                  </h1>
+
+                  <div class="fortune-title-line bottom"></div>
                 </div>
 
-                <div class="fortune-title-line"></div>
+                <p class="fortune-lead top-lead">
+                  自分はどんな性質を持ち<br />
+                  何を意識すると歩きやすいのか<br />
+                  七つの属性からお届けします
+                </p>
 
-                <h1 class="fortune-hero-title">
-                  <span class="line line-1">今日のあなたに</span>
-                  <span class="line line-2">静かな灯りを</span>
-                  <span class="line line-3">迷う日も 疲れた日も</span>
-                  <span class="line line-4">次の一歩をそっと照らします</span>
-                </h1>
+                <div class="top-answer-strip" aria-label="この鑑定でわかること">
+                  <span>白音七属性</span>
+                  <span>あなたの本質</span>
+                  <span>性質の生かし方</span>
+                </div>
 
-                <div class="fortune-title-line bottom"></div>
+                </div>
               </div>
 
-              <p class="fortune-lead top-lead">
-                こわい言葉で決めつけず<br />
-                今日のあなたに静かに寄り添います
-              </p>
+              <div class="top-quick-column">
+                <section class="top-quick-card" aria-labelledby="topQuickHeading">
+                  <div class="top-quick-card-head">
+                    <div>
+                      <div class="top-quick-eyebrow">FREE READING</div>
+                      <h2 id="topQuickHeading">あなたの属性を知る</h2>
+                    </div>
+                    <span class="top-quick-free">無料・登録不要</span>
+                  </div>
 
-              <p class="fortune-method-line top-method-line">
-                名前と生年月日から、今日のテーマ・心の向き・外から見えるあなた・避けたいことを読み解きます。<br />
-                結果は会員登録で履歴として残せます。
-              </p>
+                  <p class="top-quick-privacy">
+                    この簡易鑑定の入力内容と結果は保存されません
+                  </p>
 
-              <div class="top-answer-strip" aria-label="白音七でわかること">
-                <span>今日の流れ</span>
-                <span>外から見える傾向</span>
-                <span>行動ヒント</span>
-                <span>避けたいこと</span>
-              </div>
+                  <form id="topQuickForm" class="top-quick-form" novalidate>
+                    <div class="top-quick-field">
+                      <label for="topQuickBirthday">生年月日</label>
+                      <input
+                        id="topQuickBirthday"
+                        name="birthday"
+                        type="date"
+                        min="1900-01-01"
+                        aria-describedby="topQuickBirthdayError"
+                        required
+                      />
+                      <p id="topQuickBirthdayError" class="top-quick-error" aria-live="polite"></p>
+                    </div>
 
-              <div class="top-cta-panel">
-                <a class="top-cta-card top-cta-card--primary" href="/diagnosis">
-                  <span class="top-cta-kicker">まずは無料</span>
-                  <strong>今日の占いをはじめる</strong>
-                  <small>名前と生年月日だけで鑑定</small>
-                </a>
+                    <button type="submit" class="fortune-btn primary top-quick-submit">
+                      自分の属性を見る
+                    </button>
+                  </form>
 
-                <a class="top-cta-card top-cta-card--types" href="/types">
-                  <span class="top-cta-kicker">無料で読む</span>
-                  <strong>属性を見る</strong>
-                  <small>あなたの属性を知る入口</small>
-                </a>
+                  <div
+                    id="topQuickResult"
+                    class="top-quick-result"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    tabindex="-1"
+                    hidden
+                  >
+                    <div class="top-quick-result-kicker">YOUR SHIRONE TYPE</div>
 
-                <a class="top-cta-card top-cta-card--violet" href="/compat">
-                  <span class="top-cta-kicker">関係を見る</span>
-                  <strong>相性占いへ</strong>
-                  <small>恋愛 夫婦 家族 仕事仲間にも</small>
-                </a>
+                    <article class="top-quick-result-main top-quick-identity">
+                      <div id="topQuickIcon" class="top-quick-type-icon" aria-hidden="true"></div>
+                      <div>
+                        <span>あなたの属性</span>
+                        <h3 id="topQuickTypeName"></h3>
+                        <p id="topQuickPhaseName" class="top-quick-phase"></p>
+                      </div>
+                    </article>
 
-                <a class="top-cta-card top-cta-card--ghost" href="/members" id="heroMemberBtn">
-                  <span class="top-cta-kicker">記録する</span>
-                  <strong>会員ページへ</strong>
-                  <small>履歴を保存して読み返す</small>
-                </a>
-              </div>
+                    <article class="top-quick-detail">
+                      <h3>あなたはこんな人</h3>
+                      <div id="topQuickIdentity"></div>
+                    </article>
 
-              <p class="top-beta-note">
-                現在は、無料で触れられる鑑定と履歴機能を中心に公開しています。<br />
-                一部の深い鑑定は<br />
-                今後段階的に整えていきます
-              </p>
-              </div>
+                    <article class="top-quick-detail">
+                      <h3>得意なこと</h3>
+                      <p id="topQuickStrengths"></p>
+                    </article>
 
-              <div class="top-hero-visual" aria-hidden="true">
-                <img src="/images/door.png" alt="" loading="eager" />
+                    <article class="top-quick-detail top-quick-guidance">
+                      <h3>この性質を生かすために</h3>
+                      <p id="topQuickGuidance"></p>
+                      <p id="topQuickCautions"></p>
+                    </article>
+
+                    <p class="top-quick-next-note">
+                      基本属性が分かったら、お名前の響きと今日の流れを重ねて、<br class="pc-only" />
+                      今のあなたをもう少し詳しく読み解けます。
+                    </p>
+
+                    <nav class="top-quick-links" aria-label="鑑定結果から次へ進む">
+                      <a href="/diagnosis" class="fortune-btn primary">今日の詳しい鑑定を見る</a>
+                    </nav>
+                  </div>
+                </section>
               </div>
             </div>
           </div>
@@ -225,21 +281,11 @@ const jsonLd = {
               </div>
               <p class="fortune-section-sub">
                 読まなくても、何をする場所なのか分かるように。<br />
-                属性、今日の占い、相性、履歴、会員登録を入口として用意しています。
+                今日の占い、属性、相性、履歴、会員登録を入口として用意しています。
               </p>
             </div>
 
             <div class="top-visual-menu">
-              <a class="visual-menu-card" href="/types">
-                <div class="visual-illustration image-illustration" aria-hidden="true">
-                  <img src="/images/moon2.png" alt="" loading="lazy" />
-                </div>
-                <div>
-                  <h3>属性診断</h3>
-                  <p>生年月日からあなたの属性を読む</p>
-                </div>
-              </a>
-
               <a class="visual-menu-card" href="/diagnosis">
                 <div class="visual-illustration image-illustration" aria-hidden="true">
                   <img src="/images/moon1.png" alt="" loading="lazy" />
@@ -247,6 +293,16 @@ const jsonLd = {
                 <div>
                   <h3>今日の占い</h3>
                   <p>今日の流れと行動ヒントを見る</p>
+                </div>
+              </a>
+
+              <a class="visual-menu-card" href="/types">
+                <div class="visual-illustration image-illustration" aria-hidden="true">
+                  <img src="/images/moon2.png" alt="" loading="lazy" />
+                </div>
+                <div>
+                  <h3>属性診断</h3>
+                  <p>生年月日からあなたの属性を読む</p>
                 </div>
               </a>
 
@@ -488,6 +544,7 @@ const jsonLd = {
             <small>履歴を保存して読み返す</small>
           `;
         }
+
       } else {
         if (memberLinks) {
           memberLinks.innerHTML = `
@@ -517,7 +574,89 @@ const jsonLd = {
             <small>履歴を残すにはログイン</small>
           `;
         }
+
       }
+    </script>
+
+    <script>
+      import {
+        buildTopQuickReading,
+        TopQuickReadingValidationError
+      } from "../lib/topQuickReading";
+
+      const quickForm = document.getElementById("topQuickForm");
+      const quickBirthday = document.getElementById("topQuickBirthday");
+      const quickBirthdayError = document.getElementById("topQuickBirthdayError");
+      const quickResult = document.getElementById("topQuickResult");
+
+      function localDateValue(date = new Date()) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      if (quickBirthday instanceof HTMLInputElement) {
+        quickBirthday.max = localDateValue();
+      }
+
+      function clearQuickErrors() {
+        if (quickBirthdayError) quickBirthdayError.textContent = "";
+        quickBirthday?.removeAttribute("aria-invalid");
+      }
+
+      function showQuickError(message) {
+        if (quickBirthdayError) quickBirthdayError.textContent = message;
+        quickBirthday?.setAttribute("aria-invalid", "true");
+        quickBirthday?.focus();
+      }
+
+      function setResultText(id, value) {
+        const element = document.getElementById(id);
+        if (element) element.textContent = String(value ?? "");
+      }
+
+      quickForm?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        clearQuickErrors();
+
+        try {
+          const result = buildTopQuickReading({
+            birthday: quickBirthday instanceof HTMLInputElement ? quickBirthday.value : ""
+          });
+
+          setResultText("topQuickIcon", result.icon);
+          setResultText("topQuickTypeName", result.typeName);
+          setResultText("topQuickPhaseName", result.phaseName);
+          setResultText("topQuickStrengths", result.strengths);
+          setResultText("topQuickGuidance", result.guidance);
+          setResultText("topQuickCautions", result.cautions);
+
+          const identity = document.getElementById("topQuickIdentity");
+          if (identity) {
+            const paragraphs = result.identitySummary.map((text) => {
+              const paragraph = document.createElement("p");
+              paragraph.textContent = text;
+              return paragraph;
+            });
+            identity.replaceChildren(...paragraphs);
+          }
+
+          if (quickResult) {
+            quickResult.hidden = false;
+            const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            quickResult.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+            quickResult.focus({ preventScroll: true });
+          }
+        } catch (error) {
+          if (error instanceof TopQuickReadingValidationError) {
+            showQuickError(error.message);
+            return;
+          }
+
+          showQuickError("入力内容を確認してください。");
+        }
+      });
     </script>
 
     <style is:global>
@@ -1162,6 +1301,439 @@ const jsonLd = {
         .method-visual-callout img {
           width: min(54vw, 210px) !important;
           max-width: 210px !important;
+        }
+      }
+
+      /* ===== TOP quick reading ===== */
+      .top-hero-frame {
+        min-height: auto;
+      }
+
+      .top-hero-layout {
+        display: grid;
+        grid-template-columns: 1fr !important;
+        gap: 1.15rem;
+        align-items: stretch !important;
+      }
+
+      .top-hero-visual-banner {
+        position: relative;
+        min-height: clamp(300px, 34vw, 430px);
+        overflow: hidden;
+        border: 1px solid rgba(224, 184, 72, 0.32);
+        border-radius: 26px;
+        background: #0b1230;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+      }
+
+      .top-hero-visual-banner picture,
+      .top-hero-visual-banner img {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .top-hero-visual-banner picture {
+        position: absolute;
+        inset: 0;
+      }
+
+      .top-hero-visual-banner img {
+        object-fit: cover;
+        object-position: center center;
+      }
+
+      .top-hero-visual-banner::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent 32%, rgba(6, 10, 29, 0.15) 52%, rgba(6, 10, 29, 0.78) 100%);
+        pointer-events: none;
+      }
+
+      .top-hero-main {
+        position: absolute;
+        z-index: 1;
+        inset: 0 0 0 auto;
+        display: flex;
+        width: min(50%, 700px);
+        padding: clamp(1.4rem, 3vw, 2.7rem);
+        box-sizing: border-box;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 0;
+      }
+
+      .top-hero-main .fortune-hero-title {
+        font-size: clamp(2rem, 3vw, 3rem);
+        line-height: 1.28;
+      }
+
+      .top-hero-main .fortune-hero-title .line {
+        font-size: inherit;
+        line-height: inherit;
+        letter-spacing: 0.04em;
+      }
+
+      .top-hero-main .fortune-title-wrap {
+        margin-bottom: 1.25rem;
+      }
+
+      .top-quick-column {
+        min-width: 0;
+        width: min(100%, 760px);
+        margin-inline: auto;
+      }
+
+      .top-quick-card {
+        border: 1px solid rgba(224, 184, 72, 0.36);
+        border-radius: 24px;
+        padding: clamp(1.2rem, 2.4vw, 1.75rem);
+        background:
+          radial-gradient(circle at 90% 0%, rgba(182, 140, 255, 0.16), transparent 42%),
+          linear-gradient(145deg, rgba(14, 19, 43, 0.97), rgba(12, 10, 31, 0.96));
+        box-shadow: 0 24px 72px rgba(0, 0, 0, 0.38);
+      }
+
+      .top-quick-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .top-quick-eyebrow,
+      .top-quick-result-kicker {
+        color: #e5be4a;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+      }
+
+      .top-quick-card h2 {
+        margin: 0.35rem 0 0;
+        color: #fff0b8;
+        font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+        line-height: 1.45;
+      }
+
+      .top-quick-free {
+        flex: 0 0 auto;
+        border: 1px solid rgba(242, 221, 154, 0.38);
+        border-radius: 999px;
+        padding: 0.35rem 0.65rem;
+        color: #fff0bf;
+        background: rgba(242, 221, 154, 0.08);
+        font-size: 0.75rem;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .top-quick-privacy {
+        margin: 1rem 0 1.15rem;
+        border-left: 2px solid rgba(127, 181, 255, 0.5);
+        padding-left: 0.75rem;
+        color: rgba(236, 229, 255, 0.82);
+        font-size: 0.84rem;
+        line-height: 1.65;
+      }
+
+      .top-quick-form {
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .top-quick-field {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.35rem 0.75rem;
+        align-items: baseline;
+      }
+
+      .top-quick-field label {
+        color: #fff0bf;
+        font-weight: 800;
+      }
+
+      .top-quick-field-note {
+        color: rgba(255, 240, 190, 0.68);
+        font-size: 0.76rem;
+      }
+
+      .top-quick-field input {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-height: 48px;
+        box-sizing: border-box;
+        border: 1px solid rgba(224, 184, 72, 0.3);
+        border-radius: 12px;
+        padding: 0.72rem 0.85rem;
+        color: #fff8df;
+        background: rgba(5, 9, 24, 0.78);
+        font: inherit;
+        color-scheme: dark;
+      }
+
+      .top-quick-field input:focus-visible {
+        outline: 2px solid #f2dd9a;
+        outline-offset: 2px;
+      }
+
+      .top-quick-field input[aria-invalid="true"] {
+        border-color: #ffb8b8;
+      }
+
+      .top-quick-error {
+        grid-column: 1 / -1;
+        min-height: 1.25em;
+        margin: 0;
+        color: #ffd0d0;
+        font-size: 0.78rem;
+      }
+
+      .top-quick-submit {
+        width: 100%;
+        margin-top: 0.15rem;
+      }
+
+      .top-quick-result[hidden] {
+        display: none;
+      }
+
+      .top-quick-result {
+        scroll-margin-top: 6rem;
+        margin-top: 1.5rem;
+        border-top: 1px solid rgba(224, 184, 72, 0.24);
+        padding-top: 1.4rem;
+        outline: none;
+      }
+
+      .top-quick-result-main,
+      .top-quick-detail {
+        margin-top: 0.85rem;
+        border-radius: 16px;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .top-quick-identity {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.9rem;
+        align-items: center;
+      }
+
+      .top-quick-type-icon {
+        display: grid;
+        place-items: center;
+        width: 58px;
+        height: 58px;
+        border: 1px solid rgba(242, 221, 154, 0.34);
+        border-radius: 999px;
+        color: #fff0bf;
+        background: rgba(242, 221, 154, 0.08);
+        box-shadow: 0 0 24px rgba(229, 190, 74, 0.12);
+        font-size: 1.6rem;
+      }
+
+      .top-quick-result-main span {
+        color: #e5be4a;
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      .top-quick-result-main h3 {
+        margin: 0.35rem 0 0;
+        color: #fff0b8;
+        font-size: 1.32rem;
+      }
+
+      .top-quick-phase {
+        margin: 0.3rem 0 0;
+        color: rgba(217, 194, 255, 0.9);
+        font-weight: 700;
+      }
+
+      .top-quick-detail h3 {
+        margin: 0 0 0.65rem;
+        color: #fff0b8;
+        font-size: 1rem;
+      }
+
+      .top-quick-detail p {
+        margin: 0.55rem 0 0;
+        color: rgba(255, 244, 210, 0.88);
+        line-height: 1.75;
+        white-space: pre-line;
+      }
+
+      .top-quick-guidance {
+        border: 1px solid rgba(182, 140, 255, 0.18);
+        background: rgba(182, 140, 255, 0.055);
+      }
+
+      .top-quick-next-note {
+        margin: 1.15rem 0 0;
+        border-left: 2px solid rgba(229, 190, 74, 0.5);
+        padding: 0.15rem 0 0.15rem 0.85rem;
+        color: rgba(255, 244, 210, 0.86);
+        font-size: 0.9rem;
+        line-height: 1.75;
+      }
+
+      .top-quick-links {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.65rem;
+        margin-top: 1.15rem;
+      }
+
+      .top-quick-links .fortune-btn {
+        min-height: 44px;
+        padding: 0.65rem 0.75rem;
+        font-size: 0.8rem;
+        text-align: center;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      @media (max-width: 920px) {
+        .top-hero-visual-banner {
+          min-height: 360px;
+        }
+
+        .top-hero-main {
+          width: 55%;
+        }
+
+        .top-hero-main .fortune-hero-title {
+          font-size: clamp(2.3rem, 12vw, 4rem);
+        }
+
+        .top-hero-main .fortune-title-wrap {
+          margin-bottom: 0.8rem;
+        }
+
+        .top-quick-column {
+          order: 2;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .top-hero-layout {
+          gap: 0.65rem;
+        }
+
+        .top-hero-visual-banner {
+          display: grid;
+          min-height: 0;
+          overflow: visible;
+          border: 0;
+          border-radius: 18px;
+          background: transparent;
+          box-shadow: none;
+        }
+
+        .top-hero-visual-banner picture {
+          position: relative;
+          height: auto;
+          aspect-ratio: 16 / 9;
+          overflow: hidden;
+          border: 1px solid rgba(224, 184, 72, 0.32);
+          border-radius: 18px;
+          background: #0b1230;
+          box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+        }
+
+        .top-hero-visual-banner img {
+          object-position: 32% center;
+        }
+
+        .top-hero-visual-banner::after {
+          display: none;
+        }
+
+        .top-hero-main {
+          display: none;
+        }
+
+        .top-hero-main .fortune-hero-title {
+          font-size: clamp(1.9rem, 9.5vw, 2.45rem);
+        }
+
+        .top-lead {
+          font-size: 0.95rem;
+          line-height: 1.75;
+        }
+
+        .top-answer-strip {
+          display: none;
+        }
+
+        .top-hero-main .fortune-stars,
+        .top-hero-main .fortune-title-line {
+          display: none;
+        }
+
+        .top-hero-main .fortune-title-wrap {
+          margin: 0.7rem 0 0.65rem;
+        }
+
+        .top-quick-card {
+          border-radius: 18px;
+          padding: 1rem;
+        }
+
+        .top-quick-card-head {
+          display: grid;
+          gap: 0.55rem;
+        }
+
+        .top-quick-free {
+          justify-self: start;
+        }
+
+        .top-quick-privacy {
+          margin: 0.8rem 0 0.9rem;
+        }
+
+        .top-quick-field {
+          grid-template-columns: 1fr;
+        }
+
+        .top-quick-field-note,
+        .top-quick-field input,
+        .top-quick-error {
+          grid-column: 1;
+        }
+
+        .top-quick-links {
+          grid-template-columns: 1fr;
+        }
+
+        .top-quick-next-note .pc-only {
+          display: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .top-quick-card *,
+        .top-quick-card *::before,
+        .top-quick-card *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
         }
       }
 
