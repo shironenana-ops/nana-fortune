@@ -18,3 +18,7 @@ export * from "./reading/rendering/renderReadingWithFallback";
 export * from "./users/dynamoUserRepository";
 export * from "./users/membershipContext";
 export * from "./users/userRepository";
+export * from "./readingApi/readingApiHandler";
+export * from "./readingApi/readingApiResponse";
+export * from "./readingApi/readingApiService";
+export * from "./readingApi/readingApiTypes";
