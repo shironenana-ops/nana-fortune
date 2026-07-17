@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "build:reading-server": "node scripts/build-reading-engine.mjs",
     "test": "node --test tests/*.test.mjs",
+    "test:reading-server": "node --test tests/shironeEngineServerParity.test.mjs",
     "preview": "astro preview",
     "astro": "astro"
   },

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "free-basic",
+    "input": { "name": "架空 花子", "birthDate": "1990-04-15", "today": "2026-07-17", "plan": "free" }
+  },
+  {
+    "id": "light-question",
+    "input": { "name": "架空 太郎", "birthDate": "1985-11-03", "question": "これからの働き方を整えるため、今できることを知りたいです。", "today": "2026-07-17", "plan": "light" }
+  },
+  {
+    "id": "deep-question",
+    "input": { "name": "架空 三郎", "birthDate": "2001-07-22", "question": "進む方向を決める前に、自分が大切にしたいことを丁寧に整理したいです。", "today": "2026-07-17", "plan": "deep" }
+  },
+  {
+    "id": "date-year-end",
+    "input": { "name": "架空 年末", "birthDate": "1992-02-29", "question": "年の終わりに見直すことはありますか。", "today": "2026-12-31", "plan": "light" }
+  },
+  {
+    "id": "date-new-year",
+    "input": { "name": "架空 年始", "birthDate": "1992-02-29", "question": "新しい年に意識することはありますか。", "today": "2027-01-01", "plan": "light" }
+  },
+  {
+    "id": "date-leap-day",
+    "input": { "name": "架空 うるう", "birthDate": "2000-02-29", "today": "2028-02-29", "plan": "free" }
+  },
+  {
+    "id": "date-month-end",
+    "input": { "name": "架空 月末", "birthDate": "1978-08-31", "question": "月末に手放してよいものを教えてください。", "today": "2026-04-30", "plan": "deep" }
+  },
+  {
+    "id": "different-name",
+    "input": { "name": "架空 別名", "birthDate": "1990-04-15", "today": "2026-07-17", "plan": "free" }
+  },
+  {
+    "id": "different-birth-date",
+    "input": { "name": "架空 花子", "birthDate": "1990-04-16", "today": "2026-07-17", "plan": "free" }
+  },
+  {
+    "id": "question-absent",
+    "input": { "name": "架空 質問なし", "birthDate": "1988-06-09", "today": "2026-07-17", "plan": "light" }
+  },
+  {
+    "id": "long-japanese-input",
+    "input": { "name": "架空 長文", "birthDate": "1975-12-01", "question": "いくつかの選択肢を前にして急いで結論を出すのではなく、自分と周囲の人を大切にしながら、今後の方向性を落ち着いて考えるための手がかりを知りたいです。", "today": "2026-07-17", "plan": "deep" }
+  },
+  {
+    "id": "surrounding-spaces",
+    "input": { "name": "  架空 余白  ", "birthDate": "1999-09-09", "question": "  今意識することを知りたいです。  ", "today": "2026-07-17", "plan": "light" }
+  }
+]
