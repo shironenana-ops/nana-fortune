@@ -264,7 +264,7 @@ body.members-page-body {
 
   .status-grid {
     display: grid;
-    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr;
     gap: 18px;
     margin-bottom: 22px;
   }
@@ -331,16 +331,14 @@ body.members-page-body {
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  .status-stat__label,
-  .submail-box__label {
+  .status-stat__label {
     display: block;
     font-size: 12px;
     color: rgba(255, 236, 179, 0.64);
     margin-bottom: 8px;
   }
 
-  .status-stat strong,
-  .submail-box strong {
+  .status-stat strong {
     color: #fff2c8;
     font-size: 18px;
   }
@@ -371,15 +369,6 @@ body.members-page-body {
     margin-top: 12px;
     color: rgba(255, 236, 179, 0.78);
     font-size: 14px;
-  }
-
-  .submail-box {
-    margin-top: 22px;
-    padding: 16px 18px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    overflow-wrap: anywhere;
   }
 
   .plan-change-notice {
@@ -1298,12 +1287,12 @@ body.members-page-body {
           <span class="reading-doorway-cta" id="readingDoorLightCta">ライト鑑定へ</span>
         </a>
 
-        <a class="reading-doorway-link reading-doorway-link--deep" id="readingDoorDeepLink" href="/premium/deep">
+        <div class="reading-doorway-link reading-doorway-link--deep" id="readingDoorDeepPanel">
           <strong>深掘り鑑定の案内</strong>
           <span id="readingDoorDeepText">プレミアム会員の方に向けた、多面的な鑑定です。</span>
           <small>数秘、星、今日の波、相談内容を重ねて読みます。</small>
-          <span class="reading-doorway-cta" id="readingDoorDeepCta">深掘り鑑定へ</span>
-        </a>
+          <span class="reading-doorway-cta" id="readingDoorDeepCta">深掘り鑑定（準備中）</span>
+        </div>
       </div>
     </section>
 
@@ -1354,19 +1343,6 @@ body.members-page-body {
         </div>
       </article>
 
-      <article class="status-card status-updated">
-        <div class="status-card__head">
-          <span class="status-chip">LAST UPDATE</span>
-        </div>
-
-        <h2 id="updatedAtDisplay">-</h2>
-        <p class="status-caption">アカウント情報が更新された時刻です。</p>
-
-        <div class="submail-box">
-          <span class="submail-box__label">ご登録メール</span>
-          <strong id="stripeMail">-</strong>
-        </div>
-      </article>
     </section>
 
     <section class="plan-change-notice reveal" id="planChangeNotice" hidden>
@@ -1435,6 +1411,7 @@ body.members-page-body {
 
   <script>
     import { getMembershipDisplayInfo, normalizeMembershipTier } from "../lib/membership";
+    import { getMembershipEntitlements } from "../lib/membershipEntitlements";
 
     const USER_STATUS_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/user/status";
     const CHANGE_PLAN_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/subscription/change-plan";
@@ -1486,9 +1463,9 @@ body.members-page-body {
       return normalizeMembershipTier(plan) !== normalizeMembershipTier(pendingPlan);
     }
 
-    function updateReadingDoorCtas(tier) {
+    function updateReadingDoorCtas(entitlements) {
+      const tier = entitlements.tier;
       const canUseLight = tier === "light" || tier === "premium";
-      const canUseDeep = tier === "premium";
 
       setText(
         "readingDoorLightText",
@@ -1500,15 +1477,15 @@ body.members-page-body {
 
       setText(
         "readingDoorDeepText",
-        canUseDeep
-          ? "深掘り鑑定へ進めます。多面的な鑑定を受け取るための扉です。"
-          : "プレミアム会員で使える鑑定です。"
+        entitlements.canUseDeep
+          ? "深掘り鑑定の利用権があります。開始機能は現在準備中です。"
+          : "現在の会員状態では利用できません。開始機能も現在準備中です。"
       );
-      setText("readingDoorDeepCta", canUseDeep ? "深掘り鑑定へ" : "深掘り鑑定の案内へ");
+      setText("readingDoorDeepCta", "深掘り鑑定（準備中）");
     }
 
-    function updateReadingTierBridge(rawPlan, usedFallback = false) {
-      const displayInfo = getMembershipDisplayInfo(rawPlan);
+    function updateReadingTierBridge(entitlements, usedFallback = false) {
+      const displayInfo = getMembershipDisplayInfo(entitlements.tier);
       const planText = displayInfo.availablePlans
         .map((plan) => (plan === "deep" ? "深掘り鑑定" : plan === "light" ? "ライト鑑定" : "無料鑑定"))
         .join(" / ");
@@ -1519,9 +1496,9 @@ body.members-page-body {
       setText("readingTierLabel", `現在の会員ランク: ${displayInfo.label}`);
       setText(
         "readingTierDescription",
-        `${displayInfo.description}\n新しく開ける扉: ${planText}\n${suffix}`
+        `${displayInfo.description}\n会員権限上の対象: ${planText}\n${suffix}`
       );
-      updateReadingDoorCtas(displayInfo.tier);
+      updateReadingDoorCtas(entitlements);
     }
 
     function formatDate(value) {
@@ -1861,7 +1838,7 @@ body.members-page-body {
         loading.hidden = true;
         errorBox.hidden = false;
         errorText.textContent = "ユーザーIDが見つかりません。ログインし直してください。";
-        updateReadingTierBridge("free", true);
+        updateReadingTierBridge(getMembershipEntitlements({ plan: "free" }), true);
         return;
       }
 
@@ -1873,13 +1850,13 @@ body.members-page-body {
           throw new Error(data.error || "会員情報の取得に失敗しました。");
         }
 
-        const plan = normalizePlan(data.plan || "free");
-        const subscriptionStatus = String(data.subscription_status || "inactive").toLowerCase();
-        const voiceLimit = Number(data.monthly_voice_limit ?? data.voice_limit ?? 0);
-        const voiceUsed = Number(data.monthly_voice_used ?? data.voice_used ?? 0);
-        const voiceRemaining = Math.max(voiceLimit - voiceUsed, 0);
-        const extraVoiceRemaining = Number(data.extra_voice_remaining ?? 0);
-        const deepEnabled = !!data.deep_enabled;
+        const entitlements = getMembershipEntitlements(data);
+        const plan = normalizePlan(entitlements.tier);
+        const subscriptionStatus = entitlements.subscriptionStatus;
+        const voiceLimit = entitlements.monthlyVoiceLimit;
+        const voiceUsed = entitlements.monthlyVoiceUsed;
+        const voiceRemaining = entitlements.monthlyVoiceRemaining;
+        const extraVoiceRemaining = entitlements.extraVoiceRemaining;
         const pendingPlan = normalizePendingPlan(data.pending_plan);
         const currentPeriodEnd = data.current_period_end || "";
 
@@ -1888,26 +1865,25 @@ body.members-page-body {
         window.currentPendingPlan = pendingPlan;
         window.currentPeriodEnd = currentPeriodEnd;
         currentStatusInfo = data;
-        updateReadingTierBridge(plan);
+        updateReadingTierBridge(entitlements);
 
-        setText("memberGreeting", `${userId} さんの会員ページ`);
+        setText("memberGreeting", "会員ページ");
         setText("planLabel", planNames[plan] || plan);
         setText(
           "planCaption",
-          subscriptionStatus === "active" || subscriptionStatus === "trialing" || subscriptionStatus === "past_due"
-            ? "現在の会員状態は有効です。今の利用状況を静かに確認できます。"
-            : "まだ会員化は完了していません。必要に応じてプランを選べます。"
+          entitlements.tier === "free"
+            ? "無料会員として利用できます。"
+            : entitlements.isSubscriptionActive
+              ? "現在の会員状態は有効です。利用状況を確認できます。"
+              : "現在の契約状態では会員特典を利用できません。"
         );
         setText("subscriptionStatus", statusNames[subscriptionStatus] || subscriptionStatus);
-        setText("deepEnabled", deepEnabled ? "利用可能" : "利用不可");
+        setText("deepEnabled", entitlements.canUseDeep ? "利用可能" : "利用不可");
         setText("voiceMain", `${voiceRemaining} / ${voiceLimit}`);
         setText("voiceUsed", `${voiceUsed}`);
         setText("voiceRemaining", `${voiceRemaining}`);
         setText("extraVoiceRemaining", `${extraVoiceRemaining}`);
         setText("voiceLimit", `${voiceLimit}`);
-        setText("updatedAtDisplay", formatDate(data.updated_at));
-        setText("stripeMail", data.stripe_customer_email || "未設定");
-
         const fillPercent = voiceLimit > 0 ? Math.min((voiceUsed / voiceLimit) * 100, 100) : 0;
         const meterFill = document.getElementById("meterFill");
         if (meterFill) meterFill.style.width = `${fillPercent}%`;
@@ -1921,7 +1897,7 @@ body.members-page-body {
         loading.hidden = true;
         errorBox.hidden = false;
         errorText.textContent = err.message || "会員情報の取得に失敗しました。";
-        updateReadingTierBridge("free", true);
+        updateReadingTierBridge(getMembershipEntitlements({ plan: "free" }), true);
         setBillingMessage("会員状態の取得に失敗しました。", true);
       }
     }
