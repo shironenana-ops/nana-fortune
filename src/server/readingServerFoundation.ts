@@ -22,3 +22,7 @@ export * from "./readingApi/readingApiHandler";
 export * from "./readingApi/readingApiResponse";
 export * from "./readingApi/readingApiService";
 export * from "./readingApi/readingApiTypes";
+export * from "./readingPersistence/requestFingerprint";
+export * from "./readingPersistence/persistenceConfig";
+export * from "./readingPersistence/readingPersistence";
+export * from "./readingPersistence/dynamoReadingPersistence";

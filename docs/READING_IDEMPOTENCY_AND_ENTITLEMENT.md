@@ -1,5 +1,7 @@
 # 鑑定の冪等性とdeep権利トランザクション
 
+> 2026-07-18: request_ref／fingerprint、conditional予約、lease takeover、COMPLETED replay、history＋idempotencyのtransaction確定をNode handlerへ実装しました。詳細は[READING_PERSISTENCE_FOUNDATION.md](./READING_PERSISTENCE_FOUNDATION.md)を正本とします。deep権利トランザクションは引き続き未実装です。
+
 ## 1. 冪等性キー
 
 - Header：UUID v4の`Idempotency-Key`

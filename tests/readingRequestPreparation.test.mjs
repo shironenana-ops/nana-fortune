@@ -163,6 +163,7 @@ test("Node bundleは既存resolver/entitlementsを含み禁止依存やsecretを
   assert.match(inputs, /readingModeResolution\.ts/);
   assert.match(inputs, /membershipEntitlements\.ts/);
   const artifact = fs.readFileSync(outfile, "utf8");
-  assert.doesNotMatch(artifact, /\b(window|document|localStorage|sessionStorage|fetch|XMLHttpRequest|DOMParser)\b|PUBLIC_|astro\/client|@vite\/client/i);
+  assert.doesNotMatch(artifact, /\b(window|document|localStorage|sessionStorage|fetch|XMLHttpRequest|DOMParser)\b|astro\/client|@vite\/client/i);
+  assert.doesNotMatch(artifact, /PUBLIC_/);
   assert.doesNotMatch(artifact, /AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|github_pat_|gho_|fixture-user-001|秘密氏名/);
 });

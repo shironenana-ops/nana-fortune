@@ -25,6 +25,12 @@ export type ServerErrorCode =
   | "CONTENT_TYPE_NOT_SUPPORTED"
   | "REQUEST_BODY_TOO_LARGE"
   | "REQUEST_BODY_INVALID"
+  | "IDEMPOTENCY_CONFLICT"
+  | "IDEMPOTENCY_IN_PROGRESS"
+  | "PERSISTENCE_NOT_CONFIGURED"
+  | "PERSISTENCE_UNAVAILABLE"
+  | "HISTORY_UNAVAILABLE"
+  | "READING_DEEP_DISABLED"
   | "INTERNAL_ERROR";
 
 const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> = {
@@ -54,6 +60,12 @@ const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> 
   CONTENT_TYPE_NOT_SUPPORTED: { status: 415, message: "JSON形式で送信してください" },
   REQUEST_BODY_TOO_LARGE: { status: 413, message: "送信内容が大きすぎます" },
   REQUEST_BODY_INVALID: { status: 400, message: "送信内容を確認してください" },
+  IDEMPOTENCY_CONFLICT: { status: 409, message: "同じリクエストキーを別の内容には使用できません" },
+  IDEMPOTENCY_IN_PROGRESS: { status: 409, message: "この鑑定は現在処理中です" },
+  PERSISTENCE_NOT_CONFIGURED: { status: 500, message: "サーバー設定を確認しています" },
+  PERSISTENCE_UNAVAILABLE: { status: 503, message: "現在、鑑定結果を確定できません" },
+  HISTORY_UNAVAILABLE: { status: 503, message: "保存済みの鑑定結果を確認できません" },
+  READING_DEEP_DISABLED: { status: 403, message: "深掘り鑑定は現在利用できません" },
   INTERNAL_ERROR: { status: 500, message: "処理を完了できませんでした" },
 };
 
