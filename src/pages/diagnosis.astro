@@ -79,11 +79,23 @@ const pageDescription =
               白音七メソッドで見ていきます
             </p>
 
+            <div class="diagnosis-name-purpose">
+              <h3>詳しい鑑定では<br class="sp-only" />お名前の響きも重ねて読み解きます</h3>
+              <p>
+                TOPでは、生年月日からあなたの基本属性を読み解きました。<br />
+                今日の詳しい鑑定では、そこにお名前の響きと今日の流れを重ね、<br class="pc-only" />
+                今のあなたに合う行動のヒントをお届けします。
+              </p>
+            </div>
+
             <!-- フォーム -->
             <form id="diagnosisForm" class="fortune-diagnosis-form" novalidate>
               <div class="fortune-form-group">
-                <label for="name">お名前</label>
+                <label for="name">鑑定に使うお名前</label>
                 <input type="text" id="name" required placeholder="例：山田 太郎" />
+                <p class="fortune-form-help">
+                  普段使っているお名前やニックネームでも鑑定できます。入力した文字の響きを鑑定結果へ反映します。
+                </p>
               </div>
 
               <div class="fortune-form-group">
@@ -107,8 +119,9 @@ const pageDescription =
               </div>
 
               <p class="fortune-profile-note">
-                入力情報は次回からの入力を省くため、この端末のブラウザに保存されます。<br />
-                他の端末には共有されません。
+                入力したお名前・生年月日・性別は、次回の入力を省くため、この端末のブラウザに保存されます。<br />
+                他の端末には共有されず、下のボタンからいつでも削除できます。<br />
+                鑑定結果は、結果画面で「この結果を記録する」を選んだ場合だけ、会員の鑑定履歴へ保存されます。
               </p>
 
               <p id="profileMessage" class="fortune-profile-message" aria-live="polite"></p>
@@ -489,6 +502,31 @@ const pageDescription =
         gap: 1rem;
       }
 
+      .diagnosis-name-purpose {
+        margin-top: 1.15rem;
+        border-left: 2px solid rgba(229, 190, 74, 0.48);
+        padding: 0.15rem 0 0.15rem 1rem;
+      }
+
+      .diagnosis-name-purpose h3 {
+        margin: 0 0 0.55rem;
+        color: #fff0b8;
+        font-size: 1rem;
+        line-height: 1.6;
+      }
+
+      .diagnosis-name-purpose p,
+      .fortune-form-help {
+        margin: 0;
+        color: rgba(255, 240, 190, 0.76);
+        font-size: 0.84rem;
+        line-height: 1.75;
+      }
+
+      .fortune-form-help {
+        margin-top: 0.1rem;
+      }
+
       .fortune-form-group {
         display: grid;
         gap: 0.45rem;
@@ -725,6 +763,15 @@ const pageDescription =
 
         .fortune-diagnosis-form {
           gap: 0.85rem;
+        }
+
+        .diagnosis-name-purpose {
+          padding-left: 0.8rem;
+        }
+
+        .diagnosis-name-purpose p,
+        .fortune-form-help {
+          font-size: 0.8rem;
         }
 
         .fortune-form-group input,
