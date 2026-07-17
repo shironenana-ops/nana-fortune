@@ -18,6 +18,13 @@ export type ServerErrorCode =
   | "READING_MODE_NOT_AVAILABLE"
   | "IDEMPOTENCY_KEY_REQUIRED"
   | "IDEMPOTENCY_KEY_INVALID"
+  | "HTTP_EVENT_INVALID"
+  | "HTTP_ROUTE_NOT_FOUND"
+  | "HTTP_METHOD_NOT_ALLOWED"
+  | "READING_API_DISABLED"
+  | "CONTENT_TYPE_NOT_SUPPORTED"
+  | "REQUEST_BODY_TOO_LARGE"
+  | "REQUEST_BODY_INVALID"
   | "INTERNAL_ERROR";
 
 const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> = {
@@ -40,6 +47,13 @@ const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> 
   READING_MODE_NOT_AVAILABLE: { status: 403, message: "この鑑定モードは現在利用できません" },
   IDEMPOTENCY_KEY_REQUIRED: { status: 400, message: "リクエストキーが必要です" },
   IDEMPOTENCY_KEY_INVALID: { status: 400, message: "リクエストキーを確認してください" },
+  HTTP_EVENT_INVALID: { status: 400, message: "リクエスト形式を確認してください" },
+  HTTP_ROUTE_NOT_FOUND: { status: 404, message: "指定された操作が見つかりません" },
+  HTTP_METHOD_NOT_ALLOWED: { status: 405, message: "この操作方法は利用できません" },
+  READING_API_DISABLED: { status: 503, message: "この鑑定機能は現在利用できません" },
+  CONTENT_TYPE_NOT_SUPPORTED: { status: 415, message: "JSON形式で送信してください" },
+  REQUEST_BODY_TOO_LARGE: { status: 413, message: "送信内容が大きすぎます" },
+  REQUEST_BODY_INVALID: { status: 400, message: "送信内容を確認してください" },
   INTERNAL_ERROR: { status: 500, message: "処理を完了できませんでした" },
 };
 

@@ -1,6 +1,6 @@
 # 鑑定サーバー境界の移行計画
 
-> 2026-07-17: PR3相当のうち、HTTP routeを除く入力検証・JST日付・Idempotency-Key形式検証・mode解決・内部コマンド構築までを実装しました。engine、history、idempotency store、AWS接続は未実装です。
+> 2026-07-18: API Gateway HTTP API v2向けNode.js Lambda handler基盤、認証・会員照会・mode解決、自前engine実行、light／deepのBedrock整形とcanonical fallbackまでをローカル実装しました。履歴、idempotency store、deep権利確定、rate limit、AWSリソース／deploy／UI接続は未実装です。
 
 ## 1. 実行方式比較
 
@@ -14,7 +14,7 @@
 
 第一候補はBを基盤に、移行中はDです。根拠は、既存の認証付きAPI・users・historyがAWS Lambda/API Gateway/DynamoDB上にあり、IAMでDBアクセスを絞れること、TypeScript engineをPythonへ複製せず再利用できることです。
 
-ただしリポジトリ内にIaC、Node Lambdaのbuild/deploy、API Gateway定義はありません。実際のデプロイ方式、runtime、secret配布、ロールバック手段を確認するまでBを最終確定・実装しません。
+Node.js 22 ESM artifactのローカルbuildは追加しましたが、IaC、deploy、API Gateway定義はありません。実際のデプロイ方式、secret配布、IAM、aliasとロールバック手段を確認するまで本番基盤として確定しません。
 
 ## 2. PR分割
 

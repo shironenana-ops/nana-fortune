@@ -7,11 +7,13 @@
     "build": "astro build",
     "build:reading-server": "node scripts/build-reading-engine.mjs",
     "build:reading-foundation": "node scripts/build-reading-foundation.mjs",
+    "build:reading-api-handler": "node scripts/build-reading-api-handler.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:reading-server": "node --test tests/shironeEngineServerParity.test.mjs",
     "test:reading-foundation": "node --test tests/readingServerFoundation.test.mjs",
     "test:reading-preparation": "node --test tests/readingRequestPreparation.test.mjs",
     "test:reading-bedrock": "node --test tests/readingBedrockRenderer.test.mjs",
+    "test:reading-api-handler": "node --test tests/readingApiHandler.test.mjs",
     "test:reading-bedrock-smoke": "npm run build:reading-server && npm run build:reading-foundation && node scripts/smoke-reading-bedrock.mjs",
     "preview": "astro preview",
     "astro": "astro"
