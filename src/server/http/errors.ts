@@ -11,6 +11,13 @@ export type ServerErrorCode =
   | "ORIGIN_NOT_ALLOWED"
   | "CORS_NOT_CONFIGURED"
   | "AUDIT_NOT_CONFIGURED"
+  | "READING_REQUEST_INVALID"
+  | "READING_INPUT_TOO_LONG"
+  | "READING_BIRTH_DATE_INVALID"
+  | "READING_MODE_INVALID"
+  | "READING_MODE_NOT_AVAILABLE"
+  | "IDEMPOTENCY_KEY_REQUIRED"
+  | "IDEMPOTENCY_KEY_INVALID"
   | "INTERNAL_ERROR";
 
 const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> = {
@@ -26,6 +33,13 @@ const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> 
   ORIGIN_NOT_ALLOWED: { status: 403, message: "この接続元からは利用できません" },
   CORS_NOT_CONFIGURED: { status: 500, message: "サーバー設定を確認しています" },
   AUDIT_NOT_CONFIGURED: { status: 500, message: "サーバー設定を確認しています" },
+  READING_REQUEST_INVALID: { status: 400, message: "鑑定の入力内容を確認してください" },
+  READING_INPUT_TOO_LONG: { status: 400, message: "鑑定の入力内容が長すぎます" },
+  READING_BIRTH_DATE_INVALID: { status: 400, message: "生年月日を確認してください" },
+  READING_MODE_INVALID: { status: 400, message: "鑑定モードを確認してください" },
+  READING_MODE_NOT_AVAILABLE: { status: 403, message: "この鑑定モードは現在利用できません" },
+  IDEMPOTENCY_KEY_REQUIRED: { status: 400, message: "リクエストキーが必要です" },
+  IDEMPOTENCY_KEY_INVALID: { status: 400, message: "リクエストキーを確認してください" },
   INTERNAL_ERROR: { status: 500, message: "処理を完了できませんでした" },
 };
 
