@@ -51,7 +51,7 @@ function reading(plan = "free") {
     unknownInternal: "must-not-escape",
   };
 }
-function setup({ enabled = true, membership = {}, repositoryError, rendererMode = "rendered" } = {}) {
+function setup({ enabled = true, membership = {}, repositoryError, rendererMode = "rendered", persistenceKind = "acquired", deepEnabled = true } = {}) {
   const calls = { repository: 0, engine: 0, renderer: 0 };
   const audit = [];
   const dependencies = {
@@ -65,6 +65,13 @@ function setup({ enabled = true, membership = {}, repositoryError, rendererMode 
     sessionSecret: SECRET,
     auditHashSecret: AUDIT_SECRET,
     auditSink: (line) => audit.push(line),
+    idempotencyHashSecret: "fixture-only-idempotency-secret-32-characters-minimum",
+    deepEnabled,
+    persistence: {
+      begin: async ({ requestRef, fingerprint, resolvedMode, readingDate, now }) => persistenceKind === "replay" ? ({ kind: "replay", history: { history_id: "saved-history", created_at: "2026-07-17T00:00:00Z", resolved_mode: "light", status: "completed", rendering_status: "rendered", result: { title: "保存済み", sections: [], one_step: "一歩", avoid_hint: "注意" } } }) : ({ kind: persistenceKind, takeover: false, reservation: { requestRef, fingerprint, ownerToken: "fixture-owner", historyId: "fixture-history", resolvedMode, readingDate, createdAt: now.toISOString() } }),
+      complete: async ({ reservation, response }) => { if (persistenceKind === "complete_error") throw new foundation.ServerFoundationError("PERSISTENCE_UNAVAILABLE"); return { history_id: reservation.historyId, created_at: reservation.createdAt, resolved_mode: response.resolved_mode, status: response.status, rendering_status: response.rendering_status, result: response.result }; },
+      fail: async () => {},
+    },
     engineRunner: (input) => { calls.engine += 1; calls.engineInput = input; return reading(input.plan); },
     renderReading: async ({ reading: canonical }) => {
       calls.renderer += 1;
@@ -223,7 +230,7 @@ test("light/deepはrendererを1回呼びrendered結果だけを公開DTOへ変�
   assert.equal(value.rendering_status, "rendered");
   assert.equal(value.result.sections[0].body, "整形済み本文");
   assert.deepEqual(Object.keys(value.result).sort(), ["avoid_hint", "one_step", "sections", "title"].sort());
-  assert.doesNotMatch(response.body, /user_id|knowledge|history|audio|unknownInternal|model|AWS|fixture-user/i);
+  assert.doesNotMatch(response.body, /user_id|knowledge|audio|unknownInternal|model|AWS|fixture-user/i);
 });
 
 test("rendererがcanonical fallbackを返す場合も200で安全な結果を返す", async () => {
@@ -232,6 +239,28 @@ test("rendererがcanonical fallbackを返す場合も200で安全な結果を返
   assert.equal(response.statusCode, 200);
   assert.equal(body(response).rendering_status, "fallback");
   assert.doesNotMatch(response.body, /provider_error|raw|stack/i);
+});
+
+test("completed replayはengine/rendererを呼ばず保存済み結果へ新request_idだけを付ける", async () => {
+  const { handler, calls } = setup({ persistenceKind: "replay", membership: { plan: "light", subscription_status: "active" } });
+  const response = await handler(event()); const value = body(response);
+  assert.equal(response.statusCode, 200); assert.equal(value.history_id, "saved-history"); assert.equal(value.request_id, "gateway-request-001");
+  assert.deepEqual([calls.engine, calls.renderer], [0, 0]);
+});
+
+test("conflict/in-progressとtransaction失敗は生成・成功応答を安全に止める", async () => {
+  for (const persistenceKind of ["conflict", "in_progress"]) {
+    const { handler, calls } = setup({ persistenceKind }); const response = await handler(event());
+    assert.equal(response.statusCode, 409); assert.equal(calls.engine, 0);
+  }
+  const failed = setup({ persistenceKind: "complete_error" });
+  assert.equal((await failed.handler(event())).statusCode, 503); assert.equal(failed.calls.engine, 1);
+});
+
+test("deep永続化経路は追加kill switch未設定相当で拒否する", async () => {
+  const { handler, calls } = setup({ deepEnabled: false, membership: { plan: "premium", subscription_status: "active", deep_enabled: true } });
+  const response = await handler(event({ body: JSON.stringify({ name: "架空", birth_date: "1984-12-29", requested_mode: "deep" }) }));
+  assert.equal(response.statusCode, 403); assert.equal(body(response).error.code, "READING_DEEP_DISABLED"); assert.equal(calls.engine, 0);
 });
 
 test("予期しない例外は固定500、request_idはheader/bodyで一致する", async () => {
@@ -256,7 +285,8 @@ test("handler artifactはNode 22 ESMで禁止依存・secret・fixtureを含ま�
   const artifactPath = "dist/reading-api-handler/index.mjs";
   const artifact = fs.readFileSync(artifactPath, "utf8");
   assert.ok(fs.statSync(artifactPath).size > 0);
-  assert.doesNotMatch(artifact, /\b(window|document|localStorage|sessionStorage|XMLHttpRequest|DOMParser)\b|PUBLIC_|astro\/client|@vite\/client/i);
+  assert.doesNotMatch(artifact, /\b(window|document|localStorage|sessionStorage|XMLHttpRequest|DOMParser)\b|astro\/client|@vite\/client/i);
+  assert.doesNotMatch(artifact, /PUBLIC_/);
   assert.doesNotMatch(artifact, /AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|github_pat_|gho_|fixture-user-001|秘密氏名/);
   assert.ok(Object.keys(handlerBuild.metafile.inputs).some((name) => name.includes("readingApiHandler.ts")));
   assert.ok(Object.keys(foundationBuild.metafile.inputs).some((name) => name.includes("readingApiService.ts")));

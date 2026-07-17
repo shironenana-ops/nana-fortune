@@ -8,10 +8,13 @@ import { systemClock } from "../reading/serverReadingDate";
 import { BedrockReadingProseRenderer, readBedrockRendererConfig } from "../reading/rendering/bedrockReadingProseRenderer";
 import { renderReadingWithFallback } from "../reading/rendering/renderReadingWithFallback";
 import type { ApiGatewayV2Event } from "./readingApiTypes";
+import { createDynamoReadingPersistence } from "../readingPersistence/dynamoReadingPersistence";
+import { readReadingPersistenceConfig } from "../readingPersistence/persistenceConfig";
 
 export async function handler(event: ApiGatewayV2Event) {
   const env = process.env;
   try {
+    const persistenceConfig = readReadingPersistenceConfig(env);
     const app = createReadingApiHandler({
       enabled: readingApiEnabled(env.READING_GENERATE_API_ENABLED),
       allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
@@ -22,6 +25,9 @@ export async function handler(event: ApiGatewayV2Event) {
       clock: systemClock,
       sessionSecret: env.SESSION_TOKEN_SECRET,
       auditHashSecret: env.AUDIT_HASH_SECRET,
+      persistence: createDynamoReadingPersistence(persistenceConfig),
+      idempotencyHashSecret: persistenceConfig.hashSecret,
+      deepEnabled: env.READING_DEEP_GENERATE_API_ENABLED === "true",
       engineRunner: runShironeEngineOnServer,
       renderReading: (params) => {
         try {

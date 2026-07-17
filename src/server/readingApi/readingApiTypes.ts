@@ -4,6 +4,7 @@ import type { AuditEvent } from "../audit/safeAuditLog";
 import type { Clock } from "../reading/serverReadingDate";
 import type { RenderedReading } from "../reading/rendering/readingProseRenderer";
 import type { UserRepository } from "../users/userRepository";
+import type { ReadingPersistence } from "../readingPersistence/readingPersistence";
 
 export const READING_API_PATH = "/reading/generate";
 export const READING_BODY_MAX_BYTES = 16 * 1024;
@@ -59,4 +60,7 @@ export type ReadingApiDependencies = {
     reading: ShironeEngineResult;
   }) => Promise<RenderedReading>;
   audit?: (event: AuditEvent, userId?: string) => void;
+  persistence: ReadingPersistence;
+  idempotencyHashSecret?: string;
+  deepEnabled: boolean;
 };
