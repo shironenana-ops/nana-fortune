@@ -19,13 +19,13 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/mdx": "^4.3.10",
-    "@astrojs/rss": "^4.0.13",
-    "@astrojs/sitemap": "^3.6.0",
-    "@astrojs/vercel": "^8.2.11",
+    "@astrojs/mdx": "^5.0.6",
+    "@astrojs/rss": "^4.0.19",
+    "@astrojs/sitemap": "^3.7.3",
+    "@astrojs/vercel": "^10.0.8",
     "@aws-sdk/client-bedrock-runtime": "3.1089.0",
     "@aws-sdk/client-dynamodb": "3.1089.0",
-    "astro": "^5.15.4",
+    "astro": "^6.4.8",
     "sharp": "^0.34.3"
   }
 }
