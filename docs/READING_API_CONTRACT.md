@@ -80,6 +80,11 @@ freeではBedrockを呼びません。light／deepはcanonical結果を先に確
 | 413 | `REQUEST_BODY_TOO_LARGE` | encoded／decoded body上限超過 |
 | 415 | `CONTENT_TYPE_NOT_SUPPORTED` | JSON以外 |
 | 503 | `READING_API_DISABLED` | kill switchが厳密な`true`以外 |
+| 403 | `READING_DEEP_NOT_ENTITLED` | transaction時点でdeep基本権限なし |
+| 403 | `READING_DEEP_MONTHLY_LIMIT_REACHED` | JST当月の3回に到達 |
+| 500 | `READING_DEEP_QUOTA_CONFIG_ERROR` | deep quota設定不備 |
+| 503 | `READING_DEEP_QUOTA_UNAVAILABLE` | deep quota一時障害 |
+| 503 | `READING_DEEP_RESERVATION_INCONSISTENT` | deep予約状態の不整合 |
 | 500 | `INTERNAL_ERROR` | 想定外の内部エラー |
 
 公開エラーは固定 `code`、固定 `message`、`request_id` だけを返します。内部message、stack、入力値、token、userId、Idempotency-Keyは返しません。
@@ -87,9 +92,9 @@ freeではBedrockを呼びません。light／deepはcanonical結果を先に確
 ## 未実装・一般開放を禁止する境界
 
 - AWSリソース、API Gateway設定、実AWS接続、deploy、UI接続
-- history保存
-- idempotency record、request hash、processing/completed/failed、TTL
-- deep権利の予約・消費・返却
+- history一覧・詳細・削除APIのNode移行
+- deep残数表示API／UI
+- rate limit
 - rate limit、一般公開、UI接続
 
 永続冪等性と履歴の原子確定は実装しましたが、deep権利確定と会員別rate limitは未完成です。これらが揃うまで、このhandlerを有料鑑定一般開放の根拠にしてはいけません。

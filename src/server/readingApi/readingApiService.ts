@@ -45,11 +45,30 @@ export async function executeReadingApi(
   if (command.resolvedMode === "deep" && !dependencies.deepEnabled) throw new ServerFoundationError("READING_DEEP_DISABLED");
   const requestRef = createReadingRequestRef({ userId: session.user_id, idempotencyKey, secret: dependencies.idempotencyHashSecret });
   const fingerprint = createReadingRequestFingerprint({ request: normalizedRequest, secret: dependencies.idempotencyHashSecret });
-  const begun = await dependencies.persistence.begin({ requestRef, fingerprint, userId: session.user_id, resolvedMode: command.resolvedMode, readingDate, now });
+  const auditEvent = (event: string, outcome: "success" | "denied" | "error", errorCode?: string) => {
+    const value = { requestId: request.requestId, event, outcome, errorCode, resolvedMode: command.resolvedMode } as const;
+    if (dependencies.audit) dependencies.audit(value, session.user_id);
+    else writeSafeAuditLog({ event: value, userId: session.user_id, auditHashSecret: dependencies.auditHashSecret, sink: dependencies.auditSink, now: dependencies.clock.now() });
+  };
+  let begun;
+  try {
+    begun = await dependencies.persistence.begin({ requestRef, fingerprint, userId: session.user_id, resolvedMode: command.resolvedMode, readingDate, now });
+  } catch (error) {
+    if (command.resolvedMode === "deep" && error instanceof ServerFoundationError) {
+      const event = error.code === "READING_DEEP_MONTHLY_LIMIT_REACHED"
+        ? "deep_quota_exhausted"
+        : error.code === "READING_DEEP_RESERVATION_INCONSISTENT"
+          ? "deep_quota_inconsistent"
+          : "deep_quota_conflict";
+      auditEvent(event, error.code === "READING_DEEP_MONTHLY_LIMIT_REACHED" ? "denied" : "error", error.code);
+    }
+    throw error;
+  }
   if (begun.kind === "conflict") throw new ServerFoundationError("IDEMPOTENCY_CONFLICT");
   if (begun.kind === "in_progress") throw new ServerFoundationError("IDEMPOTENCY_IN_PROGRESS");
   if (begun.kind === "replay") return { ...begun.history, request_id: request.requestId };
   const reservation = begun.reservation;
+  if (reservation.deep) auditEvent("deep_quota_reserved", "success");
 
   let reading;
   try {
@@ -74,6 +93,7 @@ export async function executeReadingApi(
     if (dependencies.audit) dependencies.audit(failed, session.user_id);
     else writeSafeAuditLog({ event: failed, userId: session.user_id, auditHashSecret: dependencies.auditHashSecret, sink: dependencies.auditSink, now });
     await dependencies.persistence.fail({ reservation, now: dependencies.clock.now(), category: "generation_failed" });
+    if (reservation.deep) auditEvent("deep_quota_released", "success");
     throw error;
   }
 
@@ -91,5 +111,6 @@ export async function executeReadingApi(
   else writeSafeAuditLog({ event, userId: session.user_id, auditHashSecret: dependencies.auditHashSecret, sink: dependencies.auditSink, now });
   const publicResponse = toPublicReadingResponse(request.requestId, reading);
   const stored = await dependencies.persistence.complete({ reservation, userId: session.user_id, response: publicResponse, now: dependencies.clock.now() });
+  if (reservation.deep) auditEvent("deep_quota_consumed", "success");
   return { ...stored, request_id: request.requestId };
 }

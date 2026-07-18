@@ -51,7 +51,7 @@ function reading(plan = "free") {
     unknownInternal: "must-not-escape",
   };
 }
-function setup({ enabled = true, membership = {}, repositoryError, rendererMode = "rendered", persistenceKind = "acquired", deepEnabled = true } = {}) {
+function setup({ enabled = true, membership = {}, repositoryError, rendererMode = "rendered", persistenceKind = "acquired", deepEnabled = true, deepReservation = false } = {}) {
   const calls = { repository: 0, engine: 0, renderer: 0 };
   const audit = [];
   const dependencies = {
@@ -68,7 +68,7 @@ function setup({ enabled = true, membership = {}, repositoryError, rendererMode 
     idempotencyHashSecret: "fixture-only-idempotency-secret-32-characters-minimum",
     deepEnabled,
     persistence: {
-      begin: async ({ requestRef, fingerprint, resolvedMode, readingDate, now }) => persistenceKind === "replay" ? ({ kind: "replay", history: { history_id: "saved-history", created_at: "2026-07-17T00:00:00Z", resolved_mode: "light", status: "completed", rendering_status: "rendered", result: { title: "保存済み", sections: [], one_step: "一歩", avoid_hint: "注意" } } }) : ({ kind: persistenceKind, takeover: false, reservation: { requestRef, fingerprint, ownerToken: "fixture-owner", historyId: "fixture-history", resolvedMode, readingDate, createdAt: now.toISOString() } }),
+      begin: async ({ requestRef, fingerprint, resolvedMode, readingDate, now }) => persistenceKind === "replay" ? ({ kind: "replay", history: { history_id: "saved-history", created_at: "2026-07-17T00:00:00Z", resolved_mode: "light", status: "completed", rendering_status: "rendered", result: { title: "保存済み", sections: [], one_step: "一歩", avoid_hint: "注意" } } }) : ({ kind: persistenceKind, takeover: false, reservation: { requestRef, fingerprint, ownerToken: "fixture-owner", historyId: "fixture-history", resolvedMode, readingDate, createdAt: now.toISOString(), ...(deepReservation ? { deep: { quotaRef: "q".repeat(64), periodKey: "2026-07", reservationId: "fixture-reservation", reservationExpiresAt: 1_800_000_000 } } : {}) } }),
       complete: async ({ reservation, response }) => { if (persistenceKind === "complete_error") throw new foundation.ServerFoundationError("PERSISTENCE_UNAVAILABLE"); return { history_id: reservation.historyId, created_at: reservation.createdAt, resolved_mode: response.resolved_mode, status: response.status, rendering_status: response.rendering_status, result: response.result }; },
       fail: async () => {},
     },
@@ -279,6 +279,15 @@ test("監査logはHMAC user_refを使いtoken・PII・key・本文を含めな�
   const joined = audit.join("\n");
   assert.match(joined, /user_ref/);
   assert.doesNotMatch(joined, /秘密氏名|秘密相談|fixture-user|550e8400|Bearer|birth_date|公開本文|整形済み本文/i);
+});
+
+test("deep quota監査は固定eventだけを記録し内部予約情報を出さない", async () => {
+  const { handler, audit } = setup({ membership: { plan: "premium", subscription_status: "active", deep_enabled: true }, deepReservation: true });
+  const response = await handler(event({ body: JSON.stringify({ name: "架空", birth_date: "1984-12-29", requested_mode: "deep" }) }));
+  assert.equal(response.statusCode, 200);
+  const joined = audit.join("\n");
+  assert.match(joined, /deep_quota_reserved/); assert.match(joined, /deep_quota_consumed/);
+  assert.doesNotMatch(joined, /fixture-reservation|q{32}|fixture-history|fixture-owner|fixture-user|550e8400/i);
 });
 
 test("handler artifactはNode 22 ESMで禁止依存・secret・fixtureを含まない", async () => {

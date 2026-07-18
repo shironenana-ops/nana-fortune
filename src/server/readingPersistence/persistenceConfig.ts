@@ -1,6 +1,7 @@
 import { ServerFoundationError } from "../http/errors";
+import type { DeepQuotaConfig } from "./deepQuota";
 
-export type ReadingPersistenceConfig = { idempotencyTable: string; historyTable: string; hashSecret: string; leaseSeconds: number; ttlSeconds: number };
+export type ReadingPersistenceConfig = { idempotencyTable: string; historyTable: string; hashSecret: string; leaseSeconds: number; ttlSeconds: number; deepQuota?: DeepQuotaConfig };
 function integer(value: string | undefined, fallback: number, min: number, max: number): number {
   if (value === undefined) return fallback;
   if (!/^\d+$/u.test(value)) throw new ServerFoundationError("PERSISTENCE_NOT_CONFIGURED");

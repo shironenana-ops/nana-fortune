@@ -10,11 +10,16 @@ import { renderReadingWithFallback } from "../reading/rendering/renderReadingWit
 import type { ApiGatewayV2Event } from "./readingApiTypes";
 import { createDynamoReadingPersistence } from "../readingPersistence/dynamoReadingPersistence";
 import { readReadingPersistenceConfig } from "../readingPersistence/persistenceConfig";
+import { readDeepQuotaConfig } from "../readingPersistence/deepQuota";
 
 export async function handler(event: ApiGatewayV2Event) {
   const env = process.env;
   try {
-    const persistenceConfig = readReadingPersistenceConfig(env);
+    const deepEnabled = env.READING_DEEP_GENERATE_API_ENABLED === "true";
+    const persistenceConfig = {
+      ...readReadingPersistenceConfig(env),
+      ...(deepEnabled ? { deepQuota: readDeepQuotaConfig(env) } : {}),
+    };
     const app = createReadingApiHandler({
       enabled: readingApiEnabled(env.READING_GENERATE_API_ENABLED),
       allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
@@ -27,7 +32,7 @@ export async function handler(event: ApiGatewayV2Event) {
       auditHashSecret: env.AUDIT_HASH_SECRET,
       persistence: createDynamoReadingPersistence(persistenceConfig),
       idempotencyHashSecret: persistenceConfig.hashSecret,
-      deepEnabled: env.READING_DEEP_GENERATE_API_ENABLED === "true",
+      deepEnabled,
       engineRunner: runShironeEngineOnServer,
       renderReading: (params) => {
         try {
