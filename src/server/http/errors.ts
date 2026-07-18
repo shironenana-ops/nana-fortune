@@ -31,6 +31,11 @@ export type ServerErrorCode =
   | "PERSISTENCE_UNAVAILABLE"
   | "HISTORY_UNAVAILABLE"
   | "READING_DEEP_DISABLED"
+  | "READING_DEEP_NOT_ENTITLED"
+  | "READING_DEEP_MONTHLY_LIMIT_REACHED"
+  | "READING_DEEP_QUOTA_CONFIG_ERROR"
+  | "READING_DEEP_QUOTA_UNAVAILABLE"
+  | "READING_DEEP_RESERVATION_INCONSISTENT"
   | "INTERNAL_ERROR";
 
 const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> = {
@@ -66,6 +71,11 @@ const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> 
   PERSISTENCE_UNAVAILABLE: { status: 503, message: "現在、鑑定結果を確定できません" },
   HISTORY_UNAVAILABLE: { status: 503, message: "保存済みの鑑定結果を確認できません" },
   READING_DEEP_DISABLED: { status: 403, message: "深掘り鑑定は現在利用できません" },
+  READING_DEEP_NOT_ENTITLED: { status: 403, message: "この鑑定モードは現在利用できません" },
+  READING_DEEP_MONTHLY_LIMIT_REACHED: { status: 403, message: "今月の深読み鑑定の利用回数に達しています" },
+  READING_DEEP_QUOTA_CONFIG_ERROR: { status: 500, message: "現在この鑑定を利用できません" },
+  READING_DEEP_QUOTA_UNAVAILABLE: { status: 503, message: "現在この鑑定を利用できません" },
+  READING_DEEP_RESERVATION_INCONSISTENT: { status: 503, message: "現在この鑑定を利用できません" },
   INTERNAL_ERROR: { status: 500, message: "処理を完了できませんでした" },
 };
 

@@ -1,7 +1,13 @@
 import type { PublicReadingResponse } from "../readingApi/readingApiTypes";
 
 export type StoredReading = Omit<PublicReadingResponse, "request_id"> & { history_id: string; created_at: string };
-export type Reservation = { requestRef: string; fingerprint: string; ownerToken: string; historyId: string; readingDate: string; resolvedMode: "free"|"light"|"deep"; createdAt: string };
+export type DeepReservation = {
+  quotaRef: string;
+  periodKey: string;
+  reservationId: string;
+  reservationExpiresAt: number;
+};
+export type Reservation = { requestRef: string; fingerprint: string; ownerToken: string; historyId: string; readingDate: string; resolvedMode: "free"|"light"|"deep"; createdAt: string; deep?: DeepReservation };
 export type BeginResult =
   | { kind: "acquired"; reservation: Reservation; takeover: boolean }
   | { kind: "replay"; history: StoredReading }

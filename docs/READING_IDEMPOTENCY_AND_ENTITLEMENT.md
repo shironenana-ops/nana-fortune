@@ -1,6 +1,6 @@
 # 鑑定の冪等性とdeep権利トランザクション
 
-> 2026-07-18: request_ref／fingerprint、conditional予約、lease takeover、COMPLETED replay、history＋idempotencyのtransaction確定をNode handlerへ実装しました。詳細は[READING_PERSISTENCE_FOUNDATION.md](./READING_PERSISTENCE_FOUNDATION.md)を正本とします。deep権利トランザクションは引き続き未実装です。
+> 2026-07-18: request_ref／fingerprint、conditional予約、lease takeover、COMPLETED replay、history＋idempotencyのtransaction確定をNode handlerへ実装しました。deep月間3回の予約・消費・解放は[READING_DEEP_MONTHLY_QUOTA.md](./READING_DEEP_MONTHLY_QUOTA.md)を正本とします。
 
 ## 1. 冪等性キー
 
@@ -64,7 +64,7 @@ stateDiagram-v2
 5. タイムアウト予約は期限後に回収ジョブまたは次回要求で解放。
 6. 確定済み予約の再確定、解放済み予約の再解放は条件式で拒否し、冪等成功として扱う。
 
-月額boolean権利は残数消費を行わず、生成時点のactive・deep_enabled判定結果を監査記録へ残します。将来回数制にする場合は別移行です。
+`deep_enabled`はmaster gateとして変更せず、月間回数はJST月別の専用quota itemで管理します。生成時点のpremium・active・deep_enabledはusers ConditionCheckで再確認します。
 
 ## 7. 障害復旧
 

@@ -39,4 +39,4 @@ COMPLETED再送はstrongly consistent Getで履歴を読み、schema／status／
 
 将来のhandler roleには対象idempotency tableへのGetItem／PutItem／UpdateItem、対象history tableへのGetItem／PutItem、および両tableだけを対象にしたTransactWriteItemsが必要です。`dynamodb:*`と全resource wildcardは推奨しません。実IAM変更は未実施です。
 
-deep権利予約・消費、rate limit、table／TTL／IAM／Lambda／API Gateway作成、deploy、UI接続は未実装です。一般開放は禁止します。
+deep月間権利の予約・消費は[READING_DEEP_MONTHLY_QUOTA.md](./READING_DEEP_MONTHLY_QUOTA.md)の専用quota itemで拡張しました。rate limit、table／TTL／IAM／Lambda／API Gateway作成、deploy、UI接続は未実装です。一般開放は禁止します。
