@@ -66,6 +66,42 @@ function extractCanonical(html) {
     html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i)?.[1] ?? "";
 }
 
+function extractAttribute(tag, name) {
+  const quoted = tag.match(new RegExp(`\\b${name}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, "i"));
+  if (quoted) return quoted[2];
+  return tag.match(new RegExp(`\\b${name}\\s*=\\s*([^\\s>]+)`, "i"))?.[1] ?? "";
+}
+
+function srcsetUrls(value) {
+  return value.split(",").map((candidate) => candidate.trim().split(/\s+/, 1)[0]).filter(Boolean);
+}
+
+function isOptimizedImageCandidate(value, baseUrl) {
+  try {
+    const url = new URL(value, baseUrl);
+    if (url.origin !== baseUrl.origin || !url.pathname.startsWith("/_astro/")) return false;
+    return !/\.(?:css|m?js|map|woff2?|ttf|otf|eot)(?:$|[?#])/i.test(`${url.pathname}${url.search}`);
+  } catch { return false; }
+}
+
+function extractOptimizedImageAsset(html, baseUrl) {
+  const candidates = [];
+  for (const tag of html.match(/<img\b[^>]*>/gi) ?? []) {
+    const src = extractAttribute(tag, "src");
+    if (src) candidates.push(src);
+    candidates.push(...srcsetUrls(extractAttribute(tag, "srcset")));
+  }
+  for (const picture of html.match(/<picture\b[^>]*>[\s\S]*?<\/picture>/gi) ?? []) {
+    for (const tag of picture.match(/<source\b[^>]*>/gi) ?? []) {
+      candidates.push(...srcsetUrls(extractAttribute(tag, "srcset")));
+    }
+  }
+  const selected = candidates.find((candidate) => isOptimizedImageCandidate(candidate, baseUrl));
+  if (!selected) return "";
+  const url = new URL(selected, baseUrl);
+  return `${url.pathname}${url.search}`.slice(0, 512);
+}
+
 function safeLocation(value, baseUrl) {
   if (!value) return null;
   try {
@@ -124,7 +160,7 @@ async function observe(fetchImpl, baseUrl, { id, method, route, headerOverride, 
     targetMarkers: exposeShortText ? TARGET_MARKERS.filter((marker) => body.includes(marker)) : [],
     title: exposeShortText ? extractTag(body, "title") : "", heading: exposeShortText ? extractTag(body, "h1") : "",
     canonicalPath: exposeShortText ? (() => { try { return new URL(extractCanonical(body), baseUrl).pathname; } catch { return ""; } })() : "",
-    assetPath: exposeShortText ? body.match(/["'](\/_astro\/[^"']+)["']/)?.[1]?.slice(0, 256) ?? "" : "",
+    assetPath: exposeShortText ? extractOptimizedImageAsset(body, baseUrl) : "",
     stackTraceDetected: /node:internal|\bat\s+[^\n]+:\d+:\d+|<pre[^>]*>\s*(?:Error|TypeError|ReferenceError):/i.test(body),
     location: safeLocation(response.headers.get("location"), baseUrl), selectedHeaders,
   };
@@ -148,7 +184,8 @@ function smokeOutcome(item, expectedStatus, expectedType) {
   const contentType = item.selectedHeaders["content-type"] ?? "";
   if (item.location?.hostClass === "production" || item.stackTraceDetected) return "FAIL";
   if (item.status !== expectedStatus) return "FAIL";
-  if (expectedType && !contentType.toLowerCase().includes(expectedType)) return "FAIL";
+  if (expectedType === "image/" && !contentType.toLowerCase().startsWith("image/")) return "FAIL";
+  if (expectedType && expectedType !== "image/" && !contentType.toLowerCase().includes(expectedType)) return "FAIL";
   return "PASS";
 }
 
@@ -171,7 +208,10 @@ async function runSmoke(fetchImpl, target, timeoutMs, automationBypassSecret) {
     const image = await observe(fetchImpl, target, { id: "SMOKE-ASTRO-IMAGE", method: "GET", route: mdx.assetPath }, timeoutMs, automationBypassSecret);
     output.push({ ...image, outcome: smokeOutcome(image, 200, "image/") });
   } else {
-    output.push({ id: "SMOKE-ASTRO-IMAGE", method: "GET", route: "derived-from-mdx", outcome: "FAIL", reason: "ASSET_PATH_NOT_FOUND" });
+    output.push({
+      id: "SMOKE-ASTRO-IMAGE", method: "GET", route: "derived-from-mdx",
+      outcome: "NOT_APPLICABLE", reason: "NOT_APPLICABLE_NO_OPTIMIZED_IMAGE",
+    });
   }
   return output;
 }
@@ -210,10 +250,11 @@ export async function runPreviewProbe({ baseUrl, allowedHosts = new Set(), fetch
 }
 
 function result(verdict, exitCode, target, tests, automationBypassConfigured) {
-  const counts = { pass: 0, fail: 0, blocked: 0, error: 0 };
+  const counts = { pass: 0, fail: 0, notApplicable: 0, blocked: 0, error: 0 };
   for (const item of tests) {
     if (item.outcome === "PASS") counts.pass += 1;
     if (item.outcome === "FAIL") counts.fail += 1;
+    if (item.outcome === "NOT_APPLICABLE") counts.notApplicable += 1;
   }
   if (exitCode === EXIT.BLOCKED) counts.blocked = 1;
   return {

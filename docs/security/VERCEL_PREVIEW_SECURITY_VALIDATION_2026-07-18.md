@@ -1,79 +1,68 @@
 # Vercel Preview security validation — 2026-07-18
 
-## 結論
+## 現在の判定
 
-`BLOCKED_BY_PREVIEW_PROTECTION`
+`REMOTE_PATH_OVERRIDE_VERIFIED_ASTRO_IMAGE_RETEST_PENDING`
 
-指定されたVercel PreviewはVercel SSO／Preview Protectionで保護されており、認証なしではアプリ本体の挙動を観測できなかった。保護解除、bypass secretの探索・使用、redirect追従は行っていない。この結果はpath override修正のPASSまたはFAILを示すものではない。
+Phase Bの実測ではPath Override 4ケースがすべてPASSし、主要smokeも15件PASSした。唯一のFAILは、remote probeがHTML内で画像より先に現れたAstro CSS assetを画像候補として選択したことによるfalse failureである。Path Overrideの再現、アプリ障害、画像配信障害を示すものではない。
 
-## 対象と安全判定
+旧出力の`SECURITY_REMEDIATION_FAILED`は確定判定として扱わない。修正版probeによる実Preview再試験は、この変更では実施していない。
 
-- 対象種別：ユーザーが明示した`*.vercel.app` Preview
-- URL構文・host制約：PASS
-- target hostname：SHA-256だけを証跡へ保存
-- production hostnameの事前拒否：有効
-- productionへのrequest：0
-- redirect追従：0
+## 安全記録
+
+- 対象：ユーザーが明示したVercel Preview
+- URL guard：PASS
+- production request：0
+- cross-host redirect追従：0
 - AWS／Bedrock／DynamoDB実行：0
 - 実token／実鑑定入力：不使用
 - `READING_DEEP_GENERATE_API_ENABLED`：未設定
-- `automation_bypass_configured: false`
+- `automation_bypass_configured: true`
+- Secretの値、長さ、断片、hash：保存なし
+- response本文、Cookie、認証情報、Preview hostname、request ID：保存なし
 
-## 外部観測
+## Path Override matrix
 
-- 実施日時：2026-07-18 16:59 JST
-- 最初の`GET /about`：Vercel SSOへの302を観測
-- POST：認証層から401を観測
-- Preview Protection：検出
-- 本番redirect：未検出
-- 匿名request総数：18
-- response本文の保存：なし
-- Cookie、Set-Cookie、認証情報、redirect query、nonce、request IDの保存：なし
-
-最初の302を旧probeが即時停止条件として認識できず、匿名の後続requestが送信された。いずれもProtection層で遮断され、production redirectには追従していない。検出漏れはローカルで修正し、Vercel SSOへの302を1 requestで安全停止する回帰テストを追加した。Protectionを回避する再実行はしていない。
-
-## Path override matrix
-
-| ID | 検証 | 結果 |
+| ID | 検証 | 実測結果 |
 |---|---|---|
-| PO-01 | GET header | NOT_EVALUATED — Protection層の応答 |
-| PO-02 | POST header | NOT_EVALUATED — Protection層の応答 |
-| PO-03 | GET query | NOT_EVALUATED — Protection層の応答 |
-| PO-04 | POST query | NOT_EVALUATED — Protection層の応答 |
-
-Protection層の同一応答をアプリの修正確認として採用していない。
+| PO-01 | GET header | PASS |
+| PO-02 | POST header | PASS |
+| PO-03 | GET query | PASS |
+| PO-04 | POST query | PASS |
 
 ## Smoke test
 
-主要ページ、MDX、RSS、sitemap、画像、404、認証関連画面はすべて`BLOCKED_BY_PREVIEW_PROTECTION`。アプリ本体へ到達していないため、正常性を評価していない。
+- PASS：15
+- remote probe上のFAIL：1
+- 確認対象：`SMOKE-ASTRO-IMAGE`
+- 誤選択したasset種別：stylesheet
+- response status：200
+- content-type：`text/css; charset=utf-8`
+- 判定：`FALSE_FAILURE_ASSET_SELECTION`
+
+`SMOKE-PUBLIC-IMAGE`はPASSしている。CSS responseを画像障害として扱わない。
+
+## Probe修正
+
+- 汎用的な最初の`/_astro/`参照を画像候補にしない。
+- `img src`、`img srcset`、`picture`内の`source srcset`から画像候補を抽出する。
+- `.css`、`.js`、`.map`、fontを画像候補から除外する。
+- `content-type`が`image/*`の場合だけ`SMOKE-ASTRO-IMAGE`をPASSにする。
+- 最適化画像候補がなければ`NOT_APPLICABLE_NO_OPTIMIZED_IMAGE`とし、FAILにしない。
+- CSSが画像より前に現れるfixtureと、最適化画像なしのfixtureを回帰テストに含める。
 
 ## ローカル回帰
 
-Phase Bの保護検出修正後に次を再実行した。
-
-- `npm test`：117 pass / 0 fail / 0 skipped
-- Node.js 22.23.1：117 pass / 0 fail / 0 skipped
+- probe unit test：10 pass / 0 fail / 0 skipped
+- `npm test`：119 pass / 0 fail / 0 skipped
+- Node.js 22.23.1：119 pass / 0 fail / 0 skipped
 - `npm run build`：PASS
 - TypeScript 5.9.3 `tsc --noEmit`：PASS
-- `npm audit --omit=dev`：total 8 / critical 0 / high 4 / moderate 1 / low 3（依存変更なし）
 - `git diff --check`：PASS
+- 実Preview／productionへのHTTP通信：0
 
-## 保存した証跡
+## 証跡
 
 - `docs/security/evidence/vercel-preview-path-override-2026-07-18.json`
-- 本文、Preview hostname、redirect URL、nonce、Vercel request IDを含めていない。
-
-## 残る確認
-
-Protectionを維持したまま認証済みの安全な検証経路が別途明示されない限り、Preview上のpath overrideとsmokeは確認不能。設定変更や保護解除は本作業の範囲外である。
-
-Automation Bypass対応はローカル実装済み。実Secretは探索・取得・表示せず、実Previewへの再試験もまだ行っていない。
-
-### Automation Bypassローカル確認
-
-- `automation_bypass_configured: false`
-- mock fixtureだけでheader付与を確認
-- 本番URLは送信前拒否（mock fetch 0回）
-- cross-host redirectは追従せず1 requestで停止
-- mock Secretが結果JSONへ含まれないことを確認
-- 実Preview／productionへのHTTP request：0
+- Phase B実測値はユーザーから提示された安全化済み結果を反映した。
+- 実Secret、Preview hostname、生responseは含めていない。

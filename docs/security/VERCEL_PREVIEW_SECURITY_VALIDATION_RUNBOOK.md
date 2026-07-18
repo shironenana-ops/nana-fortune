@@ -52,6 +52,8 @@ Remove-Item Env:VERCEL_AUTOMATION_BYPASS_SECRET
 
 各requestは15秒timeout、network errorのみ最大1回retry、HTTP errorはretryしない。matrix成功後にTOP、属性一覧、MDX、RSS、sitemap、favicon、public image、Astro最適化画像、login、未認証history/result、404を確認する。
 
+Astro最適化画像は、MDX HTMLの`img src`、`img srcset`、`picture`内の`source srcset`だけから同一originの`/_astro/`候補を選ぶ。`.css`、`.js`、`.map`、fontは候補から除外し、取得結果の`content-type`が`image/*`の場合だけPASSとする。候補が存在しない場合は`NOT_APPLICABLE_NO_OPTIMIZED_IMAGE`とし、FAILにしない。`SMOKE-PUBLIC-IMAGE`は別項目として常に維持する。
+
 ## 証跡
 
 - JSON：`docs/security/evidence/vercel-preview-path-override-2026-07-18.json`

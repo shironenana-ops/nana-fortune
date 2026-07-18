@@ -147,11 +147,53 @@ test("smoke matrix checks pages, XML, assets, protected shells, 404 and derived 
     if (route === "/favicon.svg") return new Response("<svg/>", { status: 200, headers: { "content-type": "image/svg+xml" } });
     if (route.startsWith("/images/") || route.startsWith("/_astro/")) return new Response("image", { status: 200, headers: { "content-type": "image/webp" } });
     if (route === "/types") return new Response(html("属性一覧", "白音七 属性診断", "https://www.nana-fortune.com/types"), { status: 200, headers: { "content-type": "text/html" } });
-    const asset = route === "/blog/using-mdx" ? '<img src="/_astro/mdx-fixture.webp">' : "";
+    const asset = route === "/blog/using-mdx" ? [
+      '<link rel="stylesheet" href="/_astro/styles.CvTN-qLs.css">',
+      '<picture><source srcset="/_astro/mdx-fixture.avif 1x, /_astro/mdx-fixture@2x.avif 2x" type="image/avif">',
+      '<img src="/_astro/mdx-fixture.webp" srcset="/_astro/mdx-fixture.webp 1x"></picture>',
+    ].join("") : "";
     return new Response(html("白音七とは", "白音七とは", `https://www.nana-fortune.com${route}`) + asset, { status: init.method === "POST" ? 405 : 200, headers: { "content-type": "text/html" } });
   };
   const output = await runPreviewProbe({ baseUrl: PREVIEW, fetchImpl });
   assert.equal(output.verdict, "VERCEL_PREVIEW_REMEDIATION_VERIFIED");
   assert.equal(output.tests.filter((item) => item.id.startsWith("SMOKE-") && item.outcome === "PASS").length, 12);
   assert.equal(output.tests.some((item) => item.stackTraceDetected), false);
+  assert.equal(output.tests.find((item) => item.id === "SMOKE-ASTRO-IMAGE").route.endsWith(".webp"), true);
+  assert.equal(output.tests.some((item) => item.route?.endsWith(".css")), false);
+});
+
+test("missing optimized image is not applicable and does not fail the probe", async () => {
+  const fetchImpl = async (input, init) => {
+    const route = new URL(input).pathname;
+    if (route === "/__shirone_preview_probe_not_found__") return new Response("404", { status: 404, headers: { "content-type": "text/html" } });
+    if (route === "/rss.xml" || route === "/sitemap-index.xml") return new Response("<xml/>", { status: 200, headers: { "content-type": "application/xml" } });
+    if (route === "/favicon.svg") return new Response("<svg/>", { status: 200, headers: { "content-type": "image/svg+xml" } });
+    if (route.startsWith("/images/")) return new Response("image", { status: 200, headers: { "content-type": "image/webp" } });
+    const cssBeforeContent = route === "/blog/using-mdx" ? '<link rel="stylesheet" href="/_astro/only-style.css">' : "";
+    return new Response(html("page", "heading", `https://www.nana-fortune.com${route}`) + cssBeforeContent, { status: init.method === "POST" ? 405 : 200, headers: { "content-type": "text/html" } });
+  };
+  const output = await runPreviewProbe({ baseUrl: PREVIEW, fetchImpl });
+  const image = output.tests.find((item) => item.id === "SMOKE-ASTRO-IMAGE");
+  assert.equal(output.verdict, "VERCEL_PREVIEW_REMEDIATION_VERIFIED");
+  assert.equal(output.summary.fail, 0);
+  assert.equal(output.summary.notApplicable, 1);
+  assert.equal(image.outcome, "NOT_APPLICABLE");
+  assert.equal(image.reason, "NOT_APPLICABLE_NO_OPTIMIZED_IMAGE");
+});
+
+test("Astro image passes only when the response content type is image", async () => {
+  const fetchImpl = async (input, init) => {
+    const route = new URL(input).pathname;
+    if (route === "/__shirone_preview_probe_not_found__") return new Response("404", { status: 404, headers: { "content-type": "text/html" } });
+    if (route === "/rss.xml" || route === "/sitemap-index.xml") return new Response("<xml/>", { status: 200, headers: { "content-type": "application/xml" } });
+    if (route === "/favicon.svg") return new Response("<svg/>", { status: 200, headers: { "content-type": "image/svg+xml" } });
+    if (route.startsWith("/images/")) return new Response("image", { status: 200, headers: { "content-type": "image/webp" } });
+    if (route.startsWith("/_astro/")) return new Response("not-an-image", { status: 200, headers: { "content-type": "text/css; charset=utf-8" } });
+    const image = route === "/blog/using-mdx" ? '<img src="/_astro/claimed-image.webp">' : "";
+    return new Response(html("page", "heading", `https://www.nana-fortune.com${route}`) + image, { status: init.method === "POST" ? 405 : 200, headers: { "content-type": "text/html" } });
+  };
+  const output = await runPreviewProbe({ baseUrl: PREVIEW, fetchImpl });
+  assert.equal(output.verdict, "SECURITY_REMEDIATION_FAILED");
+  assert.equal(output.tests.find((item) => item.id === "SMOKE-PUBLIC-IMAGE").outcome, "PASS");
+  assert.equal(output.tests.find((item) => item.id === "SMOKE-ASTRO-IMAGE").outcome, "FAIL");
 });
