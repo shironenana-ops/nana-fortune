@@ -11,6 +11,7 @@ export const TARGET_ROUTE = "/types";
 const SOURCE_MARKERS = ["白音七とは"];
 const TARGET_MARKERS = ["白音七 属性診断"];
 const USER_AGENT = "shirone-preview-security-probe/1";
+const AUTOMATION_BYPASS_HEADER = "x-vercel-protection-bypass";
 const SAFE_HEADERS = [
   "content-type", "location", "cache-control", "vary", "x-content-type-options",
   "referrer-policy", "content-security-policy", "strict-transport-security", "x-frame-options",
@@ -96,7 +97,7 @@ async function requestWithSingleNetworkRetry(fetchImpl, url, options, timeoutMs)
   }
 }
 
-async function observe(fetchImpl, baseUrl, { id, method, route, headerOverride, queryOverride }, timeoutMs) {
+async function observe(fetchImpl, baseUrl, { id, method, route, headerOverride, queryOverride }, timeoutMs, automationBypassSecret) {
   const url = new URL(route, baseUrl);
   url.searchParams.set("_shirone_probe", randomUUID());
   if (queryOverride) url.searchParams.set("x_astro_path", queryOverride);
@@ -104,6 +105,7 @@ async function observe(fetchImpl, baseUrl, { id, method, route, headerOverride, 
     "cache-control": "no-cache", pragma: "no-cache", "user-agent": USER_AGENT,
     ...(method === "POST" ? { "content-type": "application/json", origin: baseUrl.origin } : {}),
     ...(headerOverride ? { "x-astro-path": headerOverride } : {}),
+    ...(automationBypassSecret ? { [AUTOMATION_BYPASS_HEADER]: automationBypassSecret } : {}),
   };
   const { response, retried } = await requestWithSingleNetworkRetry(
     fetchImpl, url, { method, headers, ...(method === "POST" ? { body: "{}" } : {}) }, timeoutMs,
@@ -150,7 +152,7 @@ function smokeOutcome(item, expectedStatus, expectedType) {
   return "PASS";
 }
 
-async function runSmoke(fetchImpl, target, timeoutMs) {
+async function runSmoke(fetchImpl, target, timeoutMs, automationBypassSecret) {
   const specs = [
     ["SMOKE-TOP", "/", 200, "text/html"], ["SMOKE-TYPES", "/types", 200, "text/html"],
     ["SMOKE-MDX", "/blog/using-mdx", 200, "text/html"], ["SMOKE-RSS", "/rss.xml", 200, "xml"],
@@ -161,12 +163,12 @@ async function runSmoke(fetchImpl, target, timeoutMs) {
   ];
   const output = [];
   for (const [id, route, expectedStatus, expectedType] of specs) {
-    const item = await observe(fetchImpl, target, { id, method: "GET", route }, timeoutMs);
+    const item = await observe(fetchImpl, target, { id, method: "GET", route }, timeoutMs, automationBypassSecret);
     output.push({ ...item, outcome: smokeOutcome(item, expectedStatus, expectedType) });
   }
   const mdx = output.find((item) => item.id === "SMOKE-MDX");
   if (mdx?.assetPath) {
-    const image = await observe(fetchImpl, target, { id: "SMOKE-ASTRO-IMAGE", method: "GET", route: mdx.assetPath }, timeoutMs);
+    const image = await observe(fetchImpl, target, { id: "SMOKE-ASTRO-IMAGE", method: "GET", route: mdx.assetPath }, timeoutMs, automationBypassSecret);
     output.push({ ...image, outcome: smokeOutcome(image, 200, "image/") });
   } else {
     output.push({ id: "SMOKE-ASTRO-IMAGE", method: "GET", route: "derived-from-mdx", outcome: "FAIL", reason: "ASSET_PATH_NOT_FOUND" });
@@ -176,6 +178,8 @@ async function runSmoke(fetchImpl, target, timeoutMs) {
 
 export async function runPreviewProbe({ baseUrl, allowedHosts = new Set(), fetchImpl = fetch, timeoutMs = 15_000, includeSmoke = true } = {}) {
   const target = validatePreviewBaseUrl(baseUrl, { allowedHosts });
+  const automationBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || undefined;
+  const automationBypassConfigured = Boolean(automationBypassSecret);
   if (!Number.isInteger(timeoutMs) || timeoutMs < 10_000 || timeoutMs > 30_000) throw new ProbeConfigError("timeoutMs must be an integer from 10000 to 30000");
 
   const matrix = [
@@ -187,11 +191,12 @@ export async function runPreviewProbe({ baseUrl, allowedHosts = new Set(), fetch
     { id: "PO-03", method: "GET", route: SOURCE_ROUTE, queryOverride: TARGET_ROUTE },
     { id: "PO-04", method: "POST", route: SOURCE_ROUTE, queryOverride: TARGET_ROUTE },
   ];
-  const observations = [await observe(fetchImpl, target, matrix[0], timeoutMs)];
+  const observations = [await observe(fetchImpl, target, matrix[0], timeoutMs, automationBypassSecret)];
   const baselineGet = observations[0];
-  if (baselineGet.location?.hostClass === "production") return result("BLOCKED_BY_DEPLOYMENT_CONFIGURATION", EXIT.BLOCKED, target, observations);
-  if (isPreviewProtection(baselineGet)) return result("BLOCKED_BY_PREVIEW_PROTECTION", EXIT.BLOCKED, target, observations);
-  for (const item of matrix.slice(1)) observations.push(await observe(fetchImpl, target, item, timeoutMs));
+  if (baselineGet.location?.hostClass === "production") return result("BLOCKED_BY_DEPLOYMENT_CONFIGURATION", EXIT.BLOCKED, target, observations, automationBypassConfigured);
+  if (isPreviewProtection(baselineGet)) return result("BLOCKED_BY_PREVIEW_PROTECTION", EXIT.BLOCKED, target, observations, automationBypassConfigured);
+  if (baselineGet.location?.hostClass === "other") return result("BLOCKED_BY_DEPLOYMENT_CONFIGURATION", EXIT.BLOCKED, target, observations, automationBypassConfigured);
+  for (const item of matrix.slice(1)) observations.push(await observe(fetchImpl, target, item, timeoutMs, automationBypassSecret));
   const baselinePost = observations.find((item) => item.id === "BASE-POST-A");
 
   const tests = observations.map((item) => {
@@ -199,12 +204,12 @@ export async function runPreviewProbe({ baseUrl, allowedHosts = new Set(), fetch
     const baseline = item.method === "POST" ? baselinePost : baselineGet;
     return { ...item, outcome: sameRouteBehavior(item, baseline) ? "PASS" : "FAIL" };
   });
-  if (includeSmoke) tests.push(...await runSmoke(fetchImpl, target, timeoutMs));
+  if (includeSmoke) tests.push(...await runSmoke(fetchImpl, target, timeoutMs, automationBypassSecret));
   const failed = tests.some((item) => item.outcome === "FAIL");
-  return result(failed ? "SECURITY_REMEDIATION_FAILED" : "VERCEL_PREVIEW_REMEDIATION_VERIFIED", failed ? EXIT.SECURITY_FAIL : EXIT.PASS, target, tests);
+  return result(failed ? "SECURITY_REMEDIATION_FAILED" : "VERCEL_PREVIEW_REMEDIATION_VERIFIED", failed ? EXIT.SECURITY_FAIL : EXIT.PASS, target, tests, automationBypassConfigured);
 }
 
-function result(verdict, exitCode, target, tests) {
+function result(verdict, exitCode, target, tests, automationBypassConfigured) {
   const counts = { pass: 0, fail: 0, blocked: 0, error: 0 };
   for (const item of tests) {
     if (item.outcome === "PASS") counts.pass += 1;
@@ -215,6 +220,7 @@ function result(verdict, exitCode, target, tests) {
     schema: "shirone-vercel-preview-security-validation-v1",
     testedAt: new Date().toISOString(), targetClass: "vercel_preview",
     targetHostSha256: sha256(target.hostname), productionHostRejected: true,
+    automation_bypass_configured: automationBypassConfigured,
     tests, summary: counts, verdict, exitCode,
   };
 }

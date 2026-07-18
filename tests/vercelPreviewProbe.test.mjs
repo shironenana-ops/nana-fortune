@@ -5,6 +5,19 @@ import {
 } from "../scripts/security/probeVercelPreviewPathOverride.mjs";
 
 const PREVIEW = "https://nana-fortune-git-security-example.vercel.app/";
+const FAKE_BYPASS_SECRET = "fake-test-bypass-secret-never-real";
+
+async function withBypassSecret(value, action) {
+  const previous = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  try {
+    if (value === undefined) delete process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    else process.env.VERCEL_AUTOMATION_BYPASS_SECRET = value;
+    return await action();
+  } finally {
+    if (previous === undefined) delete process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    else process.env.VERCEL_AUTOMATION_BYPASS_SECRET = previous;
+  }
+}
 
 test("URL guard rejects production, local, IP, HTTP, credentials and URL suffixes without fetching", async () => {
   const invalid = [
@@ -23,6 +36,40 @@ test("URL guard accepts normalized Vercel Preview and explicit staging allowlist
   assert.equal(validatePreviewBaseUrl("https://NANA-FORTUNE-GIT-X.VERCEL.APP:443/").hostname, "nana-fortune-git-x.vercel.app");
   const allowedHosts = parseAllowedHosts("preview.example.test");
   assert.equal(validatePreviewBaseUrl("https://preview.example.test/", { allowedHosts }).hostname, "preview.example.test");
+});
+
+test("automation bypass is read only from the environment and never appears in output", async () => {
+  const received = [];
+  const output = await withBypassSecret(FAKE_BYPASS_SECRET, () => runPreviewProbe({
+    baseUrl: PREVIEW,
+    includeSmoke: false,
+    fetchImpl: async (input, init) => {
+      received.push({ url: new URL(input), headers: init.headers });
+      return safeMock()(input, init);
+    },
+  }));
+  assert.equal(output.automation_bypass_configured, true);
+  assert.equal(received.length, 7);
+  assert.equal(received.every(({ url, headers }) => url.hostname.endsWith(".vercel.app") && headers["x-vercel-protection-bypass"] === FAKE_BYPASS_SECRET), true);
+  assert.equal(JSON.stringify(output).includes(FAKE_BYPASS_SECRET), false);
+});
+
+test("automation bypass is absent by default and is never sent to a rejected production URL", async () => {
+  let previewHeader;
+  const output = await withBypassSecret(undefined, () => runPreviewProbe({
+    baseUrl: PREVIEW,
+    includeSmoke: false,
+    fetchImpl: async (input, init) => { previewHeader = init.headers["x-vercel-protection-bypass"]; return safeMock()(input, init); },
+  }));
+  assert.equal(output.automation_bypass_configured, false);
+  assert.equal(previewHeader, undefined);
+
+  let productionCalls = 0;
+  await withBypassSecret(FAKE_BYPASS_SECRET, () => assert.rejects(
+    () => runPreviewProbe({ baseUrl: "https://nana-fortune.com/", fetchImpl: async () => { productionCalls += 1; } }),
+    ProbeConfigError,
+  ));
+  assert.equal(productionCalls, 0);
 });
 
 function html(title, heading, canonical) {
@@ -76,6 +123,19 @@ test("Preview protection and production redirect are blocked, not passed", async
   assert.equal(redirected.verdict, "BLOCKED_BY_DEPLOYMENT_CONFIGURATION");
   assert.equal(redirected.exitCode, EXIT.BLOCKED);
   assert.equal(redirectCalls, 1);
+  let crossHostCalls = 0;
+  const crossHost = await withBypassSecret(FAKE_BYPASS_SECRET, () => runPreviewProbe({
+    baseUrl: PREVIEW,
+    includeSmoke: false,
+    fetchImpl: async (input, init) => {
+      crossHostCalls += 1;
+      assert.equal(init.headers["x-vercel-protection-bypass"], FAKE_BYPASS_SECRET);
+      return new Response("", { status: 302, headers: { location: "https://example.invalid/elsewhere" } });
+    },
+  }));
+  assert.equal(crossHost.verdict, "BLOCKED_BY_DEPLOYMENT_CONFIGURATION");
+  assert.equal(crossHostCalls, 1);
+  assert.equal(JSON.stringify(crossHost).includes(FAKE_BYPASS_SECRET), false);
 });
 
 test("smoke matrix checks pages, XML, assets, protected shells, 404 and derived Astro image", async () => {

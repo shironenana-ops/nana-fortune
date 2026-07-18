@@ -22,6 +22,7 @@
   "smoke": "NOT_EVALUATED_PROTECTION",
   "raw_body_saved": false,
   "credentials_used": false,
+  "automation_bypass_configured": false,
   "aws_requests": 0,
   "verdict": "BLOCKED_BY_PREVIEW_PROTECTION",
   "notes": [

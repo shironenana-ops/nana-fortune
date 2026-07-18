@@ -11,6 +11,8 @@ Astro 6／`@astrojs/vercel` 10で生成したVercel Previewだけを対象に、
 - URLはcredential、path、query、fragment、非標準port、IP、localhost、`.local`、Unicode／punycode hostを拒否する。
 - `redirect: manual`とし、本番へのredirectは追従せず`BLOCKED_BY_DEPLOYMENT_CONFIGURATION`で停止する。
 - Vercel SSOへの302、またはPreview Protectionを示す401／403は、解除・回避せず`BLOCKED_BY_PREVIEW_PROTECTION`で停止する。
+- Automation Bypassを使う場合は、ユーザーが実行環境へ設定した`VERCEL_AUTOMATION_BYPASS_SECRET`だけを読み、URL安全判定後に同一Preview hostへの`x-vercel-protection-bypass` headerとして送る。query方式は使用しない。
+- Bypass Secretは値、長さ、断片、hashを出力・証跡・例外へ残さない。cross-host redirectへheaderを転送しない。
 - request bodyは固定fixture `{}`だけとし、reading生成、DB書込み、AWS接続を行わない。
 - HTML本文、Cookie、Set-Cookie、Authorization、bypass secret、redirect query、nonce、AWS／Vercel request ID、Preview hostnameを証跡へ保存しない。
 - 保存できるのはstatus、body byte数、body SHA-256、固定marker、短いtitle／h1、canonical path、安全なheader、hostname SHA-256だけとする。
@@ -31,11 +33,13 @@ Preview URLが明示されていない場合は`BLOCKED_BY_PREVIEW_URL`で停止
 
 ```powershell
 $env:VERCEL_PREVIEW_URL = "https://explicit-preview-host.vercel.app"
+$env:VERCEL_AUTOMATION_BYPASS_SECRET = Read-Host -MaskInput "Automation Bypass Secret"
 node scripts/security/probeVercelPreviewPathOverride.mjs
 Remove-Item Env:VERCEL_PREVIEW_URL
+Remove-Item Env:VERCEL_AUTOMATION_BYPASS_SECRET
 ```
 
-環境変数の値、hostname、認証情報をログやcommitへ保存しない。
+環境変数の値、長さ、断片、hash、hostname、認証情報をログやcommitへ保存しない。報告できるのは`automation_bypass_configured: true/false`だけとする。
 
 ## Path override matrix
 
