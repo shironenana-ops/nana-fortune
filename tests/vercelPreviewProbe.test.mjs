@@ -29,10 +29,11 @@ function html(title, heading, canonical) {
   return `<!doctype html><html><head><title>${title}</title><link rel="canonical" href="${canonical}"></head><body><h1>${heading}</h1></body></html>`;
 }
 
-function safeMock({ vulnerable = false, protection = false, productionRedirect = false } = {}) {
+function safeMock({ vulnerable = false, protection = false, ssoProtection = false, productionRedirect = false } = {}) {
   return async (input, init) => {
     const url = new URL(input);
     if (productionRedirect) return new Response("", { status: 307, headers: { location: "https://www.nana-fortune.com/about" } });
+    if (ssoProtection) return new Response("Authentication Required", { status: 302, headers: { location: "https://vercel.com/sso-api?url=preview&nonce=secret-value", "x-vercel-id": "request-id-must-not-be-recorded" } });
     if (protection) return new Response("<title>Vercel Authentication</title>", { status: 401, headers: { "content-type": "text/html" } });
     const override = init.headers["x-astro-path"] || url.searchParams.get("x_astro_path");
     const route = vulnerable && override ? override : url.pathname;
@@ -63,6 +64,13 @@ test("Preview protection and production redirect are blocked, not passed", async
   assert.equal(protectedOutput.verdict, "BLOCKED_BY_PREVIEW_PROTECTION");
   assert.equal(protectedOutput.exitCode, EXIT.BLOCKED);
   assert.equal(protectionCalls, 1);
+  let ssoCalls = 0;
+  const ssoOutput = await runPreviewProbe({ baseUrl: PREVIEW, fetchImpl: async (...args) => { ssoCalls += 1; return safeMock({ ssoProtection: true })(...args); }, includeSmoke: false });
+  assert.equal(ssoOutput.verdict, "BLOCKED_BY_PREVIEW_PROTECTION");
+  assert.equal(ssoOutput.exitCode, EXIT.BLOCKED);
+  assert.equal(ssoCalls, 1);
+  assert.equal(JSON.stringify(ssoOutput).includes("nonce"), false);
+  assert.equal(JSON.stringify(ssoOutput).includes("request-id-must-not-be-recorded"), false);
   let redirectCalls = 0;
   const redirected = await runPreviewProbe({ baseUrl: PREVIEW, fetchImpl: async (...args) => { redirectCalls += 1; return safeMock({ productionRedirect: true })(...args); }, includeSmoke: false });
   assert.equal(redirected.verdict, "BLOCKED_BY_DEPLOYMENT_CONFIGURATION");

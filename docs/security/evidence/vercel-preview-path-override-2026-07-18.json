@@ -1,0 +1,31 @@
+{
+  "schema": "shirone-vercel-preview-security-validation-evidence-v1",
+  "tested_at": "2026-07-18T07:59:11.839Z",
+  "target_class": "vercel_preview",
+  "target_host_sha256": "27438e5f57ece9aa6e8cbd2a09b41723b74c834779720255d1adc4f429d9e7bf",
+  "url_guard": "PASS",
+  "production_host_rejected_before_request": true,
+  "production_requests": 0,
+  "redirects_followed": 0,
+  "anonymous_preview_requests": 18,
+  "preview_protection": {
+    "detected": true,
+    "signals": ["vercel_sso_redirect", "unauthorized_post"],
+    "protection_bypassed": false
+  },
+  "path_override_matrix": {
+    "PO-01": "NOT_EVALUATED_PROTECTION",
+    "PO-02": "NOT_EVALUATED_PROTECTION",
+    "PO-03": "NOT_EVALUATED_PROTECTION",
+    "PO-04": "NOT_EVALUATED_PROTECTION"
+  },
+  "smoke": "NOT_EVALUATED_PROTECTION",
+  "raw_body_saved": false,
+  "credentials_used": false,
+  "aws_requests": 0,
+  "verdict": "BLOCKED_BY_PREVIEW_PROTECTION",
+  "notes": [
+    "Protection-layer responses are not evidence that the application path override remediation passed.",
+    "The initial SSO redirect detection gap was fixed locally without another external request."
+  ]
+}

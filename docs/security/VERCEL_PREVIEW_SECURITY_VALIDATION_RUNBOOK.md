@@ -1,20 +1,21 @@
 # Vercel Preview security validation runbook
 
-## Scope
+## 目的
 
-Astro 6 / `@astrojs/vercel` 10で生成されたVercel Previewだけを対象に、未認証の`x-astro-path` headerまたは`x_astro_path` queryがroute選択へ影響しないことを確認する。production、AWS、実token、実利用者データは使用しない。
+Astro 6／`@astrojs/vercel` 10で生成したVercel Previewだけを対象に、`x-astro-path` headerまたは`x_astro_path` queryによって内部pathが変更されないことを確認する。本番、AWS、実token、実ユーザーデータは使用しない。
 
-## Safety boundaries
+## 安全境界
 
-- `vercel --prod`、production alias、project設定変更、protection解除を行わない。
-- `nana-fortune.com`と`www.nana-fortune.com`はprobeが送信前に拒否する。
-- URLはユーザーが明示したPreview URLだけを使用し、推測・探索しない。
-- Preview protectionで401/403になった場合は解除せず`BLOCKED_BY_PREVIEW_PROTECTION`で停止する。
-- productionへredirectされた場合は追従せず`BLOCKED_BY_DEPLOYMENT_CONFIGURATION`で停止する。
-- HTML、cookie、Set-Cookie、Authorization、bypass secretを証跡へ保存しない。
-- requestは固定fixture `{}`だけを使い、外部API、reading生成、DB書込みを行わない。
+- ユーザーが明示したHTTPSのPreviewベースURLだけを使用し、URLを推測・探索しない。
+- `nana-fortune.com`と`www.nana-fortune.com`は送信前に拒否する。
+- URLはcredential、path、query、fragment、非標準port、IP、localhost、`.local`、Unicode／punycode hostを拒否する。
+- `redirect: manual`とし、本番へのredirectは追従せず`BLOCKED_BY_DEPLOYMENT_CONFIGURATION`で停止する。
+- Vercel SSOへの302、またはPreview Protectionを示す401／403は、解除・回避せず`BLOCKED_BY_PREVIEW_PROTECTION`で停止する。
+- request bodyは固定fixture `{}`だけとし、reading生成、DB書込み、AWS接続を行わない。
+- HTML本文、Cookie、Set-Cookie、Authorization、bypass secret、redirect query、nonce、AWS／Vercel request ID、Preview hostnameを証跡へ保存しない。
+- 保存できるのはstatus、body byte数、body SHA-256、固定marker、短いtitle／h1、canonical path、安全なheader、hostname SHA-256だけとする。
 
-## Phase A: local preparation
+## Phase A：ローカル準備
 
 ```powershell
 node --test tests/vercelPreviewProbe.test.mjs
@@ -24,11 +25,9 @@ npx --yes --package typescript@5.9.3 tsc --noEmit
 git diff --check
 ```
 
-Preview URLがない場合はここで停止する。URLを検索・推測しない。
+Preview URLが明示されていない場合は`BLOCKED_BY_PREVIEW_URL`で停止する。
 
-## Phase B: explicit Preview only
-
-ユーザーから明示された、保護情報を含まないbase URLだけを一時環境変数へ設定する。
+## Phase B：明示されたPreviewだけ
 
 ```powershell
 $env:VERCEL_PREVIEW_URL = "https://explicit-preview-host.vercel.app"
@@ -36,44 +35,30 @@ node scripts/security/probeVercelPreviewPathOverride.mjs
 Remove-Item Env:VERCEL_PREVIEW_URL
 ```
 
-custom staging hostを使う場合だけ、そのhostnameを明示allowlistへ追加する。
+環境変数の値、hostname、認証情報をログやcommitへ保存しない。
 
-```powershell
-$env:VERCEL_PREVIEW_ALLOWED_HOSTS = "preview.example.invalid"
-```
-
-値をログ、commit、reportへ貼らない。終了時に両環境変数を削除する。
-
-## Probe matrix
+## Path override matrix
 
 | ID | Method | Source | Injection | Expected |
 |---|---|---|---|---|
-| PO-01 | GET | `/about` | `x-astro-path: /types` | `/about`のまま |
+| PO-01 | GET | `/about` | `x-astro-path: /types` | `/about`の挙動を維持 |
 | PO-02 | POST | `/about` | `x-astro-path: /types` | baseline POSTと同じ |
-| PO-03 | GET | `/about` | `?x_astro_path=/types` | `/about`のまま |
+| PO-03 | GET | `/about` | `?x_astro_path=/types` | `/about`の挙動を維持 |
 | PO-04 | POST | `/about` | `?x_astro_path=/types` | baseline POSTと同じ |
 
-各requestは15秒timeout、network error時のみ最大1回retry、4xx/5xxはretryしない。`redirect: manual`、no-cache header、ランダムnonceを使用する。
+各requestは15秒timeout、network errorのみ最大1回retry、HTTP errorはretryしない。matrix成功後にTOP、属性一覧、MDX、RSS、sitemap、favicon、public image、Astro最適化画像、login、未認証history/result、404を確認する。
 
-Path Override matrixの後、TOP、属性一覧、MDX、RSS、sitemap、favicon、public image、login、未認証history/result、404を各1回確認する。MDX HTMLから最初の`/_astro/`画像pathだけを抽出し、画像最適化成果物も1回確認する。HTML本文は保持しない。
+## 証跡
 
-## Evidence policy
+- JSON：`docs/security/evidence/vercel-preview-path-override-2026-07-18.json`
+- Markdown：`docs/security/VERCEL_PREVIEW_SECURITY_VALIDATION_2026-07-18.md`
 
-保存可: status、body byte数、body SHA-256、固定markerの有無、短いtitle/h1、canonical path、安全なheader、hostname SHA-256。
+`BLOCKED`を`PASS`として扱わない。Protectionで観測不能なら解除せず、保護された状態を記録して停止する。
 
-保存不可: HTML全文、cookie、Set-Cookie値、Authorization、bypass secret、実利用者情報、build log全文、Preview hostnameそのもの（秘密扱いの場合）。
+## 判定
 
-Phase Bの結果だけを次へ保存する。
-
-- `docs/security/evidence/vercel-preview-path-override-2026-07-18.json`
-- `docs/security/VERCEL_PREVIEW_SECURITY_VALIDATION_2026-07-18.md`
-
-## Verdict
-
-- `VERCEL_PREVIEW_REMEDIATION_VERIFIED`: 4ケースすべてがsource behaviorを維持し、smokeも成功。
-- `SECURITY_REMEDIATION_FAILED`: target marker、target redirect、secret/stack漏洩などを検出。
-- `BLOCKED_BY_PREVIEW_URL`: URL未提供。
-- `BLOCKED_BY_PREVIEW_PROTECTION`: protectionにより観測不能。
-- `BLOCKED_BY_DEPLOYMENT_CONFIGURATION`: production redirectなど対象分類が不正。
-
-Preview probeだけの成功をproduction公開許可とは扱わない。
+- `VERCEL_PREVIEW_REMEDIATION_VERIFIED`：4ケースとsmokeがすべて成功。
+- `SECURITY_REMEDIATION_FAILED`：target routeへの変更、情報漏えい、予期しない挙動を検出。
+- `BLOCKED_BY_PREVIEW_URL`：URL未提供。
+- `BLOCKED_BY_PREVIEW_PROTECTION`：Vercel保護によりアプリ挙動を観測不能。
+- `BLOCKED_BY_DEPLOYMENT_CONFIGURATION`：本番redirectなど対象構成が不正。

@@ -14,7 +14,7 @@ const USER_AGENT = "shirone-preview-security-probe/1";
 const SAFE_HEADERS = [
   "content-type", "location", "cache-control", "vary", "x-content-type-options",
   "referrer-policy", "content-security-policy", "strict-transport-security", "x-frame-options",
-  "x-vercel-cache", "x-vercel-id",
+  "x-vercel-cache",
 ];
 
 export class ProbeConfigError extends Error {}
@@ -69,12 +69,12 @@ function safeLocation(value, baseUrl) {
   if (!value) return null;
   try {
     const url = new URL(value, baseUrl);
-    return {
-      hostClass: PRODUCTION_HOSTS.has(url.hostname.toLowerCase()) ? "production" :
-        url.hostname.toLowerCase() === baseUrl.hostname ? "same_preview" : "other",
-      path: `${url.pathname}${url.search}`.slice(0, 256),
-    };
-  } catch { return { hostClass: "invalid", path: "" }; }
+    const hostClass = PRODUCTION_HOSTS.has(url.hostname.toLowerCase()) ? "production" :
+      url.hostname.toLowerCase() === baseUrl.hostname ? "same_preview" : "other";
+    const pathClass = url.pathname === TARGET_ROUTE ? "target_route" :
+      url.pathname === "/sso-api" ? "vercel_sso" : "other";
+    return { hostClass, pathClass };
+  } catch { return { hostClass: "invalid", pathClass: "invalid" }; }
 }
 
 async function requestOnce(fetchImpl, url, options, timeoutMs) {
@@ -130,14 +130,16 @@ async function observe(fetchImpl, baseUrl, { id, method, route, headerOverride, 
 
 function sameRouteBehavior(actual, baseline) {
   if (actual.targetMarkers.length > 0) return false;
-  if (actual.location?.path?.startsWith(TARGET_ROUTE)) return false;
+  if (actual.location?.pathClass === "target_route") return false;
   return actual.status === baseline.status && actual.sourceMarkers.length === baseline.sourceMarkers.length &&
     actual.title === baseline.title && actual.heading === baseline.heading && actual.canonicalPath === baseline.canonicalPath;
 }
 
 function isPreviewProtection(observation) {
+  if (observation.location?.hostClass === "other" && observation.location.pathClass === "vercel_sso") return true;
   return [401, 403].includes(observation.status) && observation.sourceMarkers.length === 0 &&
-    /vercel|authentication|authorization/i.test(`${observation.title} ${observation.heading}`);
+    (/vercel|authentication|authorization/i.test(`${observation.title} ${observation.heading}`) ||
+      observation.selectedHeaders["cache-control"]?.includes("no-store"));
 }
 
 function smokeOutcome(item, expectedStatus, expectedType) {
