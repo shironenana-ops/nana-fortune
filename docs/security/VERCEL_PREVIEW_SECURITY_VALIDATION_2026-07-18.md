@@ -1,68 +1,63 @@
-# Vercel Preview security validation — 2026-07-18
+# Vercel Preview security validation — Phase B final
 
-## 現在の判定
+## 最終判定
 
-`REMOTE_PATH_OVERRIDE_VERIFIED_ASTRO_IMAGE_RETEST_PENDING`
+`VERCEL_PREVIEW_REMEDIATION_VERIFIED`
 
-Phase Bの実測ではPath Override 4ケースがすべてPASSし、主要smokeも15件PASSした。唯一のFAILは、remote probeがHTML内で画像より先に現れたAstro CSS assetを画像候補として選択したことによるfalse failureである。Path Overrideの再現、アプリ障害、画像配信障害を示すものではない。
+修正版probeによるVercel Preview再試験では、Path Override 4ケースとsmoke 16ケースがすべてPASSした。`SMOKE-ASTRO-IMAGE`も実画像を選択し、HTTP 200・`image/webp`でPASSした。
 
-旧出力の`SECURITY_REMEDIATION_FAILED`は確定判定として扱わない。修正版probeによる実Preview再試験は、この変更では実施していない。
-
-## 安全記録
-
-- 対象：ユーザーが明示したVercel Preview
-- URL guard：PASS
-- production request：0
-- cross-host redirect追従：0
-- AWS／Bedrock／DynamoDB実行：0
-- 実token／実鑑定入力：不使用
-- `READING_DEEP_GENERATE_API_ENABLED`：未設定
-- `automation_bypass_configured: true`
-- Secretの値、長さ、断片、hash：保存なし
-- response本文、Cookie、認証情報、Preview hostname、request ID：保存なし
+この判定は、ユーザーがターミナル上で確認したprobe自身の最終出力と終了コード0を、安全化済み実測値として反映したものである。
 
 ## Path Override matrix
 
-| ID | 検証 | 実測結果 |
+| ID | 検証 | 最終結果 |
 |---|---|---|
-| PO-01 | GET header | PASS |
-| PO-02 | POST header | PASS |
-| PO-03 | GET query | PASS |
-| PO-04 | POST query | PASS |
+| PO-01 | GET `x-astro-path` header | PASS |
+| PO-02 | POST `x-astro-path` header | PASS |
+| PO-03 | GET `x_astro_path` query | PASS |
+| PO-04 | POST `x_astro_path` query | PASS |
 
 ## Smoke test
 
-- PASS：15
-- remote probe上のFAIL：1
-- 確認対象：`SMOKE-ASTRO-IMAGE`
-- 誤選択したasset種別：stylesheet
-- response status：200
-- content-type：`text/css; charset=utf-8`
-- 判定：`FALSE_FAILURE_ASSET_SELECTION`
+- PASS：16
+- FAIL：0
+- NOT_APPLICABLE：0
+- `SMOKE-ASTRO-IMAGE`：PASS
+- `SMOKE-ASTRO-IMAGE` status：200
+- `SMOKE-ASTRO-IMAGE` content-type：`image/webp`
+- probe exit code：0
 
-`SMOKE-PUBLIC-IMAGE`はPASSしている。CSS responseを画像障害として扱わない。
+## 旧false failureの整理
 
-## Probe修正
+旧`SECURITY_REMEDIATION_FAILED`は、CSS assetを画像として選択した旧probeの`FALSE_FAILURE_ASSET_SELECTION`であり、最終判定から除外した。修正版ではHTMLの画像要素から候補を取得し、`image/*`だけをPASSにする。
 
-- 汎用的な最初の`/_astro/`参照を画像候補にしない。
-- `img src`、`img srcset`、`picture`内の`source srcset`から画像候補を抽出する。
-- `.css`、`.js`、`.map`、fontを画像候補から除外する。
-- `content-type`が`image/*`の場合だけ`SMOKE-ASTRO-IMAGE`をPASSにする。
-- 最適化画像候補がなければ`NOT_APPLICABLE_NO_OPTIMIZED_IMAGE`とし、FAILにしない。
-- CSSが画像より前に現れるfixtureと、最適化画像なしのfixtureを回帰テストに含める。
+Windows PowerShell 5.1の`Tee-Object`経由で文字化け・構文破損した次の未追跡ファイルは、正式証跡として使用・commitしない。
+
+- `docs/security/evidence/vercel-preview-path-override-retest-2026-07-18.json`
+
+正式な機械可読証跡は次のファイルだけとする。
+
+- `docs/security/evidence/vercel-preview-path-override-2026-07-18.json`
+
+## 安全記録
+
+- production requests：0
+- `productionHostRejected`：true
+- `automation_bypass_configured: true`
+- Automation Bypass Secret：値、長さ、断片、hashを保存していない
+- 再試験後のPowerShell環境変数：削除済み
+- Vercel側の一時Secret：削除済み
+- response本文、Cookie、認証情報、Preview hostname、request ID：正式証跡へ保存していない
+- AWS／Bedrock／DynamoDB接続：なし
+- `READING_DEEP_GENERATE_API_ENABLED`：未設定
 
 ## ローカル回帰
 
-- probe unit test：10 pass / 0 fail / 0 skipped
 - `npm test`：119 pass / 0 fail / 0 skipped
 - Node.js 22.23.1：119 pass / 0 fail / 0 skipped
 - `npm run build`：PASS
 - TypeScript 5.9.3 `tsc --noEmit`：PASS
+- `npm audit --omit=dev`：total 9 / critical 0 / high 6 / moderate 2 / low 1
+- 依存更新・`npm audit fix`：未実施
 - `git diff --check`：PASS
-- 実Preview／productionへのHTTP通信：0
-
-## 証跡
-
-- `docs/security/evidence/vercel-preview-path-override-2026-07-18.json`
-- Phase B実測値はユーザーから提示された安全化済み結果を反映した。
-- 実Secret、Preview hostname、生responseは含めていない。
+- 秘密情報検査：PASS
