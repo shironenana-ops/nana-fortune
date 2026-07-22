@@ -1,0 +1,45 @@
+{
+  "schema": "shirone-vercel-preview-security-validation-evidence-v3",
+  "tested_at": "2026-07-23",
+  "measurement_source": "operator_provided_safe_terminal_summary",
+  "target_class": "vercel_preview",
+  "url_guard": "PASS",
+  "production_requests": 0,
+  "productionHostRejected": true,
+  "automation_bypass_configured": true,
+  "path_override_matrix": {
+    "PO-01": "PASS",
+    "PO-02": "PASS",
+    "PO-03": "PASS",
+    "PO-04": "PASS"
+  },
+  "smoke": {
+    "pass": 16,
+    "fail": 0,
+    "not_applicable": 0,
+    "astro_image": {
+      "result": "PASS",
+      "status": 200,
+      "content_type": "image/webp"
+    }
+  },
+  "probe_exit_code": 0,
+  "raw_body_saved": false,
+  "secret_metadata_saved": false,
+  "credentials_saved": false,
+  "aws_requests": 0,
+  "verdict": "VERCEL_PREVIEW_REMEDIATION_VERIFIED",
+  "historical_false_failure": {
+    "superseded_verdict": "SECURITY_REMEDIATION_FAILED",
+    "classification": "FALSE_FAILURE_ASSET_SELECTION",
+    "excluded_from_final_verdict": true
+  },
+  "excluded_artifacts": [
+    {
+      "name": "vercel-preview-path-override-retest-2026-07-18.json",
+      "reason": "POWERSHELL_5_1_ENCODING_CORRUPTION",
+      "used_as_evidence": false,
+      "committed": false
+    }
+  ]
+}
