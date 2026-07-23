@@ -1,0 +1,23 @@
+{
+  "schema_version": "shirone-reading-rate-limit-policy-proposal-v1",
+  "status": "PENDING_HUMAN_APPROVAL",
+  "effective_in_production": false,
+  "prepared_at": "2026-07-23",
+  "primary_region": "ap-northeast-1",
+  "processing_scope": "JAPAN",
+  "policies": {
+    "free/free": { "max": 10, "window_seconds": 600, "bedrock": false },
+    "light/free": { "max": 10, "window_seconds": 600, "bedrock": false },
+    "light/light": { "max": 3, "window_seconds": 900, "bedrock": true },
+    "premium/free": { "max": 10, "window_seconds": 600, "bedrock": false },
+    "premium/light": { "max": 5, "window_seconds": 900, "bedrock": true },
+    "premium/deep": { "max": 2, "window_seconds": 1800, "bedrock": true }
+  },
+  "concurrency": { "light": 1, "deep": 1 },
+  "fixed_window_boundary_burst_multiplier": 2,
+  "notes": [
+    "Rate Limitは月間商品quota、deep月3回、契約状態、冪等性の代替ではない",
+    "値は提案であり、Phase Bの人間承認まで環境変数やLambdaへ設定しない",
+    "固定窓境界では隣接窓をまたいで最大2倍の短時間burstがあり得る"
+  ]
+}
