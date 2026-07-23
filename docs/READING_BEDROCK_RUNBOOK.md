@@ -12,14 +12,17 @@ Lambda実行ロールには対象modelまたはinference profileへ限定した`
 $env:READING_BEDROCK_SMOKE='true'
 $env:READING_BEDROCK_ENABLED='true'
 $env:AWS_REGION='ap-northeast-1'
-$env:BEDROCK_MODEL_ID='<確認済みIDまたはARN>'
+$env:BEDROCK_LIGHT_MODEL_ID='<確認済みlight IDまたはARN>'
+$env:BEDROCK_DEEP_MODEL_ID='<確認済みdeep IDまたはARN>'
 $env:READING_BEDROCK_TIMEOUT_MS='90000'
 npm run test:reading-bedrock-smoke
 ```
 
 架空データ1件のlight鑑定を1回だけ呼びます。本文、prompt、資格情報は表示しません。失敗時に自動再試行しません。
 
-2026-07-17、日本向けGeo inference profile `jp.anthropic.claude-haiku-4-5-20251001-v1:0`で最小Converse呼び出しのHTTP 200を確認しました。model IDはコードへ固定せず、引き続き`BEDROCK_MODEL_ID`から渡します。同日の架空light smokeは20,018msでcanonical fallbackし、当時の20,000ms timeout到達が原因と判断しました。再確認時は`READING_BEDROCK_TIMEOUT_MS=90000`を明示できます。
+2026-07-17、日本向けGeo inference profile `jp.anthropic.claude-haiku-4-5-20251001-v1:0`で最小Converse呼び出しのHTTP 200を確認しました。当時の単一model設定はPhase Aの履歴であり、現在はlight/deep別の環境変数から渡します。同日の架空light smokeは20,018msでcanonical fallbackし、当時の20,000ms timeout到達が原因と判断しました。再確認時は`READING_BEDROCK_TIMEOUT_MS=90000`を明示できます。
+
+2026-07-23時点のstaging候補は、lightが`jp.anthropic.claude-haiku-4-5-20251001-v1:0`、deepが`jp.anthropic.claude-sonnet-4-5-20250929-v1:0`です。いずれもコードへ固定せず、候補として文書化しただけで有効化していません。Global inference profileは使用せず、`ap-northeast-1`／`JAPAN`境界を維持します。
 
 90,000msへ変更後の架空light smokeは21,500msで応答し、`invalid_output`でcanonical fallbackしました。接続とtimeoutは正常で、厳格validatorとモデル出力形式の不一致が原因でした。
 

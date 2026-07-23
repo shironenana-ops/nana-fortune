@@ -1,0 +1,42 @@
+{
+  "schema_version": "shirone-reading-rate-limit-policy-approved-v1",
+  "status": "APPROVED_FOR_LIMITED_BETA_CONFIGURATION",
+  "effective_in_production": false,
+  "approved_at": "2026-07-23",
+  "approved_by": "human_operator",
+  "policy_basis": "product_cost_security_review_2026-07-23",
+  "policies": {
+    "free/free": {
+      "max_attempts": 10,
+      "window_seconds": 600
+    },
+    "light/free": {
+      "max_attempts": 10,
+      "window_seconds": 600
+    },
+    "light/light": {
+      "max_attempts": 3,
+      "window_seconds": 900
+    },
+    "premium/free": {
+      "max_attempts": 10,
+      "window_seconds": 600
+    },
+    "premium/light": {
+      "max_attempts": 5,
+      "window_seconds": 900
+    },
+    "premium/deep": {
+      "max_attempts": 2,
+      "window_seconds": 1800
+    }
+  },
+  "concurrency": {
+    "light": 1,
+    "deep": 1
+  },
+  "processing_scope": "JAPAN",
+  "global_profile_used": false,
+  "fixed_burst_multiplier": 2,
+  "requires_staging_revalidation": true
+}

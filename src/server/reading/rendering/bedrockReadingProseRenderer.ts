@@ -9,15 +9,41 @@ type BedrockSender = { send(command: ConverseCommand, options?: { abortSignal?: 
 export type BedrockReadingRendererConfig = {
   enabled: boolean;
   region: string;
-  modelId: string;
   timeoutMs: number;
-  modelAlias?: string;
+  models: {
+    light: { modelId: string; modelAlias?: string };
+    deep: { modelId: string; modelAlias?: string };
+  };
 };
+
+const MODEL_ID_MAX_LENGTH = 512;
+const MODEL_ALIAS_MAX_LENGTH = 128;
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/u;
+
+function readModelConfig(env: Record<string, string | undefined>, mode: "light" | "deep") {
+  const prefix = mode === "light" ? "BEDROCK_LIGHT" : "BEDROCK_DEEP";
+  return {
+    modelId: env[`${prefix}_MODEL_ID`]?.trim() ?? "",
+    modelAlias: env[`${prefix}_MODEL_ALIAS`]?.trim() || undefined,
+  };
+}
+
+function validateModelConfig(model: { modelId: string; modelAlias?: string }, mode: "light" | "deep") {
+  if (!model.modelId || model.modelId.length > MODEL_ID_MAX_LENGTH || CONTROL_CHARACTERS.test(model.modelId)) {
+    throw new Error(`BEDROCK_${mode.toUpperCase()}_MODEL_ID_INVALID`);
+  }
+  if (model.modelAlias && (model.modelAlias.length > MODEL_ALIAS_MAX_LENGTH || CONTROL_CHARACTERS.test(model.modelAlias))) {
+    throw new Error(`BEDROCK_${mode.toUpperCase()}_MODEL_ALIAS_INVALID`);
+  }
+}
 
 export function readBedrockRendererConfig(env: Record<string, string | undefined> = process.env): BedrockReadingRendererConfig {
   const enabled = env.READING_BEDROCK_ENABLED === "true";
   const region = env.AWS_REGION?.trim() ?? "";
-  const modelId = env.BEDROCK_MODEL_ID?.trim() ?? "";
+  const models = {
+    light: readModelConfig(env, "light"),
+    deep: readModelConfig(env, "deep"),
+  };
   const rawTimeout = env.READING_BEDROCK_TIMEOUT_MS;
   let timeoutMs = 60_000;
   if (rawTimeout !== undefined) {
@@ -28,8 +54,11 @@ export function readBedrockRendererConfig(env: Record<string, string | undefined
     }
   }
   if (enabled && (!region || !/^[a-z]{2}-[a-z]+-\d$/u.test(region))) throw new Error("BEDROCK_REGION_INVALID");
-  if (enabled && (!modelId || modelId.length > 512 || /[\u0000-\u001f\u007f]/u.test(modelId))) throw new Error("BEDROCK_MODEL_ID_INVALID");
-  return { enabled, region, modelId, timeoutMs, modelAlias: env.BEDROCK_MODEL_ALIAS?.trim() || undefined };
+  if (enabled) {
+    validateModelConfig(models.light, "light");
+    validateModelConfig(models.deep, "deep");
+  }
+  return { enabled, region, timeoutMs, models };
 }
 
 export class BedrockReadingOutputError extends Error {
@@ -62,6 +91,12 @@ export class BedrockReadingProseRenderer implements ReadingProseRenderer {
     this.sender = sender ?? new BedrockRuntimeClient({ region: config.region, maxAttempts: 1 });
   }
   async render(input: ReadingProseCanonicalInput, options?: { signal?: AbortSignal }): Promise<ReadingProseProviderResult> {
+    const selectedModel = input.mode === "light"
+      ? this.config.models.light
+      : input.mode === "deep"
+        ? this.config.models.deep
+        : undefined;
+    if (!selectedModel) throw new Error("BEDROCK_MODE_INVALID");
     const prompt = buildReadingProsePrompt(input);
     const schema = JSON.parse(buildReadingProseJsonSchema(input)) as DocumentType;
     const timeout = AbortSignal.timeout(this.config.timeoutMs);
@@ -69,7 +104,7 @@ export class BedrockReadingProseRenderer implements ReadingProseRenderer {
     let output: ConverseCommandOutput;
     try {
       output = await this.sender.send(new ConverseCommand({
-        modelId: this.config.modelId,
+        modelId: selectedModel.modelId,
         system: [{ text: prompt.system }],
         messages: [{ role: "user", content: [{ text: prompt.user }] }],
         inferenceConfig: { temperature: 0.2, maxTokens: input.mode === "light" ? 5_000 : 12_000 },
@@ -89,7 +124,7 @@ export class BedrockReadingProseRenderer implements ReadingProseRenderer {
       throw error;
     }
     return {
-      output: responseToolInput(output), provider: "bedrock", modelAlias: this.config.modelAlias,
+      output: responseToolInput(output), provider: "bedrock", modelAlias: selectedModel.modelAlias,
       inputTokens: output.usage?.inputTokens, outputTokens: output.usage?.outputTokens,
     };
   }
