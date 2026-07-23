@@ -2,6 +2,8 @@
 
 > 2026-07-18: request_ref／fingerprint、conditional予約、lease takeover、COMPLETED replay、history＋idempotencyのtransaction確定をNode handlerへ実装しました。deep月間3回の予約・消費・解放は[READING_DEEP_MONTHLY_QUOTA.md](./READING_DEEP_MONTHLY_QUOTA.md)を正本とします。
 
+> Idempotency、deep月間3回の商品利用権、短時間Rate Limit、light/deep同時実行1件は別の制御です。統合順序と非消費条件は[READING_RATE_LIMIT.md](./READING_RATE_LIMIT.md)を参照してください。completed replay・conflict・in-progressはRate Limitを消費しません。
+
 ## 1. 冪等性キー
 
 - Header：UUID v4の`Idempotency-Key`

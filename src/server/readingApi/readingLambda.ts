@@ -11,17 +11,20 @@ import type { ApiGatewayV2Event } from "./readingApiTypes";
 import { createDynamoReadingPersistence } from "../readingPersistence/dynamoReadingPersistence";
 import { readReadingPersistenceConfig } from "../readingPersistence/persistenceConfig";
 import { readDeepQuotaConfig } from "../readingPersistence/deepQuota";
+import { readReadingRateLimitConfig } from "../readingRateLimit/rateLimitPolicy";
 
 export async function handler(event: ApiGatewayV2Event) {
   const env = process.env;
   try {
+    const enabled = readingApiEnabled(env.READING_GENERATE_API_ENABLED);
     const deepEnabled = env.READING_DEEP_GENERATE_API_ENABLED === "true";
     const persistenceConfig = {
       ...readReadingPersistenceConfig(env),
+      ...(enabled ? { rateLimit: readReadingRateLimitConfig(env, env.READING_IDEMPOTENCY_HASH_SECRET) } : {}),
       ...(deepEnabled ? { deepQuota: readDeepQuotaConfig(env) } : {}),
     };
     const app = createReadingApiHandler({
-      enabled: readingApiEnabled(env.READING_GENERATE_API_ENABLED),
+      enabled,
       allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
     }, {
       repository: {

@@ -1,7 +1,8 @@
 import { ServerFoundationError } from "../http/errors";
 import type { DeepQuotaConfig } from "./deepQuota";
+import type { ReadingRateLimitConfig } from "../readingRateLimit/rateLimitPolicy";
 
-export type ReadingPersistenceConfig = { idempotencyTable: string; historyTable: string; hashSecret: string; leaseSeconds: number; ttlSeconds: number; deepQuota?: DeepQuotaConfig };
+export type ReadingPersistenceConfig = { idempotencyTable: string; historyTable: string; hashSecret: string; leaseSeconds: number; ttlSeconds: number; deepQuota?: DeepQuotaConfig; rateLimit?: ReadingRateLimitConfig };
 function integer(value: string | undefined, fallback: number, min: number, max: number): number {
   if (value === undefined) return fallback;
   if (!/^\d+$/u.test(value)) throw new ServerFoundationError("PERSISTENCE_NOT_CONFIGURED");

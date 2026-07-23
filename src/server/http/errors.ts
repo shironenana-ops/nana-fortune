@@ -36,6 +36,11 @@ export type ServerErrorCode =
   | "READING_DEEP_QUOTA_CONFIG_ERROR"
   | "READING_DEEP_QUOTA_UNAVAILABLE"
   | "READING_DEEP_RESERVATION_INCONSISTENT"
+  | "READING_RATE_LIMIT_REACHED"
+  | "READING_CONCURRENT_LIMIT_REACHED"
+  | "READING_RATE_LIMIT_NOT_CONFIGURED"
+  | "READING_RATE_LIMIT_UNAVAILABLE"
+  | "READING_RATE_LIMIT_INCONSISTENT"
   | "INTERNAL_ERROR";
 
 const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> = {
@@ -76,13 +81,20 @@ const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> 
   READING_DEEP_QUOTA_CONFIG_ERROR: { status: 500, message: "現在この鑑定を利用できません" },
   READING_DEEP_QUOTA_UNAVAILABLE: { status: 503, message: "現在この鑑定を利用できません" },
   READING_DEEP_RESERVATION_INCONSISTENT: { status: 503, message: "現在この鑑定を利用できません" },
+  READING_RATE_LIMIT_REACHED: { status: 429, message: "短時間に利用が集中しています。しばらく待ってからお試しください" },
+  READING_CONCURRENT_LIMIT_REACHED: { status: 429, message: "この鑑定は現在処理中です。完了後にもう一度お試しください" },
+  READING_RATE_LIMIT_NOT_CONFIGURED: { status: 500, message: "サーバー設定を確認しています" },
+  READING_RATE_LIMIT_UNAVAILABLE: { status: 503, message: "現在、鑑定の受付状態を確認できません" },
+  READING_RATE_LIMIT_INCONSISTENT: { status: 503, message: "現在、鑑定の受付状態を確認できません" },
   INTERNAL_ERROR: { status: 500, message: "処理を完了できませんでした" },
 };
 
 export class ServerFoundationError extends Error {
-  constructor(public readonly code: ServerErrorCode, options?: { cause?: unknown }) {
+  public readonly retryAfter?: number;
+  constructor(public readonly code: ServerErrorCode, options?: { cause?: unknown; retryAfter?: number }) {
     super(code, options);
     this.name = "ServerFoundationError";
+    if (options?.retryAfter && Number.isSafeInteger(options.retryAfter) && options.retryAfter > 0) this.retryAfter = Math.min(options.retryAfter, 86_400);
   }
 }
 
@@ -91,6 +103,7 @@ export function toSafeErrorResponse(error: unknown, requestId: string) {
   const definition = DEFINITIONS[code];
   return {
     status: definition.status,
+    ...(error instanceof ServerFoundationError && error.retryAfter ? { retryAfter: error.retryAfter } : {}),
     body: {
       error: { code, message: definition.message, request_id: requestId },
     },
