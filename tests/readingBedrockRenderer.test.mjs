@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { buildReadingFoundation } from "../scripts/build-reading-foundation.mjs";
 import { buildReadingEngine } from "../scripts/build-reading-engine.mjs";
@@ -28,20 +29,62 @@ function legacyOutputFor(value) {
   return JSON.stringify({ schema_version: foundation.READING_PROSE_SCHEMA_VERSION, sections: value.sections.map((section) => ({ id: section.id, body: `整形済み: ${section.title}` })) });
 }
 
-test("設定は完全一致trueだけを有効化しregion/model IDをfail closedで検査する", () => {
+function rendererConfig() {
+  return {
+    enabled: true,
+    region: "ap-northeast-1",
+    timeoutMs: 5_000,
+    models: {
+      light: { modelId: "fixture-light-model", modelAlias: "light-alias" },
+      deep: { modelId: "fixture-deep-model", modelAlias: "deep-alias" },
+    },
+  };
+}
+
+function enabledEnv(overrides = {}) {
+  return {
+    READING_BEDROCK_ENABLED: "true",
+    AWS_REGION: "ap-northeast-1",
+    BEDROCK_LIGHT_MODEL_ID: "fixture-light-model",
+    BEDROCK_DEEP_MODEL_ID: "fixture-deep-model",
+    ...overrides,
+  };
+}
+
+test("設定は完全一致trueだけを有効化しregionとmode別model設定をfail closedで検査する", () => {
   assert.equal(foundation.readBedrockRendererConfig({}).enabled, false);
   assert.equal(foundation.readBedrockRendererConfig({ READING_BEDROCK_ENABLED: "TRUE" }).enabled, false);
   assert.throws(() => foundation.readBedrockRendererConfig({ READING_BEDROCK_ENABLED: "true" }), /REGION/);
-  assert.throws(() => foundation.readBedrockRendererConfig({ READING_BEDROCK_ENABLED: "true", AWS_REGION: "bad", BEDROCK_MODEL_ID: "model" }), /REGION/);
-  assert.throws(() => foundation.readBedrockRendererConfig({ READING_BEDROCK_ENABLED: "true", AWS_REGION: "ap-northeast-1", BEDROCK_MODEL_ID: "" }), /MODEL/);
-  const config = foundation.readBedrockRendererConfig({ READING_BEDROCK_ENABLED: "true", AWS_REGION: "ap-northeast-1", BEDROCK_MODEL_ID: "fixture-model", BEDROCK_MODEL_ALIAS: "haiku-4-5" });
-  assert.deepEqual(config, { enabled: true, region: "ap-northeast-1", modelId: "fixture-model", timeoutMs: 60_000, modelAlias: "haiku-4-5" });
-  assert.equal(foundation.readBedrockRendererConfig({ READING_BEDROCK_ENABLED: "true", AWS_REGION: "ap-northeast-1", BEDROCK_MODEL_ID: "fixture-model", READING_BEDROCK_TIMEOUT_MS: "90000" }).timeoutMs, 90_000);
+  assert.equal(foundation.readBedrockRendererConfig({}).models.light.modelId, "");
+  assert.equal(foundation.readBedrockRendererConfig({}).models.deep.modelId, "");
+  assert.throws(() => foundation.readBedrockRendererConfig(enabledEnv({ AWS_REGION: "bad" })), /REGION/);
+  assert.throws(() => foundation.readBedrockRendererConfig(enabledEnv({ BEDROCK_LIGHT_MODEL_ID: "" })), /LIGHT_MODEL/);
+  assert.throws(() => foundation.readBedrockRendererConfig(enabledEnv({ BEDROCK_DEEP_MODEL_ID: "" })), /DEEP_MODEL/);
+  assert.throws(() => foundation.readBedrockRendererConfig({ READING_BEDROCK_ENABLED: "true", AWS_REGION: "ap-northeast-1", BEDROCK_MODEL_ID: "legacy-only" }), /LIGHT_MODEL/);
+  const config = foundation.readBedrockRendererConfig(enabledEnv({ BEDROCK_LIGHT_MODEL_ALIAS: "haiku-4-5", BEDROCK_DEEP_MODEL_ALIAS: "sonnet-4-5" }));
+  assert.deepEqual(config, {
+    enabled: true,
+    region: "ap-northeast-1",
+    timeoutMs: 60_000,
+    models: {
+      light: { modelId: "fixture-light-model", modelAlias: "haiku-4-5" },
+      deep: { modelId: "fixture-deep-model", modelAlias: "sonnet-4-5" },
+    },
+  });
+  assert.equal(foundation.readBedrockRendererConfig(enabledEnv({ READING_BEDROCK_TIMEOUT_MS: "90000" })).timeoutMs, 90_000);
   for (const timeout of ["", " ", "4999", "180001", "-1", "1.5", "5e3", "999999999999999999999999999999"]) {
-    assert.throws(() => foundation.readBedrockRendererConfig({ READING_BEDROCK_ENABLED: "true", AWS_REGION: "ap-northeast-1", BEDROCK_MODEL_ID: "fixture-model", READING_BEDROCK_TIMEOUT_MS: timeout }), /TIMEOUT/);
+    assert.throws(() => foundation.readBedrockRendererConfig(enabledEnv({ READING_BEDROCK_TIMEOUT_MS: timeout })), /TIMEOUT/);
   }
   for (const timeout of ["5000", "60000", "180000"]) {
-    assert.equal(foundation.readBedrockRendererConfig({ READING_BEDROCK_ENABLED: "true", AWS_REGION: "ap-northeast-1", BEDROCK_MODEL_ID: "fixture-model", READING_BEDROCK_TIMEOUT_MS: timeout }).timeoutMs, Number(timeout));
+    assert.equal(foundation.readBedrockRendererConfig(enabledEnv({ READING_BEDROCK_TIMEOUT_MS: timeout })).timeoutMs, Number(timeout));
+  }
+  for (const key of ["BEDROCK_LIGHT_MODEL_ID", "BEDROCK_DEEP_MODEL_ID"]) {
+    assert.throws(() => foundation.readBedrockRendererConfig(enabledEnv({ [key]: `bad\u0000value` })), /MODEL_ID/);
+    assert.throws(() => foundation.readBedrockRendererConfig(enabledEnv({ [key]: "x".repeat(513) })), /MODEL_ID/);
+  }
+  for (const key of ["BEDROCK_LIGHT_MODEL_ALIAS", "BEDROCK_DEEP_MODEL_ALIAS"]) {
+    assert.throws(() => foundation.readBedrockRendererConfig(enabledEnv({ [key]: `bad\u0000alias` })), /MODEL_ALIAS/);
+    assert.throws(() => foundation.readBedrockRendererConfig(enabledEnv({ [key]: "x".repeat(129) })), /MODEL_ALIAS/);
   }
 });
 
@@ -104,10 +147,10 @@ test("validatorは不正JSON・fence・schema・欠落・追加・重複・順�
 test("Bedrock adapterはstrictなしforced tool-useだけを送りoutputConfigを送らない", async () => {
   let command; let options;
   const sender = { send: async (c, o) => { command = c; options = o; return { ...toolResponse(input()), usage: { inputTokens: 10, outputTokens: 20 } }; } };
-  const renderer = new foundation.BedrockReadingProseRenderer({ enabled: true, region: "ap-northeast-1", modelId: "fixture-model", timeoutMs: 500, modelAlias: "haiku" }, sender);
+  const renderer = new foundation.BedrockReadingProseRenderer(rendererConfig(), sender);
   const result = await renderer.render(input());
   assert.equal(command.constructor.name, "ConverseCommand");
-  assert.equal(command.input.modelId, "fixture-model");
+  assert.equal(command.input.modelId, "fixture-light-model");
   assert.equal(command.input.inferenceConfig.temperature, 0.2);
   assert.equal("topP" in command.input.inferenceConfig, false);
   assert.equal(command.input.toolConfig.toolChoice.tool.name, "shirone_render");
@@ -120,6 +163,7 @@ test("Bedrock adapterはstrictなしforced tool-useだけを送りoutputConfig�
   assert.deepEqual(schema.properties.sections.required, input().sections.map(({ id }) => id));
   assert.ok(options.abortSignal instanceof AbortSignal);
   assert.deepEqual({ provider: result.provider, inputTokens: result.inputTokens, outputTokens: result.outputTokens }, { provider: "bedrock", inputTokens: 10, outputTokens: 20 });
+  assert.equal(result.modelAlias, "light-alias");
 });
 
 test("stopReason・tool有無・件数・名前・input・余分なtextを厳格に拒否する", async () => {
@@ -133,18 +177,50 @@ test("stopReason・tool有無・件数・名前・input・余分なtextを厳格
     [{ stopReason: "tool_use", output: { message: { role: "assistant", content: [goodBlock, { text: "extra" }] } } }, "unknown"],
   ];
   for (const [response, detail] of cases) {
-    const renderer = new foundation.BedrockReadingProseRenderer({ enabled: true, region: "ap-northeast-1", modelId: "fixture", timeoutMs: 5_000 }, { send: async () => response });
+    const renderer = new foundation.BedrockReadingProseRenderer(rendererConfig(), { send: async () => response });
     await assert.rejects(() => renderer.render(input()), (error) => error?.detail === detail);
   }
 });
 
-test("lightとdeepの正常なforced tool-use inputを採用できる", async () => {
+test("lightとdeepは別modelとaliasとmaxTokensを選びforced tool-use inputを採用する", async () => {
+  const expected = {
+    light: { modelId: "fixture-light-model", modelAlias: "light-alias", maxTokens: 5_000 },
+    deep: { modelId: "fixture-deep-model", modelAlias: "deep-alias", maxTokens: 12_000 },
+  };
   for (const mode of ["light", "deep"]) {
     const value = input(mode);
-    const renderer = new foundation.BedrockReadingProseRenderer({ enabled: true, region: "ap-northeast-1", modelId: "fixture", timeoutMs: 5_000 }, { send: async () => toolResponse(value) });
+    let calls = 0;
+    let command;
+    const renderer = new foundation.BedrockReadingProseRenderer(rendererConfig(), { send: async (sent) => {
+      calls += 1;
+      command = sent;
+      return toolResponse(value);
+    } });
     const result = await renderer.render(value);
+    assert.equal(calls, 1);
+    assert.equal(command.input.modelId, expected[mode].modelId);
+    assert.equal(command.input.inferenceConfig.maxTokens, expected[mode].maxTokens);
+    assert.equal(result.modelAlias, expected[mode].modelAlias);
     assert.deepEqual(result.output, outputValue(value));
   }
+});
+
+test("freeまたは未知modeがrendererへ到達した場合は送信前にfail closedする", async () => {
+  let calls = 0;
+  const renderer = new foundation.BedrockReadingProseRenderer(rendererConfig(), { send: async () => {
+    calls += 1;
+    return toolResponse(input());
+  } });
+  for (const mode of ["free", "unknown"]) {
+    await assert.rejects(() => renderer.render({ ...input(), mode }), /BEDROCK_MODE_INVALID/);
+  }
+  assert.equal(calls, 0);
+});
+
+test("Bedrock clientは自動再試行せずlegacy model設定を参照しない", () => {
+  const source = readFileSync(new URL("../src/server/reading/rendering/bedrockReadingProseRenderer.ts", import.meta.url), "utf8");
+  assert.match(source, /maxAttempts:\s*1/u);
+  assert.doesNotMatch(source, /env\.BEDROCK_MODEL_ID|env\.BEDROCK_MODEL_ALIAS/u);
 });
 
 test("freeはproviderを呼ばず、成功時だけ本文を採用し、障害・不正出力はcanonicalへfallbackする", async () => {

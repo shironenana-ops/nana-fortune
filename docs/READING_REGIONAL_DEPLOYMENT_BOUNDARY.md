@@ -2,7 +2,7 @@
 
 更新日: 2026-07-23
 
-状態: Phase A設計案（未配備）
+状態: Phase Bローカル実装済み・未配備
 
 ## 原則
 
@@ -41,7 +41,21 @@ currency: JPY
 locale: ja-JP
 ```
 
-manifestにsecret、物理table名、account IDを含めない。model/profile IDとRate Limit値も人間承認後に環境別設定へ反映する。
+manifestにsecret、物理table名、account IDを含めない。model/profile IDとRate Limit値は人間承認済み候補であっても、staging再検証後に環境別設定へ反映する。
+
+## Phase Bの現在地
+
+```text
+MODEL_ROUTING_IMPLEMENTATION: VERIFIED_LOCALLY
+LIGHT_MODEL_STAGING_CANDIDATE: CONFIGURED_NOT_ENABLED
+DEEP_MODEL_STAGING_CANDIDATE: CONFIGURED_NOT_ENABLED
+RATE_LIMIT_POLICY_VALUES: APPROVED_FOR_LIMITED_BETA
+RATE_LIMIT_POLICY_EFFECTIVE: NO
+GLOBAL_PROFILE_USED: NO
+LIMITED_PAID_BETA_GATE: BLOCKED_BY_INFRA_AND_STAGING
+```
+
+JP staging候補はsource region `ap-northeast-1`、processing scope `JAPAN`です。light/deepのmodel設定をコード上で分離しましたが、AWS環境、IAM、Lambda環境変数、DynamoDB、Vercel productionは変更していません。
 
 ## 地域追加gate
 
