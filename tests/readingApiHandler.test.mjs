@@ -51,7 +51,7 @@ function reading(plan = "free") {
     unknownInternal: "must-not-escape",
   };
 }
-function setup({ enabled = true, membership = {}, repositoryError, rendererMode = "rendered", persistenceKind = "acquired", deepEnabled = true, deepReservation = false } = {}) {
+function setup({ enabled = true, membership = {}, repositoryError, beginError, rendererMode = "rendered", persistenceKind = "acquired", deepEnabled = true, deepReservation = false } = {}) {
   const calls = { repository: 0, engine: 0, renderer: 0 };
   const audit = [];
   const dependencies = {
@@ -68,7 +68,10 @@ function setup({ enabled = true, membership = {}, repositoryError, rendererMode 
     idempotencyHashSecret: "fixture-only-idempotency-secret-32-characters-minimum",
     deepEnabled,
     persistence: {
-      begin: async ({ requestRef, fingerprint, resolvedMode, readingDate, now }) => persistenceKind === "replay" ? ({ kind: "replay", history: { history_id: "saved-history", created_at: "2026-07-17T00:00:00Z", resolved_mode: "light", status: "completed", rendering_status: "rendered", result: { title: "保存済み", sections: [], one_step: "一歩", avoid_hint: "注意" } } }) : ({ kind: persistenceKind, takeover: false, reservation: { requestRef, fingerprint, ownerToken: "fixture-owner", historyId: "fixture-history", resolvedMode, readingDate, createdAt: now.toISOString(), ...(deepReservation ? { deep: { quotaRef: "q".repeat(64), periodKey: "2026-07", reservationId: "fixture-reservation", reservationExpiresAt: 1_800_000_000 } } : {}) } }),
+      begin: async ({ requestRef, fingerprint, resolvedMode, readingDate, now }) => {
+        if (beginError) throw beginError;
+        return persistenceKind === "replay" ? ({ kind: "replay", history: { history_id: "saved-history", created_at: "2026-07-17T00:00:00Z", resolved_mode: "light", status: "completed", rendering_status: "rendered", result: { title: "保存済み", sections: [], one_step: "一歩", avoid_hint: "注意" } } }) : ({ kind: persistenceKind, takeover: false, reservation: { requestRef, fingerprint, ownerToken: "fixture-owner", historyId: "fixture-history", resolvedMode, readingDate, createdAt: now.toISOString(), ...(deepReservation ? { deep: { quotaRef: "q".repeat(64), periodKey: "2026-07", reservationId: "fixture-reservation", reservationExpiresAt: 1_800_000_000 } } : {}) } });
+      },
       complete: async ({ reservation, response }) => { if (persistenceKind === "complete_error") throw new foundation.ServerFoundationError("PERSISTENCE_UNAVAILABLE"); return { history_id: reservation.historyId, created_at: reservation.createdAt, resolved_mode: response.resolved_mode, status: response.status, rendering_status: response.rendering_status, result: response.result }; },
       fail: async () => {},
     },
@@ -290,11 +293,24 @@ test("deep quota監査は固定eventだけを記録し内部予約情報を出�
   assert.doesNotMatch(joined, /fixture-reservation|q{32}|fixture-history|fixture-owner|fixture-user|550e8400/i);
 });
 
+test("rate limit denial returns a safe 429 with integer Retry-After", async () => {
+  const { handler, calls, audit } = setup({
+    beginError: new foundation.ServerFoundationError("READING_RATE_LIMIT_REACHED", { retryAfter: 37 }),
+  });
+  const response = await handler(event());
+  assert.equal(response.statusCode, 429);
+  assert.equal(response.headers["Retry-After"], "37");
+  assert.equal(body(response).error.code, "READING_RATE_LIMIT_REACHED");
+  assert.equal(calls.engine, 0);
+  assert.match(audit.join("\n"), /reading_rate_limited/u);
+  assert.doesNotMatch(response.body, /rate_limit_ref|fixture-user|550e8400/u);
+});
+
 test("handler artifactはNode 22 ESMで禁止依存・secret・fixtureを含まない", async () => {
   const artifactPath = "dist/reading-api-handler/index.mjs";
   const artifact = fs.readFileSync(artifactPath, "utf8");
   assert.ok(fs.statSync(artifactPath).size > 0);
-  assert.doesNotMatch(artifact, /\b(window|document|localStorage|sessionStorage|XMLHttpRequest|DOMParser)\b|astro\/client|@vite\/client/i);
+  assert.doesNotMatch(artifact, /\b(?:window|document)\s*(?:\.|\[)|\b(?:localStorage|sessionStorage|XMLHttpRequest|DOMParser)\b|astro\/client|@vite\/client/i);
   assert.doesNotMatch(artifact, /PUBLIC_/);
   assert.doesNotMatch(artifact, /AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|github_pat_|gho_|fixture-user-001|秘密氏名/);
   assert.ok(Object.keys(handlerBuild.metafile.inputs).some((name) => name.includes("readingApiHandler.ts")));

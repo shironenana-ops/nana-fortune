@@ -1,5 +1,7 @@
 # 統合鑑定 HTTP／Lambda handler基盤
 
+> API有効時のRate Limit環境変数、DynamoDB schema、429、`Retry-After`、監査event、paid beta gateは[READING_RATE_LIMIT.md](./READING_RATE_LIMIT.md)を参照してください。Lambda adapterはpolicy値を厳格に読み、不足時はfail closedします。具体的なproduction値は未確定です。
+
 ## 採用event
 
 API Gateway HTTP API payload format version `2.0`だけを受理します。`rawPath`は`/reading/generate`、methodは`requestContext.http.method`から取得します。REST API v1の`httpMethod`、曖昧な混在event、Lambda Function URL固有形式は受理対象にしません。

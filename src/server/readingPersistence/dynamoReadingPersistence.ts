@@ -19,6 +19,8 @@ import {
 import { fingerprintsEqual } from "./requestFingerprint";
 import type { BeginResult, DeepReservation, ReadingPersistence, Reservation, StoredReading } from "./readingPersistence";
 import type { ReadingPersistenceConfig } from "./persistenceConfig";
+import { DynamoReadingRateLimiter } from "../readingRateLimit/dynamoReadingRateLimiter";
+import type { MembershipTier } from "../readingRateLimit/rateLimitPolicy";
 
 type Sender = { send(command: GetItemCommand | PutItemCommand | UpdateItemCommand | TransactWriteItemsCommand): Promise<any> };
 type Item = Record<string, AttributeValue>;
@@ -162,11 +164,12 @@ function phaseToken(phase: string, reservation: Reservation, discriminator = "")
 }
 
 export class DynamoReadingPersistence implements ReadingPersistence {
+  private readonly rateLimiter?: DynamoReadingRateLimiter;
   constructor(
     private readonly sender: Sender,
     private readonly config: ReadingPersistenceConfig,
     private readonly uuid: () => string = randomUUID,
-  ) {}
+  ) { if (config.rateLimit) this.rateLimiter = new DynamoReadingRateLimiter(sender, config.rateLimit); }
 
   private reservation(params: { requestRef: string; fingerprint: string; resolvedMode: Reservation["resolvedMode"]; readingDate: string; now: Date }): Reservation {
     return {
@@ -202,6 +205,12 @@ export class DynamoReadingPersistence implements ReadingPersistence {
         deep_reservation_state: S("RESERVED"),
         deep_reservation_expires_at: N(reservation.deep.reservationExpiresAt),
       } : {}),
+      ...(reservation.rateControl?.concurrencyRef ? {
+        concurrency_schema_version: S("shirone-reading-concurrency-v1"),
+        concurrency_ref: S(reservation.rateControl.concurrencyRef),
+        concurrency_reservation_id: S(reservation.rateControl.concurrencyReservationId!),
+        concurrency_expires_at: N(reservation.rateControl.concurrencyExpiresAt!),
+      } : {}),
     };
   }
 
@@ -229,6 +238,12 @@ export class DynamoReadingPersistence implements ReadingPersistence {
       if (error instanceof ServerFoundationError) throw error;
       throw new ServerFoundationError("HISTORY_UNAVAILABLE", { cause: error });
     }
+  }
+
+  private async concurrencyRelease(reservation: Reservation, now: Date): Promise<TransactWriteItem | undefined> {
+    if (!reservation.rateControl) return undefined;
+    if (!this.rateLimiter) throw new ServerFoundationError("READING_RATE_LIMIT_NOT_CONFIGURED");
+    return this.rateLimiter.prepareRelease(reservation.rateControl, reservation.requestRef, now);
   }
 
   private async classifyExisting(params: {
@@ -307,6 +322,7 @@ export class DynamoReadingPersistence implements ReadingPersistence {
   private async reserveDeep(params: {
     reservation: Reservation;
     userId: string;
+    membershipTier: MembershipTier;
     now: Date;
     existing?: Item;
   }): Promise<BeginResult> {
@@ -330,9 +346,14 @@ export class DynamoReadingPersistence implements ReadingPersistence {
           reservationId: reusable.reservationId,
           reservationExpiresAt: reusable.expiresAt,
         };
+        const acquired = this.rateLimiter
+          ? await this.rateLimiter.prepareAcquire({ userId: params.userId, tier: params.membershipTier, mode: "deep", requestRef: reservation.requestRef, ownerToken: reservation.ownerToken, now: params.now })
+          : undefined;
+        if (acquired) reservation.rateControl = acquired.reservation;
         try {
           await this.sender.send(new TransactWriteItemsCommand({ TransactItems: [
             this.usersCondition(params.userId),
+            ...(acquired?.actions ?? []),
             { ConditionCheck: {
               TableName: deep.tableName,
               Key: { quota_ref: S(baseDeep.quotaRef) },
@@ -354,6 +375,10 @@ export class DynamoReadingPersistence implements ReadingPersistence {
       if (calculateDeepRemaining({ used: previous?.used ?? 0, activeReservations: withoutSameRequest.length }) <= 0) {
         throw new ServerFoundationError("READING_DEEP_MONTHLY_LIMIT_REACHED");
       }
+      const acquired = this.rateLimiter
+        ? await this.rateLimiter.prepareAcquire({ userId: params.userId, tier: params.membershipTier, mode: "deep", requestRef: reservation.requestRef, ownerToken: reservation.ownerToken, now: params.now })
+        : undefined;
+      if (acquired) reservation.rateControl = acquired.reservation;
       const nextReservation: QuotaReservation = {
         reservationId: baseDeep.reservationId,
         requestRef: reservation.requestRef,
@@ -395,7 +420,7 @@ export class DynamoReadingPersistence implements ReadingPersistence {
         : { Put: { TableName: this.config.idempotencyTable, Item: this.idempotencyItem(reservation, params.now), ConditionExpression: "attribute_not_exists(request_ref)" } };
       try {
         await this.sender.send(new TransactWriteItemsCommand({
-          TransactItems: [this.usersCondition(params.userId), quotaPut(deep.tableName, previous, next, params.now), ...expiredUpdates, idempotencyAction],
+          TransactItems: [this.usersCondition(params.userId), ...(acquired?.actions ?? []), quotaPut(deep.tableName, previous, next, params.now), ...expiredUpdates, idempotencyAction],
           ClientRequestToken: phaseToken(params.existing ? "deep-retry" : "deep-reserve", reservation, String(previous?.version ?? 0)),
         }));
         return { kind: "acquired", reservation, takeover: !!params.existing };
@@ -414,10 +439,13 @@ export class DynamoReadingPersistence implements ReadingPersistence {
 
   private retryUpdate(existing: Item, reservation: Reservation, now: Date) {
     const epoch = Math.floor(now.getTime() / 1000);
+    const concurrencySet = reservation.rateControl?.concurrencyRef
+      ? ", concurrency_schema_version=:concurrencySchema, concurrency_ref=:concurrencyRef, concurrency_reservation_id=:concurrencyReservation, concurrency_expires_at=:concurrencyExpiry"
+      : "";
     return {
       TableName: this.config.idempotencyTable,
       Key: { request_ref: S(reservation.requestRef) },
-      UpdateExpression: "SET #state=:progress, owner_token=:owner, updated_at=:updated, lease_expires_at=:lease, expires_at=:ttl, deep_quota_schema_version=:schema, deep_period_key=:period, deep_reservation_id=:reservation, deep_reservation_state=:reserved, deep_reservation_expires_at=:reservationExpiry REMOVE failure_category, failed_at",
+      UpdateExpression: `SET #state=:progress, owner_token=:owner, updated_at=:updated, lease_expires_at=:lease, expires_at=:ttl, deep_quota_schema_version=:schema, deep_period_key=:period, deep_reservation_id=:reservation, deep_reservation_state=:reserved, deep_reservation_expires_at=:reservationExpiry${concurrencySet} REMOVE failure_category, failed_at`,
       ConditionExpression: "fingerprint=:fingerprint AND (#state=:failed OR lease_expires_at<=:now OR expires_at<=:now)",
       ExpressionAttributeNames: { "#state": "state" },
       ExpressionAttributeValues: {
@@ -426,6 +454,12 @@ export class DynamoReadingPersistence implements ReadingPersistence {
         ":now": N(epoch), ":fingerprint": S(reservation.fingerprint), ":schema": S(DEEP_QUOTA_SCHEMA_VERSION),
         ":period": S(reservation.deep!.periodKey), ":reservation": S(reservation.deep!.reservationId),
         ":reserved": S("RESERVED"), ":reservationExpiry": N(reservation.deep!.reservationExpiresAt),
+        ...(reservation.rateControl?.concurrencyRef ? {
+          ":concurrencySchema": S("shirone-reading-concurrency-v1"),
+          ":concurrencyRef": S(reservation.rateControl.concurrencyRef),
+          ":concurrencyReservation": S(reservation.rateControl.concurrencyReservationId!),
+          ":concurrencyExpiry": N(reservation.rateControl.concurrencyExpiresAt!),
+        } : {}),
       },
     };
   }
@@ -433,21 +467,30 @@ export class DynamoReadingPersistence implements ReadingPersistence {
   private takeoverUpdate(existing: Item, reservation: Reservation, now: Date) {
     if (reservation.deep) return this.retryUpdate(existing, reservation, now);
     const epoch = Math.floor(now.getTime() / 1000);
+    const concurrencySet = reservation.rateControl?.concurrencyRef
+      ? ", concurrency_schema_version=:concurrencySchema, concurrency_ref=:concurrencyRef, concurrency_reservation_id=:concurrencyReservation, concurrency_expires_at=:concurrencyExpiry"
+      : "";
     return {
       TableName: this.config.idempotencyTable,
       Key: { request_ref: S(reservation.requestRef) },
-      UpdateExpression: "SET #state=:progress, owner_token=:owner, updated_at=:updated, lease_expires_at=:lease, expires_at=:ttl REMOVE failure_category",
+      UpdateExpression: `SET #state=:progress, owner_token=:owner, updated_at=:updated, lease_expires_at=:lease, expires_at=:ttl${concurrencySet} REMOVE failure_category`,
       ConditionExpression: "fingerprint=:fingerprint AND (#state=:failed OR lease_expires_at<=:now OR expires_at<=:now)",
       ExpressionAttributeNames: { "#state": "state" },
       ExpressionAttributeValues: {
         ":progress": S("IN_PROGRESS"), ":failed": S("FAILED"), ":owner": S(reservation.ownerToken),
         ":updated": S(now.toISOString()), ":lease": N(epoch + this.config.leaseSeconds), ":ttl": N(epoch + this.config.ttlSeconds),
         ":now": N(epoch), ":fingerprint": S(reservation.fingerprint),
+        ...(reservation.rateControl?.concurrencyRef ? {
+          ":concurrencySchema": S("shirone-reading-concurrency-v1"),
+          ":concurrencyRef": S(reservation.rateControl.concurrencyRef),
+          ":concurrencyReservation": S(reservation.rateControl.concurrencyReservationId!),
+          ":concurrencyExpiry": N(reservation.rateControl.concurrencyExpiresAt!),
+        } : {}),
       },
     };
   }
 
-  async begin(params: { requestRef: string; fingerprint: string; userId: string; resolvedMode: Reservation["resolvedMode"]; readingDate: string; now: Date }): Promise<BeginResult> {
+  async begin(params: { requestRef: string; fingerprint: string; userId: string; membershipTier: MembershipTier; resolvedMode: Reservation["resolvedMode"]; readingDate: string; now: Date }): Promise<BeginResult> {
     const reservation = this.reservation(params);
     if (params.resolvedMode === "deep") {
       const existing = await this.readIdempotency(params.requestRef);
@@ -455,31 +498,77 @@ export class DynamoReadingPersistence implements ReadingPersistence {
         const classified = await this.classifyExisting({ existing, ...params });
         if (classified !== "reclaim") return classified;
       }
-      return this.reserveDeep({ reservation: existing ? { ...reservation, historyId: text(existing, "history_id") || reservation.historyId, createdAt: text(existing, "created_at") || reservation.createdAt } : reservation, userId: params.userId, now: params.now, existing });
+      return this.reserveDeep({ reservation: existing ? { ...reservation, historyId: text(existing, "history_id") || reservation.historyId, createdAt: text(existing, "created_at") || reservation.createdAt } : reservation, userId: params.userId, membershipTier: params.membershipTier, now: params.now, existing });
     }
 
-    try {
-      await this.sender.send(new PutItemCommand({
-        TableName: this.config.idempotencyTable,
-        Item: this.idempotencyItem(reservation, params.now),
-        ConditionExpression: "attribute_not_exists(request_ref)",
-      }));
-      return { kind: "acquired", reservation, takeover: false };
-    } catch (error) {
-      if (!conditional(error)) throw new ServerFoundationError("PERSISTENCE_UNAVAILABLE", { cause: error });
+    // Direct repository tests and migration tooling may intentionally omit the
+    // optional rate-limit adapter. The HTTP Lambda always supplies the strict
+    // configuration, so its fail-closed boundary remains intact.
+    if (!this.rateLimiter) {
+      try {
+        await this.sender.send(new PutItemCommand({
+          TableName: this.config.idempotencyTable,
+          Item: this.idempotencyItem(reservation, params.now),
+          ConditionExpression: "attribute_not_exists(request_ref)",
+        }));
+        return { kind: "acquired", reservation, takeover: false };
+      } catch (error) {
+        if (!conditional(error)) throw new ServerFoundationError("PERSISTENCE_UNAVAILABLE", { cause: error });
+        const existing = await this.readIdempotency(params.requestRef);
+        if (!existing) return { kind: "in_progress" };
+        const classified = await this.classifyExisting({ existing, ...params });
+        if (classified !== "reclaim") return classified;
+        const reclaimed = {
+          ...reservation,
+          historyId: text(existing, "history_id") || reservation.historyId,
+          createdAt: text(existing, "created_at") || reservation.createdAt,
+        };
+        try {
+          await this.sender.send(new UpdateItemCommand(this.takeoverUpdate(existing, reclaimed, params.now)));
+          return { kind: "acquired", reservation: reclaimed, takeover: true };
+        } catch (takeoverError) {
+          if (conditional(takeoverError)) return { kind: "in_progress" };
+          throw new ServerFoundationError("PERSISTENCE_UNAVAILABLE", { cause: takeoverError });
+        }
+      }
     }
-    const existing = await this.readIdempotency(params.requestRef);
-    if (!existing) throw new ServerFoundationError("PERSISTENCE_UNAVAILABLE");
-    const classified = await this.classifyExisting({ existing, ...params });
-    if (classified !== "reclaim") return classified;
-    const takeover = { ...reservation, historyId: text(existing, "history_id") || reservation.historyId, createdAt: text(existing, "created_at") || reservation.createdAt };
-    try {
-      await this.sender.send(new UpdateItemCommand(this.takeoverUpdate(existing, takeover, params.now)));
-      return { kind: "acquired", reservation: takeover, takeover: true };
-    } catch (error) {
-      if (conditional(error)) return { kind: "in_progress" };
-      throw new ServerFoundationError("PERSISTENCE_UNAVAILABLE", { cause: error });
+
+    for (let attempt = 0; attempt < MAX_QUOTA_ATTEMPTS; attempt += 1) {
+      const existing = await this.readIdempotency(params.requestRef);
+      if (existing) {
+        const classified = await this.classifyExisting({ existing, ...params });
+        if (classified !== "reclaim") return classified;
+      }
+      const acquired = await this.rateLimiter.prepareAcquire({
+        userId: params.userId,
+        tier: params.membershipTier,
+        mode: params.resolvedMode,
+        requestRef: params.requestRef,
+        ownerToken: reservation.ownerToken,
+        now: params.now,
+      });
+      const next = {
+        ...reservation,
+        historyId: existing ? text(existing, "history_id") || reservation.historyId : reservation.historyId,
+        createdAt: existing ? text(existing, "created_at") || reservation.createdAt : reservation.createdAt,
+        rateControl: acquired.reservation,
+      };
+      const idempotencyAction: TransactWriteItem = existing
+        ? { Update: this.takeoverUpdate(existing, next, params.now) }
+        : { Put: { TableName: this.config.idempotencyTable, Item: this.idempotencyItem(next, params.now), ConditionExpression: "attribute_not_exists(request_ref)" } };
+      try {
+        await this.sender.send(new TransactWriteItemsCommand({ TransactItems: [...acquired.actions, idempotencyAction], ClientRequestToken: phaseToken(existing ? "reading-retry" : "reading-begin", next, String(attempt)) }));
+        return { kind: "acquired", reservation: next, takeover: !!existing };
+      } catch (error) {
+        if (!conditional(error)) throw new ServerFoundationError("READING_RATE_LIMIT_UNAVAILABLE", { cause: error });
+        const concurrent = await this.readIdempotency(params.requestRef);
+        if (concurrent) {
+          const classified = await this.classifyExisting({ existing: concurrent, ...params });
+          if (classified !== "reclaim") return classified;
+        }
+      }
     }
+    throw new ServerFoundationError("READING_RATE_LIMIT_UNAVAILABLE");
   }
 
   private stored(params: { reservation: Reservation; response: any }): { stored: StoredReading; history: Item } {
@@ -511,6 +600,7 @@ export class DynamoReadingPersistence implements ReadingPersistence {
     const { stored, history } = this.stored(params);
     history.user_id = S(params.userId);
     history.updated_at = S(params.now.toISOString());
+    const release = params.reservation.deep ? undefined : await this.concurrencyRelease(params.reservation, params.now);
     const baseActions = (): TransactWriteItem[] => [
       { Put: { TableName: this.config.historyTable, Item: history, ConditionExpression: "attribute_not_exists(user_id) AND attribute_not_exists(history_id)" } },
       { Update: {
@@ -525,6 +615,7 @@ export class DynamoReadingPersistence implements ReadingPersistence {
           ...(params.reservation.deep ? { ":deep": S("deep"), ":reserved": S("RESERVED"), ":consumed": S("CONSUMED"), ":reservation": S(params.reservation.deep.reservationId), ":period": S(params.reservation.deep.periodKey) } : {}),
         },
       } },
+      ...(release ? [release] : []),
     ];
 
     if (!params.reservation.deep) {
@@ -532,6 +623,7 @@ export class DynamoReadingPersistence implements ReadingPersistence {
         await this.sender.send(new TransactWriteItemsCommand({ TransactItems: baseActions(), ClientRequestToken: phaseToken("reading-complete", params.reservation) }));
         return stored;
       } catch (error) {
+        if (error instanceof ServerFoundationError) throw error;
         throw new ServerFoundationError("PERSISTENCE_UNAVAILABLE", { cause: error });
       }
     }
@@ -548,9 +640,10 @@ export class DynamoReadingPersistence implements ReadingPersistence {
         throw new ServerFoundationError("READING_DEEP_RESERVATION_INCONSISTENT");
       }
       const next = { ...previous, used: previous.used + 1, reservations: previous.reservations.filter((value) => value !== match), version: previous.version + 1 };
+      const deepRelease = await this.concurrencyRelease(params.reservation, params.now);
       try {
         await this.sender.send(new TransactWriteItemsCommand({
-          TransactItems: [...baseActions(), quotaPut(deepConfig.tableName, previous, next, params.now)],
+          TransactItems: [...baseActions(), quotaPut(deepConfig.tableName, previous, next, params.now), ...(deepRelease ? [deepRelease] : [])],
           ClientRequestToken: phaseToken("reading-complete", params.reservation, String(previous.version)),
         }));
         return stored;
@@ -564,17 +657,29 @@ export class DynamoReadingPersistence implements ReadingPersistence {
   }
 
   async fail(params: { reservation: Reservation; now: Date; category: string }): Promise<void> {
+    const release = params.reservation.deep ? undefined : await this.concurrencyRelease(params.reservation, params.now);
     if (!params.reservation.deep) {
+      const failureUpdate = {
+        TableName: this.config.idempotencyTable,
+        Key: { request_ref: S(params.reservation.requestRef) },
+        UpdateExpression: "SET #state=:failed, failure_category=:category, updated_at=:now REMOVE owner_token",
+        ConditionExpression: "#state=:progress AND owner_token=:owner",
+        ExpressionAttributeNames: { "#state": "state" },
+        ExpressionAttributeValues: { ":failed": S("FAILED"), ":progress": S("IN_PROGRESS"), ":category": S(params.category.slice(0, 32)), ":now": S(params.now.toISOString()), ":owner": S(params.reservation.ownerToken) },
+      };
       try {
-        await this.sender.send(new UpdateItemCommand({
-          TableName: this.config.idempotencyTable,
-          Key: { request_ref: S(params.reservation.requestRef) },
-          UpdateExpression: "SET #state=:failed, failure_category=:category, updated_at=:now REMOVE owner_token",
-          ConditionExpression: "#state=:progress AND owner_token=:owner",
-          ExpressionAttributeNames: { "#state": "state" },
-          ExpressionAttributeValues: { ":failed": S("FAILED"), ":progress": S("IN_PROGRESS"), ":category": S(params.category.slice(0, 32)), ":now": S(params.now.toISOString()), ":owner": S(params.reservation.ownerToken) },
-        }));
-      } catch { /* idempotency lease expiry remains the recovery path */ }
+        if (release) {
+          await this.sender.send(new TransactWriteItemsCommand({
+            TransactItems: [{ Update: failureUpdate }, release],
+            ClientRequestToken: phaseToken("reading-fail", params.reservation),
+          }));
+        } else {
+          await this.sender.send(new UpdateItemCommand(failureUpdate));
+        }
+      } catch (error) {
+        if (release) throw new ServerFoundationError("READING_RATE_LIMIT_UNAVAILABLE", { cause: error });
+        // Legacy callers without rate control retain lease-expiry recovery.
+      }
       return;
     }
 
@@ -590,6 +695,7 @@ export class DynamoReadingPersistence implements ReadingPersistence {
         throw new ServerFoundationError("READING_DEEP_RESERVATION_INCONSISTENT");
       }
       const next = { ...previous, reservations: previous.reservations.filter((value) => value !== match), version: previous.version + 1 };
+      const deepRelease = await this.concurrencyRelease(params.reservation, params.now);
       try {
         await this.sender.send(new TransactWriteItemsCommand({ TransactItems: [
           { Update: {
@@ -605,6 +711,7 @@ export class DynamoReadingPersistence implements ReadingPersistence {
             },
           } },
           quotaPut(deepConfig.tableName, previous, next, params.now),
+          ...(deepRelease ? [deepRelease] : []),
         ], ClientRequestToken: phaseToken("deep-release", params.reservation, String(previous.version)) }));
         return;
       } catch (error) {

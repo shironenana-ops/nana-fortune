@@ -126,6 +126,7 @@ export function createReadingApiHandler(config: HandlerConfig, dependencies: Rea
         sink: dependencies.auditSink,
       });
       const extra: Record<string, string> = code === "HTTP_METHOD_NOT_ALLOWED" ? { Allow: "POST, OPTIONS" } : {};
+      if (safe.retryAfter) extra["Retry-After"] = String(safe.retryAfter);
       return response(safe.status, requestId, safe.body, corsHeaders, extra);
     }
   };

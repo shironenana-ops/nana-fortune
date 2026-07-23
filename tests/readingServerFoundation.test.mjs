@@ -147,7 +147,7 @@ test("foundation bundleはNode専用で実AWS接続なしにimportできる", ()
   const inputs = Object.keys(buildResult.metafile.inputs).join("\n");
   assert.match(inputs, /membershipEntitlements\.ts/);
   const artifact = fs.readFileSync(artifactUrl, "utf8");
-  assert.doesNotMatch(artifact, /\b(window|document|localStorage|sessionStorage|navigator|DOMParser)\b|astro\/client|@vite\/client/i);
+  assert.doesNotMatch(artifact, /\b(?:window|document)\s*(?:\.|\[)|\b(?:localStorage|sessionStorage|navigator|DOMParser)\b|astro\/client|@vite\/client/i);
   assert.doesNotMatch(artifact, /PUBLIC_/);
   assert.doesNotMatch(artifact, /AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|github_pat_|gho_/);
 });

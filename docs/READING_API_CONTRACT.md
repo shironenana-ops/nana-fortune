@@ -1,5 +1,7 @@
 # 統合鑑定API契約（handler基盤）
 
+> Rate Limitとlight/deep同時実行制御の現行仕様は[READING_RATE_LIMIT.md](./READING_RATE_LIMIT.md)を参照してください。429では固定エラーcodeと、算出可能な場合だけ正の整数秒`Retry-After`を返します。completed replay、409 conflict/in-progress、認証・検証・権限拒否はカウントしません。productionの回数・時間窓は未確定です。
+
 ## Endpoint
 
 入口は `POST /reading/generate` とpreflight用の `OPTIONS /reading/generate` です。今回実装したのはAPI Gateway HTTP API payload format v2.0向けのNode.js 22 Lambda handler基盤です。AWSリソース、API Gateway設定、deploy、UI接続は未実装です。

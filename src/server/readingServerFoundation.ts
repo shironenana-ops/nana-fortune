@@ -27,3 +27,6 @@ export * from "./readingPersistence/deepQuota";
 export * from "./readingPersistence/persistenceConfig";
 export * from "./readingPersistence/readingPersistence";
 export * from "./readingPersistence/dynamoReadingPersistence";
+export * from "./readingRateLimit/rateLimitPolicy";
+export * from "./readingRateLimit/rateLimitRef";
+export * from "./readingRateLimit/dynamoReadingRateLimiter";

@@ -52,9 +52,15 @@ export async function executeReadingApi(
   };
   let begun;
   try {
-    begun = await dependencies.persistence.begin({ requestRef, fingerprint, userId: session.user_id, resolvedMode: command.resolvedMode, readingDate, now });
+    begun = await dependencies.persistence.begin({ requestRef, fingerprint, userId: session.user_id, membershipTier: membershipContext.entitlements.tier, resolvedMode: command.resolvedMode, readingDate, now });
   } catch (error) {
-    if (command.resolvedMode === "deep" && error instanceof ServerFoundationError) {
+    if (error instanceof ServerFoundationError && error.code === "READING_RATE_LIMIT_REACHED") {
+      auditEvent("reading_rate_limited", "denied", error.code);
+    } else if (error instanceof ServerFoundationError && error.code === "READING_CONCURRENT_LIMIT_REACHED") {
+      auditEvent("reading_concurrency_limited", "denied", error.code);
+    } else if (error instanceof ServerFoundationError && ["READING_RATE_LIMIT_NOT_CONFIGURED", "READING_RATE_LIMIT_UNAVAILABLE", "READING_RATE_LIMIT_INCONSISTENT"].includes(error.code)) {
+      auditEvent("reading_rate_limit_unavailable", "error", error.code);
+    } else if (command.resolvedMode === "deep" && error instanceof ServerFoundationError) {
       const event = error.code === "READING_DEEP_MONTHLY_LIMIT_REACHED"
         ? "deep_quota_exhausted"
         : error.code === "READING_DEEP_RESERVATION_INCONSISTENT"
@@ -68,6 +74,7 @@ export async function executeReadingApi(
   if (begun.kind === "in_progress") throw new ServerFoundationError("IDEMPOTENCY_IN_PROGRESS");
   if (begun.kind === "replay") return { ...begun.history, request_id: request.requestId };
   const reservation = begun.reservation;
+  if (reservation.rateControl?.concurrencyExpiredReclaimed) auditEvent("reading_concurrency_expired_reclaimed", "success");
   if (reservation.deep) auditEvent("deep_quota_reserved", "success");
 
   let reading;

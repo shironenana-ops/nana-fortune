@@ -1,5 +1,7 @@
 # 鑑定API 冪等性・履歴永続化基盤
 
+> 永続Rate Limitとlight/deep同時実行枠は[READING_RATE_LIMIT.md](./READING_RATE_LIMIT.md)のとおり、idempotency・history・deep月間quotaと原子的に統合します。短時間`used`は生成失敗で戻さず、concurrencyは完了・失敗で解放し、crash時はlease満了後に回収します。
+
 ## 既存履歴監査
 
 既存Python履歴はDynamoDBの複合主キー`user_id`（partition key）＋`history_id`（sort key）を使用します。環境変数名は`TABLE_NAME`、`HISTORY_TABLE`、`HISTORY_TABLE_NAME`が混在し、旧saveはクライアント送信本文を広く保存します。新Node経路はキー構造だけを互換利用し、専用`READING_HISTORY_TABLE_NAME`と`shirone-reading-history-v1` itemを使います。既存Python Lambdaは変更していません。
