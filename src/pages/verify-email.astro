@@ -1,0 +1,91 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const title = "メールアドレス認証 | 白音七";
+---
+
+<BaseLayout {title} noindex>
+  <main class="verify-email-page">
+    <section class="verify-email-card" aria-labelledby="verifyEmailTitle">
+      <h1 id="verifyEmailTitle">メールアドレス認証</h1>
+      <p id="verifyMessage" role="status" aria-live="polite">
+        メール内のリンクを開き、認証を完了してください。
+      </p>
+      <form id="verifyForm">
+        <button id="verifySubmit" type="submit">メールアドレスを認証する</button>
+      </form>
+    </section>
+
+    <section class="verify-email-card" aria-labelledby="resendTitle">
+      <h2 id="resendTitle">認証メールを再送する</h2>
+      <form id="resendForm">
+        <label for="resendEmail">登録したメールアドレス</label>
+        <input id="resendEmail" type="email" autocomplete="email" required />
+        <button id="resendSubmit" type="submit">認証メールを再送する</button>
+      </form>
+      <p id="resendMessage" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script is:inline>
+    const API_BASE = "https://i3fn2xgcrl.execute-api.ap-northeast-1.amazonaws.com";
+    const token = new URLSearchParams(window.location.search).get("token") || "";
+    const verifyForm = document.getElementById("verifyForm");
+    const verifySubmit = document.getElementById("verifySubmit");
+    const verifyMessage = document.getElementById("verifyMessage");
+    const resendForm = document.getElementById("resendForm");
+    const resendSubmit = document.getElementById("resendSubmit");
+    const resendMessage = document.getElementById("resendMessage");
+
+    if (!token) {
+      verifySubmit.disabled = true;
+      verifyMessage.textContent = "認証リンクが見つかりません。メール内のリンクをもう一度開くか、再送してください。";
+    }
+
+    verifyForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!token || verifySubmit.disabled) return;
+      verifySubmit.disabled = true;
+      verifyMessage.textContent = "認証しています…";
+      try {
+        const response = await fetch(`${API_BASE}/verify-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data?.ok) throw new Error("verification failed");
+        verifyMessage.textContent = "認証が完了しました。ログインできます。";
+      } catch (_) {
+        verifyMessage.textContent = "認証リンクは無効または期限切れです。再送をお試しください。";
+        verifySubmit.disabled = false;
+      }
+    });
+
+    resendForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (resendSubmit.disabled) return;
+      resendSubmit.disabled = true;
+      resendMessage.textContent = "送信を確認しています…";
+      const email = document.getElementById("resendEmail").value.trim();
+      try {
+        await fetch(`${API_BASE}/resend-verification`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+      } finally {
+        resendMessage.textContent = "対象のアカウントには、認証メールを再送しました。届かない場合は少し時間をおいてお試しください。";
+        resendSubmit.disabled = false;
+      }
+    });
+  </script>
+</BaseLayout>
+
+<style>
+  .verify-email-page { max-width: 640px; margin: 4rem auto; display: grid; gap: 1.5rem; }
+  .verify-email-card { padding: 2rem; border-radius: 16px; background: rgba(24, 31, 48, .92); color: #fff; }
+  form { display: grid; gap: .85rem; }
+  input, button { min-height: 44px; font: inherit; }
+  button { cursor: pointer; }
+</style>

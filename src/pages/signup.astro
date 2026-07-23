@@ -372,11 +372,17 @@ const pageDescription = "白音七の新規登録";
             throw new Error(data?.message || data?.error || "新規登録に失敗しました。");
           }
 
-          signupMessage.textContent = "登録が完了しました。ログイン画面へ進みます。";
-
-          setTimeout(() => {
-            window.location.href = `/login?redirect=${encodeURIComponent(redirect)}`;
-          }, 900);
+          if (data?.email_verification_required === true) {
+            signupMessage.textContent = "認証メールを送信しました。メール内のリンクを開いてください。";
+            setTimeout(() => {
+              window.location.href = "/verify-email?pending=1";
+            }, 900);
+          } else {
+            signupMessage.textContent = "登録が完了しました。ログイン画面へ進みます。";
+            setTimeout(() => {
+              window.location.href = `/login?redirect=${encodeURIComponent(redirect)}`;
+            }, 900);
+          }
 
         } catch (error) {
           console.error(error);
