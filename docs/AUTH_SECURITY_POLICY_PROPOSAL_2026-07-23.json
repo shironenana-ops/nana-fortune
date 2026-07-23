@@ -1,0 +1,33 @@
+{
+  "schema_version": "shirone-auth-security-policy-proposal-v1",
+  "status": "proposal_not_deployed",
+  "password": {
+    "algorithm": "PBKDF2-HMAC-SHA256",
+    "iterations": 600000,
+    "min_characters": 8,
+    "max_characters": 128,
+    "max_utf8_bytes": 256,
+    "legacy_sha256": "verify_then_conditional_lazy_migrate"
+  },
+  "login_throttle_candidate": {
+    "account": { "failure_limit": 5, "window_seconds": 900, "lock_seconds": 900 },
+    "source_ip": { "failure_limit": 20, "window_seconds": 900 },
+    "storage": "dedicated_dynamodb_security_ref_hmac_keys",
+    "failure_mode": "fail_closed"
+  },
+  "email_verification_candidate": {
+    "enabled_by_default": false,
+    "token_random_bits": 256,
+    "token_ttl_seconds": 86400,
+    "resend_interval_seconds": 60,
+    "delivery": "SESv2_adapter",
+    "failure_mode": "fail_closed"
+  },
+  "required_human_decisions": [
+    "security table name and TTL configuration",
+    "secret storage and rotation owner",
+    "SES sender identity and production region",
+    "API Gateway route and CORS deployment",
+    "rate-limit monitoring and incident response owner"
+  ]
+}
