@@ -1,0 +1,74 @@
+{
+  "schema_version": "shirone-reading-timeout-lease-policy-proposal-v1",
+  "status": "PROPOSED_NOT_EFFECTIVE",
+  "proposed_at": "2026-07-23",
+  "region": "ap-northeast-1",
+  "processing_scope": "JAPAN",
+  "global_profile_used": false,
+  "http_api": {
+    "integration_timeout_max_seconds": 30,
+    "request_internal_deadline_seconds": 10,
+    "request_lambda_timeout_seconds": 15,
+    "cleanup_buffer_seconds": 5
+  },
+  "async_modes": {
+    "light": {
+      "bedrock_timeout_seconds": 90,
+      "worker_lambda_timeout_seconds": 120,
+      "cleanup_buffer_seconds": 30,
+      "concurrency_lease_seconds": 180,
+      "sqs_visibility_timeout_seconds": 720,
+      "sqs_max_receive_count": 5,
+      "sqs_source_retention_seconds": 86400,
+      "sqs_dlq_retention_seconds": 1209600,
+      "worker_batch_size": 1,
+      "worker_reserved_concurrency": 5,
+      "event_source_maximum_concurrency": 5,
+      "sdk_max_attempts": 1
+    },
+    "deep": {
+      "bedrock_timeout_seconds": 180,
+      "worker_lambda_timeout_seconds": 240,
+      "cleanup_buffer_seconds": 60,
+      "concurrency_lease_seconds": 360,
+      "sqs_visibility_timeout_seconds": 1440,
+      "sqs_max_receive_count": 5,
+      "sqs_source_retention_seconds": 86400,
+      "sqs_dlq_retention_seconds": 1209600,
+      "worker_batch_size": 1,
+      "worker_reserved_concurrency": 5,
+      "event_source_maximum_concurrency": 5,
+      "sdk_max_attempts": 1
+    }
+  },
+  "polling": {
+    "retry_after_initial_seconds": 3,
+    "suggested_backoff_seconds": [3, 5, 10, 15],
+    "maximum_interval_seconds": 15
+  },
+  "orphan_message": {
+    "job_visibility_grace_seconds": 60,
+    "after_grace_action": "ACK_WITHOUT_BEDROCK_AND_EMIT_SAFE_METRIC"
+  },
+  "invariants": [
+    "request_internal_deadline_seconds < request_lambda_timeout_seconds",
+    "request_lambda_timeout_seconds < integration_timeout_max_seconds",
+    "bedrock_timeout_seconds < worker_lambda_timeout_seconds",
+    "worker_lambda_timeout_seconds + cleanup_buffer_seconds < concurrency_lease_seconds",
+    "sqs_visibility_timeout_seconds >= worker_lambda_timeout_seconds * 6",
+    "sqs_dlq_retention_seconds > sqs_source_retention_seconds",
+    "ttl_is_cleanup_only",
+    "duplicate_delivery_does_not_consume_rate_or_quota",
+    "queue_wait_does_not_hold_user_concurrency"
+  ],
+  "assumptions_requiring_staging_measurement": [
+    "light_and_deep_latency_p50_p95_and_max",
+    "worker_cleanup_duration",
+    "queue_age_under_limited_beta_load",
+    "bedrock_timeout_rate",
+    "fallback_rate",
+    "dlq_and_retry_behavior",
+    "actual_input_and_output_tokens"
+  ],
+  "approval_required_before_effective": true
+}
