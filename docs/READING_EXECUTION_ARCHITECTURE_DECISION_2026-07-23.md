@@ -1,6 +1,16 @@
 # 鑑定API実行方式の設計判断（2026-07-23）
 
-状態: `DESIGNED_NOT_IMPLEMENTED`
+状態: `SOURCE_IMPLEMENTED_NOT_DEPLOYED`
+
+```text
+ASYNC_CORE_SOURCE: IMPLEMENTED_NOT_DEPLOYED
+STATUS_POLLING: NOT_IMPLEMENTED
+IAC: NOT_IMPLEMENTED
+STAGING: NOT_PROVISIONED
+LIMITED_PAID_BETA_GATE: BLOCKED_BY_STATUS_IAC_AND_STAGING
+```
+
+本決定のPhase 1（受付、job persistence、worker、duplicate/lease/orphan/partial-batch制御）はproduction sourceとローカルテストへ反映済みです。AWS resource、IAM、event source mapping、status API、UI polling、staging実測は含みません。
 
 対象: 白音七の限定β向け `POST /reading/generate`
 
@@ -14,7 +24,7 @@ LIGHT_EXECUTION_MODE: ASYNC
 DEEP_EXECUTION_MODE: ASYNC
 GLOBAL_PROFILE_USED: NO
 AWS_CHANGES: NONE
-LIMITED_PAID_BETA_GATE: BLOCKED_BY_IMPLEMENTATION_AND_STAGING
+LIMITED_PAID_BETA_GATE: BLOCKED_BY_STATUS_IAC_AND_STAGING
 ```
 
 freeは現在どおりcanonical engineだけを同期実行します。Bedrockを使うlight／deepは、受付処理と生成処理を分離し、SQS Standard Queue経由で非同期実行する方式を第一候補とします。

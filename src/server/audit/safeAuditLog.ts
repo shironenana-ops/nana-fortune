@@ -19,6 +19,7 @@ export type AuditEvent = {
   outputCharacters?: number;
   inputTokens?: number;
   outputTokens?: number;
+  attemptCount?: number;
 };
 
 type AuditSink = (line: string) => void;
@@ -61,6 +62,7 @@ export function writeSafeAuditLog(params: {
     ...(Number.isFinite(event.outputCharacters) ? { output_characters: Math.max(0, Math.trunc(event.outputCharacters!)) } : {}),
     ...(Number.isFinite(event.inputTokens) ? { input_tokens: Math.max(0, Math.trunc(event.inputTokens!)) } : {}),
     ...(Number.isFinite(event.outputTokens) ? { output_tokens: Math.max(0, Math.trunc(event.outputTokens!)) } : {}),
+    ...(Number.isFinite(event.attemptCount) ? { attempt_count: Math.max(0, Math.trunc(event.attemptCount!)) } : {}),
     ...(userRef ? { user_ref: userRef } : {}),
   };
   const line = JSON.stringify(record);

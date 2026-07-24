@@ -117,7 +117,8 @@ export function createReadingApiHandler(config: HandlerConfig, dependencies: Rea
       requireSingleValue(headers, "idempotency-key");
       const rawBody = decodeBody(event);
       const result = await executeReadingApi({ requestId, headers, rawBody }, dependencies);
-      return response(200, requestId, result, corsHeaders);
+      const queued = result.status === "queued";
+      return response(queued ? 202 : 200, requestId, result, corsHeaders, queued ? { "Retry-After": "3" } : {});
     } catch (error) {
       const safe = toSafeErrorResponse(error, requestId);
       const code = safe.body.error.code;

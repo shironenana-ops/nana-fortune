@@ -8,6 +8,9 @@
     "build:reading-server": "node scripts/build-reading-engine.mjs",
     "build:reading-foundation": "node scripts/build-reading-foundation.mjs",
     "build:reading-api-handler": "node scripts/build-reading-api-handler.mjs",
+    "build:reading-light-worker": "node scripts/build-reading-light-worker.mjs",
+    "build:reading-deep-worker": "node scripts/build-reading-deep-worker.mjs",
+    "test:reading-async": "node --test tests/readingAsync*.test.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:reading-server": "node --test tests/shironeEngineServerParity.test.mjs",
     "test:reading-foundation": "node --test tests/readingServerFoundation.test.mjs",
@@ -25,6 +28,7 @@
     "@astrojs/vercel": "^10.0.8",
     "@aws-sdk/client-bedrock-runtime": "3.1089.0",
     "@aws-sdk/client-dynamodb": "3.1089.0",
+    "@aws-sdk/client-sqs": "3.1089.0",
     "astro": "^6.4.8",
     "sharp": "^0.34.3"
   }

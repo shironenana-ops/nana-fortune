@@ -8,7 +8,7 @@ import { loadAuthenticatedMembershipContext } from "../users/membershipContext";
 import { ServerFoundationError } from "../http/errors";
 import { createReadingRequestFingerprint, createReadingRequestRef } from "../readingPersistence/requestFingerprint";
 import { toPublicReadingResponse } from "./readingApiResponse";
-import type { PublicReadingResponse, ReadingApiDependencies, ReadingApiRequest } from "./readingApiTypes";
+import type { PublicReadingResponse, ReadingApiDependencies, ReadingApiRequest, ReadingApiResult } from "./readingApiTypes";
 
 function header(headers: ReadingApiRequest["headers"], name: string) {
   return Object.entries(headers).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
@@ -17,7 +17,7 @@ function header(headers: ReadingApiRequest["headers"], name: string) {
 export async function executeReadingApi(
   request: ReadingApiRequest,
   dependencies: ReadingApiDependencies,
-): Promise<PublicReadingResponse> {
+): Promise<ReadingApiResult> {
   const now = dependencies.clock.now();
   const session = authenticateHeaders({
     headers: request.headers,
@@ -42,7 +42,6 @@ export async function executeReadingApi(
       auditHashSecret: dependencies.auditHashSecret,
     },
   });
-  if (command.resolvedMode === "deep" && !dependencies.deepEnabled) throw new ServerFoundationError("READING_DEEP_DISABLED");
   const requestRef = createReadingRequestRef({ userId: session.user_id, idempotencyKey, secret: dependencies.idempotencyHashSecret });
   const fingerprint = createReadingRequestFingerprint({ request: normalizedRequest, secret: dependencies.idempotencyHashSecret });
   const auditEvent = (event: string, outcome: "success" | "denied" | "error", errorCode?: string) => {
@@ -50,6 +49,29 @@ export async function executeReadingApi(
     if (dependencies.audit) dependencies.audit(value, session.user_id);
     else writeSafeAuditLog({ event: value, userId: session.user_id, auditHashSecret: dependencies.auditHashSecret, sink: dependencies.auditSink, now: dependencies.clock.now() });
   };
+  if (command.resolvedMode === "light" || command.resolvedMode === "deep") {
+    if (!dependencies.asyncPaidEnabled || !dependencies.asyncAcceptance) {
+      throw new ServerFoundationError("READING_ASYNC_PAID_DISABLED");
+    }
+    const result = await dependencies.asyncAcceptance.enqueue({
+      requestId: request.requestId,
+      requestRef,
+      fingerprint,
+      userId: session.user_id,
+      membershipTier: membershipContext.entitlements.tier,
+      mode: command.resolvedMode,
+      canonicalInput: {
+        name: command.engineInput.name,
+        birthDate: command.engineInput.birthDate,
+        ...(command.engineInput.question ? { question: command.engineInput.question } : {}),
+        readingDate,
+        resolvedMode: command.resolvedMode,
+      },
+      now,
+    });
+    auditEvent(result.status === "queued" ? "reading_job_queued" : "reading_job_replayed_completed", "success");
+    return result;
+  }
   let begun;
   try {
     begun = await dependencies.persistence.begin({ requestRef, fingerprint, userId: session.user_id, membershipTier: membershipContext.entitlements.tier, resolvedMode: command.resolvedMode, readingDate, now });
@@ -60,13 +82,6 @@ export async function executeReadingApi(
       auditEvent("reading_concurrency_limited", "denied", error.code);
     } else if (error instanceof ServerFoundationError && ["READING_RATE_LIMIT_NOT_CONFIGURED", "READING_RATE_LIMIT_UNAVAILABLE", "READING_RATE_LIMIT_INCONSISTENT"].includes(error.code)) {
       auditEvent("reading_rate_limit_unavailable", "error", error.code);
-    } else if (command.resolvedMode === "deep" && error instanceof ServerFoundationError) {
-      const event = error.code === "READING_DEEP_MONTHLY_LIMIT_REACHED"
-        ? "deep_quota_exhausted"
-        : error.code === "READING_DEEP_RESERVATION_INCONSISTENT"
-          ? "deep_quota_inconsistent"
-          : "deep_quota_conflict";
-      auditEvent(event, error.code === "READING_DEEP_MONTHLY_LIMIT_REACHED" ? "denied" : "error", error.code);
     }
     throw error;
   }

@@ -5,24 +5,44 @@ import { toSafeErrorResponse } from "../http/errors";
 import { createDynamoUserRepository } from "../users/dynamoUserRepository";
 import { runShironeEngineOnServer } from "../shironeEngineServer";
 import { systemClock } from "../reading/serverReadingDate";
-import { BedrockReadingProseRenderer, readBedrockRendererConfig } from "../reading/rendering/bedrockReadingProseRenderer";
-import { renderReadingWithFallback } from "../reading/rendering/renderReadingWithFallback";
 import type { ApiGatewayV2Event } from "./readingApiTypes";
 import { createDynamoReadingPersistence } from "../readingPersistence/dynamoReadingPersistence";
 import { readReadingPersistenceConfig } from "../readingPersistence/persistenceConfig";
 import { readDeepQuotaConfig } from "../readingPersistence/deepQuota";
 import { readReadingRateLimitConfig } from "../readingRateLimit/rateLimitPolicy";
+import { readingAsyncPaidEnabled, readReadingAsyncConfig } from "../readingAsync/readingAsyncConfig";
+import { createSqsReadingJobQueue, readReadingQueueConfig } from "../readingAsync/sqsReadingJobQueue";
+import { createDynamoAsyncReadingPersistence } from "../readingAsync/dynamoAsyncReadingPersistence";
+import { createReadingAsyncAcceptance } from "../readingAsync/readingAsyncAcceptance";
 
 export async function handler(event: ApiGatewayV2Event) {
   const env = process.env;
   try {
     const enabled = readingApiEnabled(env.READING_GENERATE_API_ENABLED);
-    const deepEnabled = env.READING_DEEP_GENERATE_API_ENABLED === "true";
+    const asyncPaidEnabled = readingAsyncPaidEnabled(env.READING_ASYNC_PAID_ENABLED);
+    const basePersistenceConfig = readReadingPersistenceConfig(env);
+    const rateLimit = enabled || asyncPaidEnabled
+      ? readReadingRateLimitConfig(env, env.READING_IDEMPOTENCY_HASH_SECRET)
+      : undefined;
     const persistenceConfig = {
-      ...readReadingPersistenceConfig(env),
-      ...(enabled ? { rateLimit: readReadingRateLimitConfig(env, env.READING_IDEMPOTENCY_HASH_SECRET) } : {}),
-      ...(deepEnabled ? { deepQuota: readDeepQuotaConfig(env) } : {}),
+      ...basePersistenceConfig,
+      ...(rateLimit ? { rateLimit } : {}),
     };
+    const asyncPersistenceConfig = asyncPaidEnabled
+      ? {
+          ...basePersistenceConfig,
+          ...readReadingAsyncConfig(env),
+          rateLimit: rateLimit!,
+          deepQuota: readDeepQuotaConfig(env),
+        }
+      : undefined;
+    const asyncAcceptance = asyncPaidEnabled
+      ? createReadingAsyncAcceptance({
+          queue: createSqsReadingJobQueue(readReadingQueueConfig(env)),
+          persistence: createDynamoAsyncReadingPersistence(asyncPersistenceConfig!),
+          auditHashSecret: env.AUDIT_HASH_SECRET ?? "",
+        })
+      : undefined;
     const app = createReadingApiHandler({
       enabled,
       allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGINS),
@@ -35,24 +55,11 @@ export async function handler(event: ApiGatewayV2Event) {
       auditHashSecret: env.AUDIT_HASH_SECRET,
       persistence: createDynamoReadingPersistence(persistenceConfig),
       idempotencyHashSecret: persistenceConfig.hashSecret,
-      deepEnabled,
+      deepEnabled: false,
+      asyncPaidEnabled,
+      asyncAcceptance,
       engineRunner: runShironeEngineOnServer,
-      renderReading: (params) => {
-        try {
-          const bedrockConfig = readBedrockRendererConfig(env);
-          const renderer = bedrockConfig.enabled ? new BedrockReadingProseRenderer(bedrockConfig) : undefined;
-          return renderReadingWithFallback({ ...params, enabled: bedrockConfig.enabled, renderer });
-        } catch {
-          return Promise.resolve({
-            ...params.reading,
-            rendering: {
-              status: "fallback" as const,
-              provider: "canonical" as const,
-              fallbackReason: "configuration_error" as const,
-            },
-          });
-        }
-      },
+      renderReading: async () => { throw new Error("paid rendering is worker-only"); },
     });
     return await app(event);
   } catch (error) {

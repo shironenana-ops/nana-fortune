@@ -1,6 +1,16 @@
 # 非同期有料鑑定API契約案
 
-状態: `PROPOSED_NOT_IMPLEMENTED`
+状態: `SOURCE_IMPLEMENTED_NOT_DEPLOYED`
+
+```text
+ASYNC_CORE_SOURCE: IMPLEMENTED_NOT_DEPLOYED
+STATUS_POLLING: NOT_IMPLEMENTED
+IAC: NOT_IMPLEMENTED
+STAGING: NOT_PROVISIONED
+LIMITED_PAID_BETA_GATE: BLOCKED_BY_STATUS_IAC_AND_STAGING
+```
+
+202受付、queue-first transaction、job state machine、light/deep workerのproduction sourceとローカルテストは実装済みです。AWS resource、IAM、event source mapping、status/history detail API、UI polling、staging実測は未実装または未実施です。この文書のstatus取得節は次段階の契約であり、現時点で利用可能なendpointを示しません。
 
 この契約はlight／deep用の候補です。freeは既存の同期200契約を維持します。
 

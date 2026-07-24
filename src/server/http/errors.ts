@@ -41,6 +41,13 @@ export type ServerErrorCode =
   | "READING_RATE_LIMIT_NOT_CONFIGURED"
   | "READING_RATE_LIMIT_UNAVAILABLE"
   | "READING_RATE_LIMIT_INCONSISTENT"
+  | "READING_ASYNC_PAID_DISABLED"
+  | "READING_QUEUE_NOT_CONFIGURED"
+  | "READING_QUEUE_UNAVAILABLE"
+  | "READING_JOB_CONFIG_ERROR"
+  | "READING_JOB_UNAVAILABLE"
+  | "READING_JOB_INCONSISTENT"
+  | "READING_JOB_FAILED"
   | "INTERNAL_ERROR";
 
 const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> = {
@@ -86,6 +93,13 @@ const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> 
   READING_RATE_LIMIT_NOT_CONFIGURED: { status: 500, message: "サーバー設定を確認しています" },
   READING_RATE_LIMIT_UNAVAILABLE: { status: 503, message: "現在、鑑定の受付状態を確認できません" },
   READING_RATE_LIMIT_INCONSISTENT: { status: 503, message: "現在、鑑定の受付状態を確認できません" },
+  READING_ASYNC_PAID_DISABLED: { status: 503, message: "有料鑑定は現在利用できません" },
+  READING_QUEUE_NOT_CONFIGURED: { status: 500, message: "サーバー設定を確認しています" },
+  READING_QUEUE_UNAVAILABLE: { status: 503, message: "現在、鑑定を受け付けできません" },
+  READING_JOB_CONFIG_ERROR: { status: 500, message: "サーバー設定を確認しています" },
+  READING_JOB_UNAVAILABLE: { status: 503, message: "現在、鑑定の処理状態を確認できません" },
+  READING_JOB_INCONSISTENT: { status: 503, message: "現在、鑑定を処理できません" },
+  READING_JOB_FAILED: { status: 409, message: "この鑑定は完了できませんでした。新しいリクエストキーでお試しください" },
   INTERNAL_ERROR: { status: 500, message: "処理を完了できませんでした" },
 };
 

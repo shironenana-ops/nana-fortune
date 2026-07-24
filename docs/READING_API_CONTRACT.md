@@ -2,6 +2,24 @@
 
 > Rate Limitとlight/deep同時実行制御の現行仕様は[READING_RATE_LIMIT.md](./READING_RATE_LIMIT.md)を参照してください。429では固定エラーcodeと、算出可能な場合だけ正の整数秒`Retry-After`を返します。completed replay、409 conflict/in-progress、認証・検証・権限拒否はカウントしません。productionの回数・時間窓は未確定です。
 
+## 実装状態（2026-07-24）
+
+```text
+FREE_EXECUTION: SYNC_200
+LIGHT_EXECUTION: ASYNC_202_SOURCE_IMPLEMENTED
+DEEP_EXECUTION: ASYNC_202_SOURCE_IMPLEMENTED
+PAID_SYNC_BEDROCK_FROM_HTTP: NO
+ASYNC_CORE_SOURCE: IMPLEMENTED_NOT_DEPLOYED
+STATUS_POLLING: NOT_IMPLEMENTED
+IAC: NOT_IMPLEMENTED
+STAGING: NOT_PROVISIONED
+LIMITED_PAID_BETA_GATE: BLOCKED_BY_STATUS_IAC_AND_STAGING
+```
+
+light/deepの新規受付は`READING_ASYNC_PAID_ENABLED`が厳密に`true`の場合だけ202を返します。queued/in-progress replayは同じ`reading_id`で202、completed replayは保存済みallow-list DTOで200、failed replayとfingerprint conflictは409です。request Lambdaのpaid経路はengine・Bedrockを呼びません。status/history detail APIとUI pollingは未実装のため、限定βを含め開放根拠にはできません。
+
+以下の同期light/deep成功応答・Bedrock説明はPhase 1以前の契約履歴です。現行のpaid source契約は[READING_ASYNC_API_CONTRACT_PROPOSAL.md](./READING_ASYNC_API_CONTRACT_PROPOSAL.md)を正とします。
+
 ## Endpoint
 
 入口は `POST /reading/generate` とpreflight用の `OPTIONS /reading/generate` です。今回実装したのはAPI Gateway HTTP API payload format v2.0向けのNode.js 22 Lambda handler基盤です。AWSリソース、API Gateway設定、deploy、UI接続は未実装です。
