@@ -2,6 +2,16 @@
 
 状態: `DESIGNED_NOT_PROVISIONED`
 
+```text
+ASYNC_CORE_SOURCE: IMPLEMENTED_NOT_DEPLOYED
+STATUS_POLLING: NOT_IMPLEMENTED
+IAC: NOT_IMPLEMENTED
+STAGING: NOT_PROVISIONED
+LIMITED_PAID_BETA_GATE: BLOCKED_BY_STATUS_IAC_AND_STAGING
+```
+
+Phase 1のrequest/worker sourceとローカルテストは実装済みですが、この計画に記載したAWS resource、IAM、queue、table、event source mapping、alarmは作成していません。環境変数とfeature flagも設定していません。
+
 region: `ap-northeast-1`
 
 processing scope: `JAPAN`
