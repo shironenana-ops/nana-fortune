@@ -5,6 +5,8 @@ import type { Clock } from "../reading/serverReadingDate";
 import type { RenderedReading } from "../reading/rendering/readingProseRenderer";
 import type { UserRepository } from "../users/userRepository";
 import type { ReadingPersistence } from "../readingPersistence/readingPersistence";
+import type { ReadingAsyncAcceptance } from "../readingAsync/readingAsyncAcceptance";
+import type { ReadingApiResult } from "../readingAsync/readingJobTypes";
 
 export const READING_API_PATH = "/reading/generate";
 export const READING_BODY_MAX_BYTES = 16 * 1024;
@@ -46,6 +48,8 @@ export type PublicReadingResponse = {
   };
 };
 
+export type { ReadingApiResult };
+
 export type ReadingApiDependencies = {
   repository: UserRepository;
   clock: Clock;
@@ -63,4 +67,6 @@ export type ReadingApiDependencies = {
   persistence: ReadingPersistence;
   idempotencyHashSecret?: string;
   deepEnabled: boolean;
+  asyncPaidEnabled?: boolean;
+  asyncAcceptance?: ReadingAsyncAcceptance;
 };
