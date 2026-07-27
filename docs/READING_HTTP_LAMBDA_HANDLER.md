@@ -4,7 +4,9 @@
 
 ## 採用event
 
-API Gateway HTTP API payload format version `2.0`だけを受理します。`rawPath`は`/reading`、methodは`requestContext.http.method`から取得します。REST API v1の`httpMethod`、曖昧な混在event、Lambda Function URL固有形式は受理対象にしません。
+API Gateway HTTP API payload format version `2.0`だけを受理します。route識別はtop-level `routeKey`を正とし、POSTは`POST /reading`、preflightは`OPTIONS /reading`を`requestContext.http.method`と一致する場合だけ受理します。named stageを含み得る`rawPath`はroute識別に使いません。REST API v1の`httpMethod`、曖昧な混在event、Lambda Function URL固有形式は受理対象にしません。
+
+stagingの通常preflightはHTTP APIの`CorsConfiguration`が処理し、明示的なOPTIONS routeは作成しません。handler側のOPTIONS/CORS検証は防御境界とローカル回帰用として維持し、POST routeの書き換えやnamed stage吸収には使いません。
 
 Node.js 22のESM artifactを`npm run build:reading-api-handler`で生成します。AWS SDKパッケージはbundleからexternal化しますが、固定versionのproduction dependencyとしてpackageに保持し、runtime付属SDKへ暗黙依存しません。module import時にAWS通信は行いません。
 
@@ -45,10 +47,11 @@ Node.js 22のESM artifactを`npm run build:reading-api-handler`で生成しま�
 ASYNC_CORE_SOURCE: IMPLEMENTED
 STATUS_POLLING_SOURCE: IMPLEMENTED
 INFRASTRUCTURE: DEPLOYED_TO_AWS_STAGING
-CLOUDFORMATION_STACK: CREATE_COMPLETE
+CLOUDFORMATION_STACK: UPDATE_COMPLETE
 KILL_SWITCHES: ALL_FALSE
 WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
-REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+PUBLIC_PATH_FIX: DEPLOYED
+ROUTE_KEY_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
 STAGING_E2E: NOT_COMPLETED
 LIMITED_PAID_BETA_GATE: CLOSED
 ```
@@ -76,7 +79,7 @@ canonical engine結果を必ず先に確定します。freeはBedrockを呼び�
 ## 未完成の境界
 
 - 会員別Rate Limit／light・deep同時実行制御は実装済みだが、承認済み限定β値は有効化されておらず未実測
-- light／deepは非同期queue-first sourceへ移行済み。`/reading` path修正済みrequest artifactのstaging再deployと実E2Eは未完了
+- light／deepは非同期queue-first sourceへ移行済み。`routeKey`修正済みrequest artifactのstaging再deployと実E2Eは未完了
 - deep残数API／UIなし
 - UI polling／一般公開なし
 

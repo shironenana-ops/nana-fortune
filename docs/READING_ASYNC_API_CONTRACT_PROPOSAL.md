@@ -6,15 +6,16 @@
 ASYNC_CORE_SOURCE: IMPLEMENTED
 STATUS_POLLING: SUPERSEDED_BY_READING_STATUS_API_IMPLEMENTATION_2026_07_27
 INFRASTRUCTURE: DEPLOYED_TO_AWS_STAGING
-CLOUDFORMATION_STACK: CREATE_COMPLETE
+CLOUDFORMATION_STACK: UPDATE_COMPLETE
 KILL_SWITCHES: ALL_FALSE
 WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
-REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+PUBLIC_PATH_FIX: DEPLOYED
+ROUTE_KEY_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
 STAGING_E2E: NOT_COMPLETED
 LIMITED_PAID_BETA_GATE: CLOSED
 ```
 
-202受付、queue-first transaction、job state machine、light/deep workerのproduction sourceとローカルテストは実装済みです。staging基盤はCloudFormation `CREATE_COMPLETE`ですが、5つのkill switchはすべてfalse、light/deep workerは無効です。`/reading` path修正を含むrequest artifactは未再deployで、実E2EとUI pollingは未完了です。この文書のstatus取得節は後続実装により置き換えられた契約履歴であり、利用可能なendpointを示しません。
+202受付、queue-first transaction、job state machine、light/deep workerのproduction sourceとローカルテストは実装済みです。staging基盤と公開path統一版は配備済みですが、5つのkill switchはすべてfalse、light/deep workerは無効です。`routeKey`修正を含むrequest artifactは未再deployで、実E2EとUI pollingは未完了です。この文書のstatus取得節は後続実装により置き換えられた契約履歴であり、利用可能なendpointを示しません。
 
 この契約はlight／deep用の候補です。freeは既存の同期200契約を維持します。
 

@@ -1,6 +1,6 @@
 # 有料鑑定 staging IaC
 
-状態: `DEPLOYED_FAIL_CLOSED_PATH_FIX_PENDING_REDEPLOY`
+状態: `DEPLOYED_FAIL_CLOSED_ROUTE_KEY_FIX_PENDING_REDEPLOY`
 
 このディレクトリは、有料鑑定の非同期実行基盤を`ap-northeast-1`のstagingへ構築するためのAWS CloudFormation JSONです。物理resource名は指定せず、CloudFormationが新規に割り当てます。既存resourceを名前の推測で更新しません。
 
@@ -11,7 +11,7 @@ npm run validate:reading-staging-iac
 node --test tests/readingStagingIac.test.mjs
 ```
 
-この検証はJSON構文、resource構成、timeout、route、IAM分離、kill switch既定値をローカルで検査します。stagingでは2026-07-27に`aws cloudformation validate-template`、change set review、deployまで実施し、stackの`CREATE_COMPLETE`を確認しています。
+この検証はJSON構文、resource構成、timeout、route、IAM分離、kill switch既定値をローカルで検査します。stagingでは2026-07-27に`aws cloudformation validate-template`、change set review、初回deployまで実施して`CREATE_COMPLETE`を確認し、その後の公開path統一版も`UPDATE_COMPLETE`を確認しています。
 
 ## fail closed
 
@@ -48,9 +48,9 @@ CloudFormation stack名は、生成されるLambda名が64文字以内に収ま�
 
 ## API path contract
 
-公開request endpointとrequest handlerの厳密pathはともに`POST /reading`へ統一します。HTTP API integrationでは`overwrite:path`を使用しません。statusは`GET /reading/status`をそのまま渡します。
+公開endpointはrequestが`POST /reading`、statusが`GET /reading/status`です。両handlerともAPI Gateway HTTP API payload v2.0の`routeKey`を正規route識別に使い、named stageを含み得る`rawPath`には依存しません。HTTP API integrationでは`overwrite:path`を使用しません。
 
-2026-07-27の初回staging実機試験で、従来の`overwrite:path`ではLambda eventの`rawPath`がhandler期待値と一致せず`HTTP_ROUTE_NOT_FOUND`になることを確認しました。source・IaC・validatorの修正はローカル検証済みですが、このpath修正版のAWS再deployは未実施です。
+2026-07-27のstaging実機試験で、named stageではLambda eventの`rawPath`が`/staging/reading`となり、`/reading`との厳密比較で`HTTP_ROUTE_NOT_FOUND`になることを確認しました。Lambda直接invokeでは`rawPath=/reading`がkill switchの安全な503へ到達し、`rawPath=/staging/reading`で同じ404を再現しています。`routeKey`を正とするsource修正はローカル検証対象であり、修正版request artifactのAWS再deployと実E2Eは未実施です。
 
 ## packaging
 

@@ -20,6 +20,7 @@ function token(userId = "fixture-user-001") {
 function event(overrides = {}) {
   return {
     version: "2.0",
+    routeKey: "POST /reading",
     rawPath: "/reading",
     headers: {
       origin: ORIGIN,
@@ -99,7 +100,7 @@ function body(response) { return JSON.parse(response.body); }
 
 test("HTTP API v2の許可Origin OPTIONSだけを認証なしで処理する", async () => {
   const { handler, calls } = setup();
-  const response = await handler(event({ headers: { origin: ORIGIN, "access-control-request-headers": "Authorization, Content-Type, Idempotency-Key" }, body: undefined, requestContext: { requestId: "gateway-options-001", http: { method: "OPTIONS" } } }));
+  const response = await handler(event({ routeKey: "OPTIONS /reading", headers: { origin: ORIGIN, "access-control-request-headers": "Authorization, Content-Type, Idempotency-Key" }, body: undefined, requestContext: { requestId: "gateway-options-001", http: { method: "OPTIONS" } } }));
   assert.equal(response.statusCode, 204);
   assert.equal(response.headers["Access-Control-Allow-Origin"], ORIGIN);
   assert.equal(response.headers.Vary, "Origin");
@@ -127,13 +128,44 @@ test("OriginなしPOSTはCORS headerなしで認証を必須とする", async ()
   assert.equal((await handler(value)).statusCode, 401);
 });
 
-test("POST以外は405とAllowを返し未知path/v1 eventを拒否する", async () => {
+test("POST以外は405とAllowを返し未知route/v1 eventを拒否する", async () => {
   const { handler, calls } = setup();
   const method = await handler(event({ requestContext: { requestId: "gateway-delete-001", http: { method: "DELETE" } } }));
   assert.equal(method.statusCode, 405);
   assert.equal(method.headers.Allow, "POST, OPTIONS");
-  assert.equal((await handler(event({ rawPath: "/other" }))).statusCode, 404);
+  assert.equal((await handler(event({ routeKey: "POST /other" }))).statusCode, 404);
   assert.equal((await handler(event({ version: "1.0" }))).statusCode, 400);
+  assert.deepEqual([calls.repository, calls.engine, calls.renderer], [0, 0, 0]);
+});
+
+test("routeKeyを正としnamed stage付きrawPathには依存しない", async () => {
+  const { handler, calls } = setup({ enabled: false });
+  for (const rawPath of ["/reading", "/staging/reading"]) {
+    const response = await handler(event({ routeKey: "POST /reading", rawPath }));
+    assert.equal(response.statusCode, 503);
+    assert.equal(body(response).error.code, "READING_API_DISABLED");
+  }
+  assert.deepEqual([calls.repository, calls.engine, calls.renderer], [0, 0, 0]);
+});
+
+test("不正・欠落・型不正routeKeyをrawPathが正しくてもfail closedで拒否する", async () => {
+  const { handler, calls } = setup({ enabled: false });
+  for (const routeKey of ["POST /other", "GET /reading", undefined, null, 42, { route: "POST /reading" }]) {
+    const response = await handler(event({ routeKey, rawPath: "/reading" }));
+    assert.equal(response.statusCode, 404);
+    assert.equal(body(response).error.code, "HTTP_ROUTE_NOT_FOUND");
+  }
+  assert.deepEqual([calls.repository, calls.engine, calls.renderer], [0, 0, 0]);
+});
+
+test("routeKeyとrequestContext methodの不一致を受理しない", async () => {
+  const { handler, calls } = setup();
+  const response = await handler(event({
+    routeKey: "POST /reading",
+    requestContext: { requestId: "gateway-route-method-mismatch-001", http: { method: "OPTIONS" } },
+  }));
+  assert.equal(response.statusCode, 404);
+  assert.equal(body(response).error.code, "HTTP_ROUTE_NOT_FOUND");
   assert.deepEqual([calls.repository, calls.engine, calls.renderer], [0, 0, 0]);
 });
 

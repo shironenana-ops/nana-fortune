@@ -9,11 +9,14 @@ import type { ReadingAsyncAcceptance } from "../readingAsync/readingAsyncAccepta
 import type { ReadingApiResult } from "../readingAsync/readingJobTypes";
 
 export const READING_API_PATH = "/reading";
+export const READING_API_ROUTE_KEY = `POST ${READING_API_PATH}`;
+export const READING_API_OPTIONS_ROUTE_KEY = `OPTIONS ${READING_API_PATH}`;
 export const READING_BODY_MAX_BYTES = 16 * 1024;
 export const READING_ENCODED_BODY_MAX_BYTES = 24 * 1024;
 
 export type ApiGatewayV2Event = {
   version?: unknown;
+  routeKey?: unknown;
   rawPath?: unknown;
   rawQueryString?: unknown;
   queryStringParameters?: unknown;

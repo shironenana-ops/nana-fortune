@@ -4,7 +4,8 @@ import { ServerFoundationError, toSafeErrorResponse } from "../http/errors";
 import { writeSafeAuditLog } from "../audit/safeAuditLog";
 import { executeReadingApi } from "./readingApiService";
 import {
-  READING_API_PATH,
+  READING_API_OPTIONS_ROUTE_KEY,
+  READING_API_ROUTE_KEY,
   READING_BODY_MAX_BYTES,
   READING_ENCODED_BODY_MAX_BYTES,
   type ApiGatewayV2Event,
@@ -94,11 +95,12 @@ export function createReadingApiHandler(config: HandlerConfig, dependencies: Rea
     try {
       const context = requestContext(event);
       requestId = createRequestId(context.requestId);
-      if (event.rawPath !== READING_API_PATH) throw new ServerFoundationError("HTTP_ROUTE_NOT_FOUND");
       const headers = normalizeHeaders(event.headers);
       if (context.method !== "POST" && context.method !== "OPTIONS") {
         throw new ServerFoundationError("HTTP_METHOD_NOT_ALLOWED");
       }
+      const expectedRouteKey = context.method === "POST" ? READING_API_ROUTE_KEY : READING_API_OPTIONS_ROUTE_KEY;
+      if (event.routeKey !== expectedRouteKey) throw new ServerFoundationError("HTTP_ROUTE_NOT_FOUND");
       const origin = requireSingleValue(headers, "origin");
       const cors = evaluateCors({
         origin,
