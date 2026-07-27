@@ -2,7 +2,7 @@
 
 ## 目的と境界
 
-`POST /reading/generate` は、認証済み利用者、サーバーで確認した会員プラン、サーバーで解決した鑑定モードを単位として、永続的な短時間Rate Limitを適用します。lightとdeepは、同一利用者・同一モードにつき同時実行1件に制限します。
+`POST /reading` は、認証済み利用者、サーバーで確認した会員プラン、サーバーで解決した鑑定モードを単位として、永続的な短時間Rate Limitを適用します。lightとdeepは、同一利用者・同一モードにつき同時実行1件に制限します。
 
 これはdeepの日本時間暦月3回という商品利用権、Idempotency-Keyによる同一論理リクエストの重複防止とは別の制御です。MOSH連携や権限付与は行いません。
 
@@ -77,7 +77,12 @@ non-deepの開始は、Rate window、light concurrency、idempotency Putまた�
 RATE_LIMIT_FOUNDATION: VERIFIED
 RATE_LIMIT_POLICY_VALUES: APPROVED_FOR_LIMITED_BETA
 RATE_LIMIT_POLICY_EFFECTIVE: NO
-LIMITED_PAID_BETA_GATE: BLOCKED_BY_INFRA_AND_STAGING
+INFRASTRUCTURE: DEPLOYED_TO_AWS_STAGING
+KILL_SWITCHES: ALL_FALSE
+WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
+REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+STAGING_E2E: NOT_COMPLETED
+LIMITED_PAID_BETA_GATE: CLOSED
 ```
 
-承認済み値のstaging反映、DynamoDB/IAM/Lambda設定、監視、実測、限定公開承認が完了するまで一般開放しません。`READING_GENERATE_API_ENABLED`、`READING_DEEP_GENERATE_API_ENABLED`、`READING_BEDROCK_ENABLED`は、この実装作業では設定しません。
+承認済み値の有効化、監視、staging実測、限定公開承認が完了するまで一般開放しません。`READING_GENERATE_API_ENABLED`、`READING_DEEP_GENERATE_API_ENABLED`、`READING_BEDROCK_ENABLED`を含む5つのkill switchはすべてfalseです。

@@ -37,7 +37,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  A[Browser] -->|token, input, requestedMode, Idempotency-Key| B[POST /reading/generate]
+  A[Browser] -->|token, input, requestedMode, Idempotency-Key| B[POST /reading]
   B --> C[署名・期限検証]
   C -->|token user_id| D[(users)]
   D --> E[server entitlement]

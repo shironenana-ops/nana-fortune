@@ -8,7 +8,7 @@ import type { ReadingPersistence } from "../readingPersistence/readingPersistenc
 import type { ReadingAsyncAcceptance } from "../readingAsync/readingAsyncAcceptance";
 import type { ReadingApiResult } from "../readingAsync/readingJobTypes";
 
-export const READING_API_PATH = "/reading/generate";
+export const READING_API_PATH = "/reading";
 export const READING_BODY_MAX_BYTES = 16 * 1024;
 export const READING_ENCODED_BODY_MAX_BYTES = 24 * 1024;
 

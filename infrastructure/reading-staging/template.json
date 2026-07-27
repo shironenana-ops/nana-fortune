@@ -397,7 +397,7 @@
       "Type": "AWS::ApiGatewayV2::Integration",
       "Properties": {
         "ApiId": { "Ref": "ReadingHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 29000,
-        "IntegrationUri": { "Fn::GetAtt": ["ReadingRequestFunction", "Arn"] }, "RequestParameters": { "overwrite:path": "'/reading/generate'" }
+        "IntegrationUri": { "Fn::GetAtt": ["ReadingRequestFunction", "Arn"] }
       }
     },
     "ReadingStatusIntegration": {

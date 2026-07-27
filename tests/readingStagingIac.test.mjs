@@ -16,6 +16,14 @@ test("HTTP APIの明示名が欠落したtemplateを拒否する", async () => {
   assert.throws(() => validateReadingStagingTemplate(template), /HTTP API name must be stack scoped/u);
 });
 
+test("公開/reading pathをintegrationで書き換えるtemplateを拒否する", async () => {
+  const template = clone(await loadReadingStagingTemplate());
+  template.Resources.ReadingRequestIntegration.Properties.RequestParameters = {
+    "overwrite:path": "'/reading/generate'",
+  };
+  assert.throws(() => validateReadingStagingTemplate(template), /public \/reading path must not be rewritten/u);
+});
+
 test("status roleへのwrite/SQS/Bedrock権限追加を拒否する", async () => {
   const template = clone(await loadReadingStagingTemplate());
   template.Resources.ReadingStatusRole.Properties.Policies[0].PolicyDocument.Statement.push({

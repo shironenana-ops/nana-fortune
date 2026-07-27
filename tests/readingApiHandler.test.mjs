@@ -20,7 +20,7 @@ function token(userId = "fixture-user-001") {
 function event(overrides = {}) {
   return {
     version: "2.0",
-    rawPath: "/reading/generate",
+    rawPath: "/reading",
     headers: {
       origin: ORIGIN,
       "content-type": "application/json; charset=utf-8",
