@@ -10,6 +10,12 @@ test("staging IaCは構成・timeout・分離境界を満たす", async () => {
   assert.equal(validateReadingStagingTemplate(await loadReadingStagingTemplate()), true);
 });
 
+test("HTTP APIの明示名が欠落したtemplateを拒否する", async () => {
+  const template = clone(await loadReadingStagingTemplate());
+  delete template.Resources.ReadingHttpApi.Properties.Name;
+  assert.throws(() => validateReadingStagingTemplate(template), /HTTP API name must be stack scoped/u);
+});
+
 test("status roleへのwrite/SQS/Bedrock権限追加を拒否する", async () => {
   const template = clone(await loadReadingStagingTemplate());
   template.Resources.ReadingStatusRole.Properties.Policies[0].PolicyDocument.Statement.push({
