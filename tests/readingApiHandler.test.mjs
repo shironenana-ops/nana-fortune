@@ -74,7 +74,7 @@ function setup({ enabled = true, membership = {}, repositoryError, beginError, r
         calls.asyncParams = params;
         if (asyncError) throw asyncError;
         if (asyncReplay === "completed") return { request_id: params.requestId, resolved_mode: params.mode, status: "completed", rendering_status: "rendered", result: { title: "保存済み", sections: [], one_step: "一歩", avoid_hint: "注意" } };
-        return { request_id: params.requestId, reading_id: "async-history-001", status: "queued" };
+        return { request_id: params.requestId, job_ref: "11111111-1111-4111-8111-111111111111", status: "queued" };
       },
     },
     persistence: {
@@ -244,9 +244,10 @@ test("light/deepはHTTP内でengineとrendererを呼ばず202 queuedだけを返
   const response = await handler(event()); const value = body(response);
   assert.equal(response.statusCode, 202);
   assert.deepEqual([calls.engine, calls.renderer, calls.async], [0, 0, 1]);
-  assert.deepEqual(Object.keys(value).sort(), ["reading_id", "request_id", "status"]);
+  assert.deepEqual(Object.keys(value).sort(), ["job_ref", "request_id", "status"]);
   assert.equal(response.headers["Retry-After"], "3");
-  assert.doesNotMatch(response.body, /job_ref|user_id|knowledge|audio|model|AWS|fixture-user/i);
+  assert.match(value.job_ref, /^[0-9a-f-]{36}$/u);
+  assert.doesNotMatch(response.body, /reading_id|user_id|knowledge|audio|model|AWS|fixture-user/i);
 });
 
 test("paid asyncが無効なら同期fallbackせず固定503", async () => {

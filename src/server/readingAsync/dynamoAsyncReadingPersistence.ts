@@ -110,8 +110,12 @@ export class DynamoAsyncReadingPersistence implements AsyncReadingPersistence {
     if (!fingerprintsEqual(text(item, "fingerprint"), params.fingerprint)) return { kind: "conflict" };
     const state = text(item, "state");
     const historyId = text(item, "history_id");
-    if (state === "QUEUED") return { kind: "queued", historyId };
-    if (state === "IN_PROGRESS") return { kind: "in_progress", historyId };
+    const jobRef = text(item, "job_ref");
+    if ((state === "QUEUED" || state === "IN_PROGRESS") && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(jobRef)) {
+      throw new ServerFoundationError("READING_JOB_INCONSISTENT");
+    }
+    if (state === "QUEUED") return { kind: "queued", jobRef };
+    if (state === "IN_PROGRESS") return { kind: "in_progress", jobRef };
     if (state === "FAILED") return { kind: "failed" };
     if (state === "COMPLETED") {
       const history = await this.get(this.config.historyTable, { user_id: S(params.userId), history_id: S(historyId) });

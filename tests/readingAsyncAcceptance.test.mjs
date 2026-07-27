@@ -52,7 +52,7 @@ test("queue succeeds before the acceptance transaction and only opaque public id
   const response = await service.enqueue(request);
   assert.deepEqual(response, {
     request_id: request.requestId,
-    reading_id: HISTORY_ID,
+    job_ref: JOB_REF,
     status: "queued",
   });
   assert.deepEqual(order, ["queue", "accept"]);
