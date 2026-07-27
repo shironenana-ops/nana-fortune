@@ -7,7 +7,7 @@
 ASYNC_ACCEPTANCE: SOURCE_IMPLEMENTED_NOT_DEPLOYED
 STATUS_POLLING: SOURCE_IMPLEMENTED_NOT_DEPLOYED
 UI_POLLING: NOT_IMPLEMENTED
-IAC: NOT_IMPLEMENTED
+IAC: IMPLEMENTED_LOCALLY_NOT_DEPLOYED
 AWS_STAGING: NOT_PROVISIONED
 BEDROCK_E2E: NOT_EXECUTED
 ```
@@ -129,7 +129,7 @@ status Lambda artifactが持つAWS data-plane commandは、強整合の`GetItemC
 
 ## 未実施
 
-- API Gateway route / Lambda / IAM / DynamoDB policyのIaC
+- IaCのAWS service validation、change set review、staging deploy
 - AWS staging接続と実測
 - UI polling
 - production flag設定
