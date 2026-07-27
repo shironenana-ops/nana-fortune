@@ -1,18 +1,22 @@
 # 鑑定API staging基盤設計
 
-状態: `IAC_IMPLEMENTED_LOCALLY_NOT_PROVISIONED`
+状態: `DEPLOYED_FAIL_CLOSED_PATH_FIX_PENDING_REDEPLOY`
 
 ```text
-ASYNC_CORE_SOURCE: IMPLEMENTED_NOT_DEPLOYED
-STATUS_POLLING: SOURCE_IMPLEMENTED_NOT_DEPLOYED
-IAC: IMPLEMENTED_LOCALLY_NOT_DEPLOYED
-STAGING: NOT_PROVISIONED
-LIMITED_PAID_BETA_GATE: BLOCKED_BY_STAGING_VALIDATION
+ASYNC_CORE_SOURCE: IMPLEMENTED
+STATUS_POLLING_SOURCE: IMPLEMENTED
+INFRASTRUCTURE: DEPLOYED_TO_AWS_STAGING
+CLOUDFORMATION_STACK: CREATE_COMPLETE
+KILL_SWITCHES: ALL_FALSE
+WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
+REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+STAGING_E2E: NOT_COMPLETED
+LIMITED_PAID_BETA_GATE: CLOSED
 ```
 
-ローカルIaC実装と検証結果は[READING_STAGING_IAC_IMPLEMENTATION_2026-07-27.md](./READING_STAGING_IAC_IMPLEMENTATION_2026-07-27.md)を参照してください。AWS上のresourceはまだ作成されていません。
+ローカルIaC実装時の記録は[READING_STAGING_IAC_IMPLEMENTATION_2026-07-27.md](./READING_STAGING_IAC_IMPLEMENTATION_2026-07-27.md)を参照してください。その文書は当時の未deploy状態を保存するhistorical recordです。現在のstagingはCloudFormation `CREATE_COMPLETE`ですが、`/reading` path修正済みrequest artifactは未再deployで、実E2Eは未完了です。
 
-Phase 1のrequest/worker sourceとローカルテストは実装済みですが、この計画に記載したAWS resource、IAM、queue、table、event source mapping、alarmは作成していません。環境変数とfeature flagも設定していません。
+request/status/worker sourceとローカルテストは実装済みで、この計画に記載したstaging基盤は構築済みです。ただし、5つのkill switchはすべてfalse、light/deep event source mappingは無効のままです。一般・有料βは閉じています。
 
 region: `ap-northeast-1`
 
@@ -20,7 +24,7 @@ processing scope: `JAPAN`
 
 Global inference profile: 使用しない
 
-この文書に実resource名、AWS account ID、secret値、production値は含めません。AWS resource、IAM、環境変数、flagは作成・変更していません。
+この文書に実resource名、AWS account ID、secret値、production値は含めません。現在のkill switchはすべてfalseであり、この文書更新でAWS resource、IAM、環境変数、flagを変更していません。
 
 ## 構成
 
@@ -257,9 +261,9 @@ ManagedBy
 
 以下が揃うまで限定有料βを開きません。
 
-- async protocolとfailure matrixの実装／unit test
-- IaC差分とleast-privilege IAMの人間レビュー
-- staging専用resource作成の個別承認
+- `/reading` path修正済みrequest artifactの再build・hash確認・staging再deploy
+- IaC差分とleast-privilege IAMの再確認
+- CloudFormation更新差分がrequest artifactとpath mapping修正に限定されることの確認
 - mode別JP Geo profileのHTTP 200 smokeとGlobal未使用証跡
 - duplicate delivery、lease expiry、orphan、DLQ、re-driveの安全試験
 - token／latency／fallback／queue age／quota／Rate Limitの観測
@@ -267,10 +271,12 @@ ManagedBy
 - flags未設定状態から段階的に有効化するrunbook
 
 ```text
-STAGING_INFRASTRUCTURE: DESIGNED
-IAM_BOUNDARY: DESIGNED
-TIMEOUT_POLICY: PROPOSED
-CONCURRENCY_LEASE_POLICY: PROPOSED
-AWS_CHANGES: NONE
-LIMITED_PAID_BETA_GATE: BLOCKED_BY_IMPLEMENTATION_AND_STAGING
+STAGING_INFRASTRUCTURE: DEPLOYED
+CLOUDFORMATION_STACK: CREATE_COMPLETE
+IAM_BOUNDARY: DEPLOYED_FAIL_CLOSED
+KILL_SWITCHES: ALL_FALSE
+WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
+REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+STAGING_E2E: NOT_COMPLETED
+LIMITED_PAID_BETA_GATE: CLOSED_PENDING_PATH_REDEPLOY_AND_E2E
 ```

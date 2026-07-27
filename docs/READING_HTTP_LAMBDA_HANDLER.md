@@ -4,7 +4,7 @@
 
 ## 採用event
 
-API Gateway HTTP API payload format version `2.0`だけを受理します。`rawPath`は`/reading/generate`、methodは`requestContext.http.method`から取得します。REST API v1の`httpMethod`、曖昧な混在event、Lambda Function URL固有形式は受理対象にしません。
+API Gateway HTTP API payload format version `2.0`だけを受理します。`rawPath`は`/reading`、methodは`requestContext.http.method`から取得します。REST API v1の`httpMethod`、曖昧な混在event、Lambda Function URL固有形式は受理対象にしません。
 
 Node.js 22のESM artifactを`npm run build:reading-api-handler`で生成します。AWS SDKパッケージはbundleからexternal化しますが、固定versionのproduction dependencyとしてpackageに保持し、runtime付属SDKへ暗黙依存しません。module import時にAWS通信は行いません。
 
@@ -39,14 +39,18 @@ Node.js 22のESM artifactを`npm run build:reading-api-handler`で生成しま�
 
 ## 安全スイッチと入力上限
 
-### 非同期有料鑑定 Phase 1 状態（2026-07-24）
+### 非同期有料鑑定 staging状態（2026-07-27）
 
 ```text
-ASYNC_CORE_SOURCE: IMPLEMENTED_NOT_DEPLOYED
-STATUS_POLLING: SOURCE_IMPLEMENTED_NOT_DEPLOYED
-IAC: NOT_IMPLEMENTED
-STAGING: NOT_PROVISIONED
-LIMITED_PAID_BETA_GATE: BLOCKED_BY_STATUS_IAC_AND_STAGING
+ASYNC_CORE_SOURCE: IMPLEMENTED
+STATUS_POLLING_SOURCE: IMPLEMENTED
+INFRASTRUCTURE: DEPLOYED_TO_AWS_STAGING
+CLOUDFORMATION_STACK: CREATE_COMPLETE
+KILL_SWITCHES: ALL_FALSE
+WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
+REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+STAGING_E2E: NOT_COMPLETED
+LIMITED_PAID_BETA_GATE: CLOSED
 ```
 
 freeは従来どおり同期200です。light/deepは`READING_ASYNC_PAID_ENABLED`が厳密に`true`の場合だけ、認証・会員照会・入力検証・冪等性precheck後にqueue-firstで受け付け、成功時に202を返すsourceへ変更しました。request Lambdaのpaid経路ではengineとBedrock rendererを実行しません。flag未設定・不正値・設定不足は503でfail closedし、旧同期paid経路へfallbackしません。
@@ -71,9 +75,9 @@ canonical engine結果を必ず先に確定します。freeはBedrockを呼び�
 
 ## 未完成の境界
 
-- 会員別Rate Limit／light・deep同時実行制御は実装済みだが、承認済み限定β値は環境へ未適用
-- 現在のlight／deepは同期handler内でBedrockまで実行するため、HTTP APIの30秒上限と両立する保証なし。非同期化案は[READING_EXECUTION_ARCHITECTURE_DECISION_2026-07-23.md](./READING_EXECUTION_ARCHITECTURE_DECISION_2026-07-23.md)を参照
+- 会員別Rate Limit／light・deep同時実行制御は実装済みだが、承認済み限定β値は有効化されておらず未実測
+- light／deepは非同期queue-first sourceへ移行済み。`/reading` path修正済みrequest artifactのstaging再deployと実E2Eは未完了
 - deep残数API／UIなし
-- API Gateway／Lambda／IAM／deploy／UI接続なし
+- UI polling／一般公開なし
 
 一般利用者へlight／deepはまだ開放しません。deep quotaの詳細は[READING_DEEP_MONTHLY_QUOTA.md](./READING_DEEP_MONTHLY_QUOTA.md)を参照してください。

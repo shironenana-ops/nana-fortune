@@ -99,7 +99,7 @@ export function validateReadingStagingTemplate(template) {
   const requestIntegration = template.Resources.ReadingRequestIntegration.Properties;
   const apiName = template.Resources.ReadingHttpApi.Properties.Name?.["Fn::Sub"];
   if (apiName !== "${AWS::StackName}-reading-http-api") fail("HTTP API name must be stack scoped");
-  if (requestIntegration.RequestParameters?.["overwrite:path"] !== "'/reading/generate'") fail("public /reading path adapter");
+  if (requestIntegration.RequestParameters?.["overwrite:path"] !== undefined) fail("public /reading path must not be rewritten");
   if (template.Resources.ReadingRequestRoute.Properties.RouteKey !== "POST /reading") fail("request route");
   if (template.Resources.ReadingStatusRoute.Properties.RouteKey !== "GET /reading/status") fail("status route");
   const requestSourceArn = template.Resources.ReadingRequestInvokePermission.Properties.SourceArn?.["Fn::Sub"];

@@ -1,6 +1,6 @@
 # 有料鑑定 staging IaC
 
-状態: `IMPLEMENTED_NOT_DEPLOYED`
+状態: `DEPLOYED_FAIL_CLOSED_PATH_FIX_PENDING_REDEPLOY`
 
 このディレクトリは、有料鑑定の非同期実行基盤を`ap-northeast-1`のstagingへ構築するためのAWS CloudFormation JSONです。物理resource名は指定せず、CloudFormationが新規に割り当てます。既存resourceを名前の推測で更新しません。
 
@@ -11,7 +11,7 @@ npm run validate:reading-staging-iac
 node --test tests/readingStagingIac.test.mjs
 ```
 
-この検証はJSON構文、resource構成、timeout、route、IAM分離、kill switch既定値をローカルで検査します。`aws cloudformation validate-template`、change set、deployはAWS接続になるため本作業では実行しません。
+この検証はJSON構文、resource構成、timeout、route、IAM分離、kill switch既定値をローカルで検査します。stagingでは2026-07-27に`aws cloudformation validate-template`、change set review、deployまで実施し、stackの`CREATE_COMPLETE`を確認しています。
 
 ## fail closed
 
@@ -25,7 +25,7 @@ node --test tests/readingStagingIac.test.mjs
 
 stackを作成しただけでは受付、status取得、Bedrock描画は有効になりません。有効化はstaging resourceの実在確認、IAM review、secret投入、artifact hash確認、mock user準備、change set review後に人間が個別承認します。
 
-## deploy前に必要な入力
+## staging deploy入力
 
 - 4つのLambda ZIPを置くstaging専用S3 bucketとobject key
 - stagingの完全一致origin
@@ -46,9 +46,11 @@ CloudFormation stack名は、生成されるLambda名が64文字以内に収ま�
 
 各workerは対応するprofile ARNと、そのprofileがroutingする東京・大阪のfoundation model ARNだけへ`bedrock:InvokeModel`できます。foundation model側には`bedrock:InferenceProfileArn`条件を付けます。Global inference profile、反対modeのprofile、`Resource: "*"`は許可しません。
 
-## API path adapter
+## API path contract
 
-外部契約は`POST /reading`ですが、既存request handlerは`/reading/generate`を厳密検証します。HTTP API integrationの`overwrite:path`で固定内部pathへ変換し、sourceの認証・入力検証を変更しません。statusは`GET /reading/status`を変換せず渡します。
+公開request endpointとrequest handlerの厳密pathはともに`POST /reading`へ統一します。HTTP API integrationでは`overwrite:path`を使用しません。statusは`GET /reading/status`をそのまま渡します。
+
+2026-07-27の初回staging実機試験で、従来の`overwrite:path`ではLambda eventの`rawPath`がhandler期待値と一致せず`HTTP_ROUTE_NOT_FOUND`になることを確認しました。source・IaC・validatorの修正はローカル検証済みですが、このpath修正版のAWS再deployは未実施です。
 
 ## packaging
 
@@ -56,9 +58,8 @@ IaCはZIPを生成・uploadしません。deploy前に既存buildを実行し、
 
 ## 未実施
 
-- AWS接続、CloudFormation validate、change set、deploy
-- artifact upload
-- secretの取得・作成・更新
-- staging tableへのデータ投入
+- `/reading` path修正版request artifactのbuild・upload・staging再deploy
+- staging tableへのテストデータ投入
 - API／SQS／DynamoDB／Bedrockの実E2E
+- kill switchの段階的有効化
 - production resource作成・参照

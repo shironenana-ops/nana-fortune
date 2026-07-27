@@ -2,27 +2,31 @@
 
 > Rate Limitとlight/deep同時実行制御の現行仕様は[READING_RATE_LIMIT.md](./READING_RATE_LIMIT.md)を参照してください。429では固定エラーcodeと、算出可能な場合だけ正の整数秒`Retry-After`を返します。completed replay、409 conflict/in-progress、認証・検証・権限拒否はカウントしません。productionの回数・時間窓は未確定です。
 
-## 実装状態（2026-07-24）
+## 実装・staging状態（2026-07-27）
 
 ```text
 FREE_EXECUTION: SYNC_200
 LIGHT_EXECUTION: ASYNC_202_SOURCE_IMPLEMENTED
 DEEP_EXECUTION: ASYNC_202_SOURCE_IMPLEMENTED
 PAID_SYNC_BEDROCK_FROM_HTTP: NO
-ASYNC_CORE_SOURCE: IMPLEMENTED_NOT_DEPLOYED
-STATUS_POLLING: SOURCE_IMPLEMENTED_NOT_DEPLOYED
-IAC: NOT_IMPLEMENTED
-STAGING: NOT_PROVISIONED
-LIMITED_PAID_BETA_GATE: BLOCKED_BY_STATUS_IAC_AND_STAGING
+ASYNC_CORE_SOURCE: IMPLEMENTED
+STATUS_POLLING_SOURCE: IMPLEMENTED
+INFRASTRUCTURE: DEPLOYED_TO_AWS_STAGING
+CLOUDFORMATION_STACK: CREATE_COMPLETE
+KILL_SWITCHES: ALL_FALSE
+WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
+REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+STAGING_E2E: NOT_COMPLETED
+LIMITED_PAID_BETA_GATE: CLOSED
 ```
 
-light/deepの新規受付は`READING_ASYNC_PAID_ENABLED`が厳密に`true`の場合だけ202を返します。queued/in-progress replayは同じopaque `job_ref`で202、completed replayは保存済みallow-list DTOで200、failed replayとfingerprint conflictは409です。request Lambdaのpaid経路はengine・Bedrockを呼びません。status API sourceは実装済みですが、UI polling・IaC・stagingは未実装のため、限定βを含め開放根拠にはできません。status契約は`READING_STATUS_API_IMPLEMENTATION_2026-07-27.md`を参照してください。
+light/deepの新規受付は`READING_ASYNC_PAID_ENABLED`が厳密に`true`の場合だけ202を返します。queued/in-progress replayは同じopaque `job_ref`で202、completed replayは保存済みallow-list DTOで200、failed replayとfingerprint conflictは409です。request Lambdaのpaid経路はengine・Bedrockを呼びません。staging基盤はCloudFormation `CREATE_COMPLETE`ですが、5つのkill switchはすべてfalse、light/deep workerは無効です。`/reading` path修正を含むrequest artifactは未再deployで、実E2Eも未完了のため、限定βを含め開放根拠にはできません。status契約は`READING_STATUS_API_IMPLEMENTATION_2026-07-27.md`を参照してください。
 
 以下の同期light/deep成功応答・Bedrock説明はPhase 1以前の契約履歴です。現行のpaid source契約は[READING_ASYNC_API_CONTRACT_PROPOSAL.md](./READING_ASYNC_API_CONTRACT_PROPOSAL.md)を正とします。
 
 ## Endpoint
 
-入口は `POST /reading/generate` とpreflight用の `OPTIONS /reading/generate` です。今回実装したのはAPI Gateway HTTP API payload format v2.0向けのNode.js 22 Lambda handler基盤です。AWSリソース、API Gateway設定、deploy、UI接続は未実装です。
+入口は `POST /reading` とpreflight用の `OPTIONS /reading` です。API Gateway HTTP API payload format v2.0向けのNode.js 22 Lambda handler基盤です。stagingのAPI GatewayとLambda基盤は構築済みですが、path修正済みrequest artifactの再deployとUI接続は未実施です。
 
 `READING_GENERATE_API_ENABLED`が厳密に文字列`true`の場合だけPOST生成を開始します。未設定、空、`false`、`TRUE`、`1`、前後空白付き値は503でfail closedします。フラグ有効時も認証、会員照会、mode解決は必須です。
 
@@ -111,10 +115,10 @@ freeではBedrockを呼びません。light／deepはcanonical結果を先に確
 
 ## 未実装・一般開放を禁止する境界
 
-- AWSリソース、API Gateway設定、実AWS接続、deploy、UI接続
+- `/reading` path修正済みrequest artifactのstaging再deploy、実E2E、UI接続
 - history一覧・詳細・削除APIのNode移行
 - deep残数表示API／UI
 - 承認済みRate Limit値のstaging適用と実測
-- 非同期light／deep、一般公開、UI接続
+- UI polling、一般公開
 
-永続冪等性、履歴の原子確定、deep月間予約、会員別Rate Limit／同時実行制御はローカル実装済みです。ただし承認値は環境へ未適用で、現行同期handlerはHTTP APIの30秒上限と両立する保証がありません。非同期実装、staging基盤、IAM、実測、UI接続が揃うまで、このhandlerを有料鑑定一般開放の根拠にしてはいけません。
+永続冪等性、履歴の原子確定、deep月間予約、会員別Rate Limit／同時実行制御、非同期受付とworkerはsource実装済みです。staging基盤は構築済みですが、path修正の再deploy、実測、UI接続が揃うまで、このhandlerを有料鑑定一般開放の根拠にしてはいけません。

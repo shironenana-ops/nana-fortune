@@ -1,20 +1,24 @@
 # 非同期有料鑑定API契約案
 
-状態: `SOURCE_IMPLEMENTED_NOT_DEPLOYED`
+状態: `SOURCE_IMPLEMENTED_STAGING_FAIL_CLOSED`
 
 ```text
-ASYNC_CORE_SOURCE: IMPLEMENTED_NOT_DEPLOYED
+ASYNC_CORE_SOURCE: IMPLEMENTED
 STATUS_POLLING: SUPERSEDED_BY_READING_STATUS_API_IMPLEMENTATION_2026_07_27
-IAC: NOT_IMPLEMENTED
-STAGING: NOT_PROVISIONED
-LIMITED_PAID_BETA_GATE: BLOCKED_BY_STATUS_IAC_AND_STAGING
+INFRASTRUCTURE: DEPLOYED_TO_AWS_STAGING
+CLOUDFORMATION_STACK: CREATE_COMPLETE
+KILL_SWITCHES: ALL_FALSE
+WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
+REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+STAGING_E2E: NOT_COMPLETED
+LIMITED_PAID_BETA_GATE: CLOSED
 ```
 
-202受付、queue-first transaction、job state machine、light/deep workerのproduction sourceとローカルテストは実装済みです。AWS resource、IAM、event source mapping、status/history detail API、UI polling、staging実測は未実装または未実施です。この文書のstatus取得節は次段階の契約であり、現時点で利用可能なendpointを示しません。
+202受付、queue-first transaction、job state machine、light/deep workerのproduction sourceとローカルテストは実装済みです。staging基盤はCloudFormation `CREATE_COMPLETE`ですが、5つのkill switchはすべてfalse、light/deep workerは無効です。`/reading` path修正を含むrequest artifactは未再deployで、実E2EとUI pollingは未完了です。この文書のstatus取得節は後続実装により置き換えられた契約履歴であり、利用可能なendpointを示しません。
 
 この契約はlight／deep用の候補です。freeは既存の同期200契約を維持します。
 
-## POST /reading/generate
+## POST /reading
 
 認証、CORS、入力schema、Idempotency-Key、会員権限は既存契約を維持します。light／deepの新規受付が確定した場合だけ202を返します。
 
