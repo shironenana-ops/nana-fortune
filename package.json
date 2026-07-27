@@ -8,6 +8,7 @@
     "build:reading-server": "node scripts/build-reading-engine.mjs",
     "build:reading-foundation": "node scripts/build-reading-foundation.mjs",
     "build:reading-api-handler": "node scripts/build-reading-api-handler.mjs",
+    "build:reading-status-handler": "node scripts/build-reading-status-handler.mjs",
     "build:reading-light-worker": "node scripts/build-reading-light-worker.mjs",
     "build:reading-deep-worker": "node scripts/build-reading-deep-worker.mjs",
     "test:reading-async": "node --test tests/readingAsync*.test.mjs",

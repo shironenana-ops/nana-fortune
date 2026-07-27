@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { ServerFoundationError } from "../http/errors";
 import type { ReadingJobQueue } from "./readingJobQueue";
 import type {
@@ -8,19 +8,15 @@ import type {
   QueuedReadingResponse,
   ReadingApiResult,
 } from "./readingJobTypes";
+import { createReadingJobOwnerRef } from "./readingJobOwnerRef";
 
 export type ReadingAsyncAcceptance = {
   enqueue(params: Omit<AsyncAcceptanceInput, "ownerRef"> & { requestId: string }): Promise<ReadingApiResult>;
 };
 
-function ownerReference(userId: string, secret: string): string {
-  if (!secret || secret.length < 32) throw new ServerFoundationError("AUDIT_NOT_CONFIGURED");
-  return createHmac("sha256", secret).update(`shirone-reading-job-owner-v1\0${userId}`, "utf8").digest("hex");
-}
-
 function fromPrecheck(result: AsyncPrecheckResult, requestId: string): ReadingApiResult | undefined {
   if (result.kind === "queued" || result.kind === "in_progress") {
-    return { request_id: requestId, reading_id: result.historyId, status: "queued" };
+    return { request_id: requestId, job_ref: result.jobRef, status: "queued" };
   }
   if (result.kind === "completed") return { ...result.history, request_id: requestId };
   if (result.kind === "failed") throw new ServerFoundationError("READING_JOB_FAILED");
@@ -47,12 +43,12 @@ export function createReadingAsyncAcceptance(dependencies: {
       await dependencies.queue.send(params.mode, jobRef);
       const accepted = await dependencies.persistence.accept({
         ...params,
-        ownerRef: ownerReference(params.userId, dependencies.auditHashSecret),
+        ownerRef: createReadingJobOwnerRef(params.userId, dependencies.auditHashSecret),
         jobRef,
         historyId,
       });
       if (accepted === "accepted") {
-        return { request_id: params.requestId, reading_id: historyId, status: "queued" } satisfies QueuedReadingResponse;
+        return { request_id: params.requestId, job_ref: jobRef, status: "queued" } satisfies QueuedReadingResponse;
       }
       // A queue message without an accepted job is intentionally left for the
       // worker orphan protocol.  Re-read the winning transaction state.

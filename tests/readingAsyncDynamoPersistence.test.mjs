@@ -16,6 +16,15 @@ class Sender {
 }
 const input = { requestRef: "a".repeat(64), fingerprint: "b".repeat(64), userId: "fixture-user-private", ownerRef: "c".repeat(64), membershipTier: "light", mode: "light", canonicalInput: { name: "架空 花子", birthDate: "1984-12-29", readingDate: "2026-07-24", resolvedMode: "light" }, now: new Date("2026-07-24T00:00:00Z"), jobRef: "11111111-1111-4111-8111-111111111111", historyId: "22222222-2222-4222-8222-222222222222" };
 
+test("queued idempotency replay returns the accepted opaque job_ref", async () => {
+  const sender = { send: async (command) => {
+    assert.equal(command.input.TableName, "idem");
+    return { Item: { fingerprint: { S: input.fingerprint }, state: { S: "QUEUED" }, history_id: { S: input.historyId }, job_ref: { S: input.jobRef } } };
+  } };
+  const store = new api.DynamoAsyncReadingPersistence(sender, config);
+  assert.deepEqual(await store.precheck(input), { kind: "queued", jobRef: input.jobRef });
+});
+
 test("acceptance transaction includes rate, job, processing history, and idempotency but no concurrency", async () => {
   const sender = new Sender(); const store = new api.DynamoAsyncReadingPersistence(sender, config);
   assert.equal(await store.accept(input), "accepted");

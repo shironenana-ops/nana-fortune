@@ -45,18 +45,18 @@ test("queue-first coordinator does not mutate persistence when queue fails", asy
   assert.equal(calls.accept, 0);
 });
 
-test("queued replay skips queue and race loser returns winning reading_id", async () => {
+test("queued replay skips queue and race loser returns winning job_ref", async () => {
   let reads = 0; let sends = 0;
   const persistence = {
-    precheck: async () => (++reads === 1 ? { kind: "missing" } : { kind: "queued", historyId: "winner-history" }),
+    precheck: async () => (++reads === 1 ? { kind: "missing" } : { kind: "queued", jobRef: JOB }),
     accept: async () => "conflict",
   };
   const service = api.createReadingAsyncAcceptance({ queue: { send: async () => { sends += 1; } }, persistence, auditHashSecret: "fixture-only-audit-secret-32-characters-minimum", uuid: (() => { const values = [JOB, HISTORY]; return () => values.shift(); })() });
   const result = await service.enqueue(base);
-  assert.deepEqual(result, { request_id: "request-public-001", reading_id: "winner-history", status: "queued" });
+  assert.deepEqual(result, { request_id: "request-public-001", job_ref: JOB, status: "queued" });
   assert.equal(sends, 1);
-  const replay = api.createReadingAsyncAcceptance({ queue: { send: async () => { throw new Error("must not send"); } }, persistence: { precheck: async () => ({ kind: "in_progress", historyId: "winner-history" }) }, auditHashSecret: "fixture-only-audit-secret-32-characters-minimum" });
-  assert.equal((await replay.enqueue(base)).reading_id, "winner-history");
+  const replay = api.createReadingAsyncAcceptance({ queue: { send: async () => { throw new Error("must not send"); } }, persistence: { precheck: async () => ({ kind: "in_progress", jobRef: JOB }) }, auditHashSecret: "fixture-only-audit-secret-32-characters-minimum" });
+  assert.equal((await replay.enqueue(base)).job_ref, JOB);
 });
 
 test("failed replay and fingerprint conflict are fixed 409 errors", async () => {

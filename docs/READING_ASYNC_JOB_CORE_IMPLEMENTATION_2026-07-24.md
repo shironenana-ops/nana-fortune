@@ -14,6 +14,8 @@ STAGING: NOT_PROVISIONED
 LIMITED_PAID_BETA_GATE: BLOCKED_BY_STATUS_IAC_AND_STAGING
 ```
 
+> 2026-07-27追記: この記録はPhase 1時点の履歴です。status pollingの現在の状態と、公開`job_ref`契約は`READING_STATUS_API_IMPLEMENTATION_2026-07-27.md`を正とします。
+
 この証跡はローカルsourceとmock/adapter testの結果です。AWS上での稼働、本番対応、限定β利用可、IAM検証済みを意味しません。
 
 ## 実装境界

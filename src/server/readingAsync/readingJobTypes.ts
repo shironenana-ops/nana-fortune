@@ -16,7 +16,7 @@ export type CanonicalJobInput = {
 
 export type QueuedReadingResponse = {
   request_id: string;
-  reading_id: string;
+  job_ref: string;
   status: "queued";
 };
 
@@ -60,7 +60,7 @@ export type ReadingJobFailureCategory =
 
 export type AsyncPrecheckResult =
   | { kind: "missing" }
-  | { kind: "queued" | "in_progress"; historyId: string }
+  | { kind: "queued" | "in_progress"; jobRef: string }
   | { kind: "completed"; history: Omit<PublicReadingResponse, "request_id"> }
   | { kind: "failed" }
   | { kind: "conflict" };

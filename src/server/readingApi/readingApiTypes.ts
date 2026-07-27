@@ -15,6 +15,8 @@ export const READING_ENCODED_BODY_MAX_BYTES = 24 * 1024;
 export type ApiGatewayV2Event = {
   version?: unknown;
   rawPath?: unknown;
+  rawQueryString?: unknown;
+  queryStringParameters?: unknown;
   headers?: unknown;
   body?: unknown;
   isBase64Encoded?: unknown;

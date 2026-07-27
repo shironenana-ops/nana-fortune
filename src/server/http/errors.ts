@@ -48,6 +48,10 @@ export type ServerErrorCode =
   | "READING_JOB_UNAVAILABLE"
   | "READING_JOB_INCONSISTENT"
   | "READING_JOB_FAILED"
+  | "READING_STATUS_API_DISABLED"
+  | "READING_STATUS_REF_INVALID"
+  | "READING_STATUS_NOT_FOUND"
+  | "READING_STATUS_UNAVAILABLE"
   | "INTERNAL_ERROR";
 
 const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> = {
@@ -100,6 +104,10 @@ const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> 
   READING_JOB_UNAVAILABLE: { status: 503, message: "現在、鑑定の処理状態を確認できません" },
   READING_JOB_INCONSISTENT: { status: 503, message: "現在、鑑定を処理できません" },
   READING_JOB_FAILED: { status: 409, message: "この鑑定は完了できませんでした。新しいリクエストキーでお試しください" },
+  READING_STATUS_API_DISABLED: { status: 503, message: "鑑定状況の確認機能は現在利用できません" },
+  READING_STATUS_REF_INVALID: { status: 400, message: "鑑定受付番号を確認してください" },
+  READING_STATUS_NOT_FOUND: { status: 404, message: "鑑定状況を確認できません" },
+  READING_STATUS_UNAVAILABLE: { status: 503, message: "現在、鑑定状況を確認できません" },
   INTERNAL_ERROR: { status: 500, message: "処理を完了できませんでした" },
 };
 
