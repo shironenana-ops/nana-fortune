@@ -25,6 +25,7 @@ function token(userId = USER, secret = SECRET) {
 function event(overrides = {}) {
   return {
     version: "2.0",
+    routeKey: "GET /reading/status",
     rawPath: "/reading/status",
     rawQueryString: `job_ref=${JOB}`,
     queryStringParameters: { job_ref: JOB },
@@ -121,12 +122,43 @@ test("query shape, method, CORS preflight, body, and exact kill switch fail clos
   const method = await handler(event({ requestContext: { requestId: "method", http: { method: "POST" } } }));
   assert.equal(method.statusCode, 405);
   assert.equal(method.headers.Allow, "GET, OPTIONS");
-  const preflight = await handler(event({ rawQueryString: "", queryStringParameters: undefined, headers: { origin: ORIGIN, "access-control-request-method": "GET", "access-control-request-headers": "Authorization" }, requestContext: { requestId: "options", http: { method: "OPTIONS" } } }));
+  const preflight = await handler(event({ routeKey: "OPTIONS /reading/status", rawQueryString: "", queryStringParameters: undefined, headers: { origin: ORIGIN, "access-control-request-method": "GET", "access-control-request-headers": "Authorization" }, requestContext: { requestId: "options", http: { method: "OPTIONS" } } }));
   assert.equal(preflight.statusCode, 204);
   assert.equal(preflight.headers["Access-Control-Allow-Methods"], "GET,OPTIONS");
   assert.equal(calls.read, 0);
   assert.equal(api.readingStatusApiEnabled("true"), true);
   for (const value of [undefined, "", "TRUE", "1", " true "]) assert.equal(api.readingStatusApiEnabled(value), false);
+});
+
+test("status routeKeyを正としnamed stage付きrawPathには依存しない", async () => {
+  const { handler, calls } = setup({ state: "QUEUED" });
+  for (const rawPath of ["/reading/status", "/staging/reading/status"]) {
+    const response = await handler(event({ routeKey: "GET /reading/status", rawPath }));
+    assert.equal(response.statusCode, 200);
+    assert.equal(body(response).status, "QUEUED");
+  }
+  assert.equal(calls.read, 2);
+});
+
+test("statusの不正・欠落・型不正routeKeyをrawPathが正しくてもfail closedで拒否する", async () => {
+  const { handler, calls } = setup({ state: "QUEUED" });
+  for (const routeKey of ["GET /other", "POST /reading/status", undefined, null, 42, { route: "GET /reading/status" }]) {
+    const response = await handler(event({ routeKey, rawPath: "/reading/status" }));
+    assert.equal(response.statusCode, 404);
+    assert.equal(body(response).error.code, "HTTP_ROUTE_NOT_FOUND");
+  }
+  assert.equal(calls.read, 0);
+});
+
+test("status routeKeyとrequestContext methodの不一致を受理しない", async () => {
+  const { handler, calls } = setup({ state: "QUEUED" });
+  const response = await handler(event({
+    routeKey: "GET /reading/status",
+    requestContext: { requestId: "status-route-method-mismatch-001", http: { method: "OPTIONS" } },
+  }));
+  assert.equal(response.statusCode, 404);
+  assert.equal(body(response).error.code, "HTTP_ROUTE_NOT_FOUND");
+  assert.equal(calls.read, 0);
 });
 
 test("disabled or incomplete production configuration fails closed without repository access", async () => {

@@ -3,7 +3,12 @@ import { ServerFoundationError, toSafeErrorResponse } from "../http/errors";
 import { createRequestId } from "../http/requestId";
 import type { ApiGatewayV2Event, LambdaHttpResponse } from "../readingApi/readingApiTypes";
 import { executeReadingStatus } from "./readingStatusService";
-import { READING_STATUS_API_PATH, READING_STATUS_RETRY_AFTER_SECONDS, type ReadingStatusDependencies } from "./readingStatusTypes";
+import {
+  READING_STATUS_API_OPTIONS_ROUTE_KEY,
+  READING_STATUS_API_ROUTE_KEY,
+  READING_STATUS_RETRY_AFTER_SECONDS,
+  type ReadingStatusDependencies,
+} from "./readingStatusTypes";
 
 type HandlerConfig = { enabled: boolean; allowedOrigins: ReadonlySet<string> };
 function record(value: unknown): value is Record<string, unknown> { return !!value && typeof value === "object" && !Array.isArray(value); }
@@ -76,8 +81,9 @@ export function createReadingStatusHandler(config: HandlerConfig, dependencies: 
     try {
       const context = requestContext(event);
       requestId = createRequestId(context.requestId);
-      if (event.rawPath !== READING_STATUS_API_PATH) throw new ServerFoundationError("HTTP_ROUTE_NOT_FOUND");
       if (context.method !== "GET" && context.method !== "OPTIONS") throw new ServerFoundationError("HTTP_METHOD_NOT_ALLOWED");
+      const expectedRouteKey = context.method === "GET" ? READING_STATUS_API_ROUTE_KEY : READING_STATUS_API_OPTIONS_ROUTE_KEY;
+      if (event.routeKey !== expectedRouteKey) throw new ServerFoundationError("HTTP_ROUTE_NOT_FOUND");
       const headers = normalizeHeaders(event.headers);
       cors = corsHeaders(headers, context.method, config.allowedOrigins);
       if (context.method === "OPTIONS") return response(204, requestId, {}, cors);

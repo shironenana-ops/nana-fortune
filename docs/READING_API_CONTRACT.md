@@ -12,21 +12,22 @@ PAID_SYNC_BEDROCK_FROM_HTTP: NO
 ASYNC_CORE_SOURCE: IMPLEMENTED
 STATUS_POLLING_SOURCE: IMPLEMENTED
 INFRASTRUCTURE: DEPLOYED_TO_AWS_STAGING
-CLOUDFORMATION_STACK: CREATE_COMPLETE
+CLOUDFORMATION_STACK: UPDATE_COMPLETE
 KILL_SWITCHES: ALL_FALSE
 WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
-REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+PUBLIC_PATH_FIX: DEPLOYED
+ROUTE_KEY_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
 STAGING_E2E: NOT_COMPLETED
 LIMITED_PAID_BETA_GATE: CLOSED
 ```
 
-light/deepの新規受付は`READING_ASYNC_PAID_ENABLED`が厳密に`true`の場合だけ202を返します。queued/in-progress replayは同じopaque `job_ref`で202、completed replayは保存済みallow-list DTOで200、failed replayとfingerprint conflictは409です。request Lambdaのpaid経路はengine・Bedrockを呼びません。staging基盤はCloudFormation `CREATE_COMPLETE`ですが、5つのkill switchはすべてfalse、light/deep workerは無効です。`/reading` path修正を含むrequest artifactは未再deployで、実E2Eも未完了のため、限定βを含め開放根拠にはできません。status契約は`READING_STATUS_API_IMPLEMENTATION_2026-07-27.md`を参照してください。
+light/deepの新規受付は`READING_ASYNC_PAID_ENABLED`が厳密に`true`の場合だけ202を返します。queued/in-progress replayは同じopaque `job_ref`で202、completed replayは保存済みallow-list DTOで200、failed replayとfingerprint conflictは409です。request Lambdaのpaid経路はengine・Bedrockを呼びません。staging基盤はCloudFormation `UPDATE_COMPLETE`で公開path統一版も配備済みですが、5つのkill switchはすべてfalse、light/deep workerは無効です。`routeKey`修正を含むrequest artifactは未再deployで、実E2Eも未完了のため、限定βを含め開放根拠にはできません。status契約は`READING_STATUS_API_IMPLEMENTATION_2026-07-27.md`を参照してください。
 
 以下の同期light/deep成功応答・Bedrock説明はPhase 1以前の契約履歴です。現行のpaid source契約は[READING_ASYNC_API_CONTRACT_PROPOSAL.md](./READING_ASYNC_API_CONTRACT_PROPOSAL.md)を正とします。
 
 ## Endpoint
 
-入口は `POST /reading` とpreflight用の `OPTIONS /reading` です。API Gateway HTTP API payload format v2.0向けのNode.js 22 Lambda handler基盤です。stagingのAPI GatewayとLambda基盤は構築済みですが、path修正済みrequest artifactの再deployとUI接続は未実施です。
+入口は `POST /reading` とpreflight用の `OPTIONS /reading` です。API Gateway HTTP API payload format v2.0向けのNode.js 22 Lambda handler基盤です。stagingのAPI GatewayとLambda基盤、公開path統一版は配備済みですが、`routeKey`修正済みrequest artifactの再deployとUI接続は未実施です。
 
 `READING_GENERATE_API_ENABLED`が厳密に文字列`true`の場合だけPOST生成を開始します。未設定、空、`false`、`TRUE`、`1`、前後空白付き値は503でfail closedします。フラグ有効時も認証、会員照会、mode解決は必須です。
 
@@ -99,7 +100,7 @@ freeではBedrockを呼びません。light／deepはcanonical結果を先に確
 | 400 | `IDEMPOTENCY_KEY_INVALID` | UUID v4 canonical形式不正 |
 | 403 | `READING_MODE_NOT_AVAILABLE` | 正しいmodeだが現在の会員権限では利用不可 |
 | 400 | `HTTP_EVENT_INVALID` / `REQUEST_BODY_INVALID` | payload v2構造、header、JSON不正 |
-| 404 | `HTTP_ROUTE_NOT_FOUND` | path不一致 |
+| 404 | `HTTP_ROUTE_NOT_FOUND` | `routeKey`欠落・型不正・正規route不一致 |
 | 405 | `HTTP_METHOD_NOT_ALLOWED` | POST／OPTIONS以外 |
 | 413 | `REQUEST_BODY_TOO_LARGE` | encoded／decoded body上限超過 |
 | 415 | `CONTENT_TYPE_NOT_SUPPORTED` | JSON以外 |
@@ -115,7 +116,7 @@ freeではBedrockを呼びません。light／deepはcanonical結果を先に確
 
 ## 未実装・一般開放を禁止する境界
 
-- `/reading` path修正済みrequest artifactのstaging再deploy、実E2E、UI接続
+- `routeKey`修正済みrequest artifactのstaging再deploy、実E2E、UI接続
 - history一覧・詳細・削除APIのNode移行
 - deep残数表示API／UI
 - 承認済みRate Limit値のstaging適用と実測

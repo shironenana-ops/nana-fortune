@@ -3,6 +3,8 @@ import type { PublicReadingResponse } from "../readingApi/readingApiTypes";
 import type { ReadingJobState } from "../readingAsync/readingJobTypes";
 
 export const READING_STATUS_API_PATH = "/reading/status";
+export const READING_STATUS_API_ROUTE_KEY = `GET ${READING_STATUS_API_PATH}`;
+export const READING_STATUS_API_OPTIONS_ROUTE_KEY = `OPTIONS ${READING_STATUS_API_PATH}`;
 export const READING_STATUS_RETRY_AFTER_SECONDS = 3;
 
 export type ReadingStatusApiRequest = {

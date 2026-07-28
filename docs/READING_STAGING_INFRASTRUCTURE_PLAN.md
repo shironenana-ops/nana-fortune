@@ -1,20 +1,21 @@
 # 鑑定API staging基盤設計
 
-状態: `DEPLOYED_FAIL_CLOSED_PATH_FIX_PENDING_REDEPLOY`
+状態: `DEPLOYED_FAIL_CLOSED_ROUTE_KEY_FIX_PENDING_REDEPLOY`
 
 ```text
 ASYNC_CORE_SOURCE: IMPLEMENTED
 STATUS_POLLING_SOURCE: IMPLEMENTED
 INFRASTRUCTURE: DEPLOYED_TO_AWS_STAGING
-CLOUDFORMATION_STACK: CREATE_COMPLETE
+CLOUDFORMATION_STACK: UPDATE_COMPLETE
 KILL_SWITCHES: ALL_FALSE
 WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
-REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+PUBLIC_PATH_FIX: DEPLOYED
+ROUTE_KEY_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
 STAGING_E2E: NOT_COMPLETED
 LIMITED_PAID_BETA_GATE: CLOSED
 ```
 
-ローカルIaC実装時の記録は[READING_STAGING_IAC_IMPLEMENTATION_2026-07-27.md](./READING_STAGING_IAC_IMPLEMENTATION_2026-07-27.md)を参照してください。その文書は当時の未deploy状態を保存するhistorical recordです。現在のstagingはCloudFormation `CREATE_COMPLETE`ですが、`/reading` path修正済みrequest artifactは未再deployで、実E2Eは未完了です。
+ローカルIaC実装時の記録は[READING_STAGING_IAC_IMPLEMENTATION_2026-07-27.md](./READING_STAGING_IAC_IMPLEMENTATION_2026-07-27.md)を参照してください。その文書は当時の未deploy状態を保存するhistorical recordです。現在のstagingはCloudFormation `UPDATE_COMPLETE`で公開path統一版も配備済みですが、`routeKey`修正済みrequest artifactは未再deployで、実E2Eは未完了です。
 
 request/status/worker sourceとローカルテストは実装済みで、この計画に記載したstaging基盤は構築済みです。ただし、5つのkill switchはすべてfalse、light/deep event source mappingは無効のままです。一般・有料βは閉じています。
 
@@ -261,7 +262,7 @@ ManagedBy
 
 以下が揃うまで限定有料βを開きません。
 
-- `/reading` path修正済みrequest artifactの再build・hash確認・staging再deploy
+- `routeKey`修正済みrequest artifactの再build・hash確認・staging再deploy
 - IaC差分とleast-privilege IAMの再確認
 - CloudFormation更新差分がrequest artifactとpath mapping修正に限定されることの確認
 - mode別JP Geo profileのHTTP 200 smokeとGlobal未使用証跡
@@ -272,11 +273,12 @@ ManagedBy
 
 ```text
 STAGING_INFRASTRUCTURE: DEPLOYED
-CLOUDFORMATION_STACK: CREATE_COMPLETE
+CLOUDFORMATION_STACK: UPDATE_COMPLETE
 IAM_BOUNDARY: DEPLOYED_FAIL_CLOSED
 KILL_SWITCHES: ALL_FALSE
 WORKER_EVENT_SOURCE_MAPPINGS: DISABLED
-REQUEST_PATH_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
+PUBLIC_PATH_FIX: DEPLOYED
+ROUTE_KEY_FIX: LOCALLY_VALIDATED_NOT_REDEPLOYED
 STAGING_E2E: NOT_COMPLETED
 LIMITED_PAID_BETA_GATE: CLOSED_PENDING_PATH_REDEPLOY_AND_E2E
 ```
