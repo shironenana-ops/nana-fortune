@@ -389,7 +389,7 @@
       "Properties": {
         "Name": { "Fn::Sub": "${AWS::StackName}-reading-http-api" },
         "ProtocolType": "HTTP",
-        "CorsConfiguration": { "AllowOrigins": { "Ref": "AllowedOrigins" }, "AllowMethods": ["GET", "POST", "OPTIONS"], "AllowHeaders": ["Authorization", "Content-Type", "Idempotency-Key"], "MaxAge": 600 },
+        "CorsConfiguration": { "AllowOrigins": { "Ref": "AllowedOrigins" }, "AllowMethods": ["GET", "POST", "OPTIONS"], "AllowHeaders": ["authorization", "content-type", "idempotency-key"], "MaxAge": 600 },
         "Tags": { "Project": "nana-fortune", "Environment": { "Ref": "Environment" }, "Component": "reading-http-api", "ManagedBy": "cloudformation" }
       }
     },
