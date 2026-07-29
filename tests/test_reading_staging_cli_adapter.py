@@ -359,9 +359,27 @@ class AdapterBoundaryTests(unittest.TestCase):
                 backend.validate_runtime()
 
     def test_resource_level_staging_and_cloudformation_tags_are_required(self):
-        for logical_id in ("ReadingUsersTable", "ReadingRequestFunction", "LightQueue", "ReadingHttpApi"):
+        for logical_id in ("ReadingUsersTable", "ReadingRequestFunction", "ReadingHttpApi"):
             state = base_state()
             state["tag_overrides"][logical_id] = {"aws:cloudformation:stack-id": None}
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_runtime()
+
+    def test_sqs_requires_explicit_tags_but_not_unavailable_cloudformation_tags(self):
+        state = base_state()
+        state["tag_overrides"]["LightQueue"] = {
+            "aws:cloudformation:stack-id": None,
+            "aws:cloudformation:stack-name": None,
+            "aws:cloudformation:logical-id": None,
+        }
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
+        backend.validate_runtime()
+        for key in ("Project", "Environment"):
+            state = base_state()
+            state["tag_overrides"]["LightQueue"] = {key: None}
             backend, _ = backend_for(state)
             backend.validate_boundary()
             with self.assertRaises(HARNESS.HarnessError):

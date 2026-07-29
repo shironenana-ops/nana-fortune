@@ -273,15 +273,26 @@ class AwsSdkBackend:
         self._validate_identity()
         return self._validate_stack(refresh_resources=True)
 
-    def _validate_resource_tags(self, logical_id: str, value: Any) -> None:
+    def _validate_resource_tags(
+        self,
+        logical_id: str,
+        value: Any,
+        *,
+        require_cloudformation_ownership: bool = True,
+    ) -> None:
         resource_tags = value if isinstance(value, dict) else {}
         expected = {
             "Project": "nana-fortune",
             "Environment": STAGE_NAME,
-            "aws:cloudformation:stack-id": self.stack_id,
-            "aws:cloudformation:stack-name": STACK_NAME,
-            "aws:cloudformation:logical-id": logical_id,
         }
+        if require_cloudformation_ownership:
+            expected.update(
+                {
+                    "aws:cloudformation:stack-id": self.stack_id,
+                    "aws:cloudformation:stack-name": STACK_NAME,
+                    "aws:cloudformation:logical-id": logical_id,
+                }
+            )
         if any(resource_tags.get(key) != expected_value for key, expected_value in expected.items()):
             raise HarnessError("staging resource tags are invalid")
 
@@ -358,7 +369,10 @@ class AwsSdkBackend:
         if value.get("QueueArn") != f"{expected_prefix}{queue_name}":
             raise HarnessError("staging queue physical identity is invalid")
         queue_tags = self._call("sqs", "list_queue_tags", QueueUrl=queue_url).get("Tags", {})
-        self._validate_resource_tags(logical_id, queue_tags)
+        # CloudFormation does not expose its three generated ownership tags on
+        # these deployed SQS resources. The explicit template tags and the
+        # CloudFormation logical/physical inventory remain mandatory.
+        self._validate_resource_tags(logical_id, queue_tags, require_cloudformation_ownership=False)
         for key in (
             "ApproximateNumberOfMessages",
             "ApproximateNumberOfMessagesNotVisible",

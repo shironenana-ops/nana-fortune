@@ -36,8 +36,12 @@ person. Its literal value is never printed by the harness.
 - both event-source mappings must be disabled and all four queues empty;
 - all six tables must be active in the expected account and Tokyo region;
 - the users table, four Lambdas, four queues/DLQs, and HTTP API must carry
-  `Project=nana-fortune`, `Environment=staging`, and exact
-  `aws:cloudformation:stack-id`, `stack-name`, and `logical-id` resource tags;
+  `Project=nana-fortune` and `Environment=staging`;
+- resources that expose CloudFormation ownership tags must also carry exact
+  `aws:cloudformation:stack-id`, `stack-name`, and `logical-id` values;
+- the four deployed SQS queues/DLQs do not expose those three generated tags,
+  so their boundary instead requires exact CloudFormation logical/physical
+  mapping, queue ARN account/region, and the two explicit template tags;
 - the runtime secret ARN must match the expected account, region, staging name,
   and project/environment tags;
 - the retrieved `session_token_secret` must constant-time match the already
