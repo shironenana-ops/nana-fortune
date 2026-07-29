@@ -36,13 +36,13 @@ person. Its literal value is never printed by the harness.
   the staging contract;
 - both event-source mappings must be disabled and all four queues empty;
 - all six tables must be active in the expected account and Tokyo region;
-- the users table, four Lambdas, four queues/DLQs, and HTTP API must carry
-  `Project=nana-fortune` and `Environment=staging`;
-- resources that expose CloudFormation ownership tags must also carry exact
-  `aws:cloudformation:stack-id`, `stack-name`, and `logical-id` values;
-- the four deployed SQS queues/DLQs do not expose those three generated tags,
-  so their boundary instead requires exact CloudFormation logical/physical
-  mapping, queue ARN account/region, and the two explicit template tags;
+- all six tables, four Lambdas, four queues/DLQs, and the HTTP API must carry
+  every resource tag explicitly declared for them in the tracked staging IaC;
+- CloudFormation ownership comes from the exact stack name/StackId/account/
+  region and the 32-entry logical ID, resource type, and physical ID mapping;
+- `aws:cloudformation:stack-id`, `stack-name`, and `logical-id` resource tags
+  are supplemental evidence: absent values do not fail, but every value that
+  is present must exactly match the validated stack mapping;
 - the existing implementation-defined `SESSION_TOKEN_SECRET` key must be
   present and non-empty in both request and status Lambda configurations;
 - the two already-resolved Lambda environment values must constant-time match;
@@ -66,8 +66,9 @@ The tracked template applies tags to supported resources, the design plan says
 that resources are tagged, and the tracked creation/change-set procedures and
 history contain no stack-level `--tags` contract. Treating absent stack tags as
 an error would therefore invent a boundary that the deployed design never
-established. Resource-level tags and CloudFormation ownership tags are the
-enforced evidence instead.
+established. Resource-level IaC tags and the CloudFormation stack resource
+mapping are the enforced evidence instead. A custom tag that is not declared
+in the tracked template is not invented as a prerequisite.
 
 ## Write, token, and smoke behavior
 
@@ -145,8 +146,8 @@ approved before execution.
 - `apigateway:GET` for one staging HTTP API, its tags, two routes, and two
   integrations;
 - `sqs:GetQueueAttributes`, `sqs:ListQueueTags` for four staging queues;
-- `dynamodb:DescribeTable` for six staging tables and
-  `dynamodb:ListTagsOfResource` for the users table;
+- `dynamodb:DescribeTable` and `dynamodb:ListTagsOfResource` for six staging
+  tables;
 - `dynamodb:GetItem` for the fixed test user and fixed nonexistent job keys;
 - `dynamodb:PutItem` for the users table only, constrained with
   `dynamodb:LeadingKeys` to the fixed staging test ID;

@@ -88,13 +88,20 @@ def resource_map():
 
 
 def cloudformation_tags(state, logical_id):
+    template = json.loads((ROOT / "infrastructure" / "reading-staging" / "template.json").read_text(encoding="utf-8"))
+    raw_tags = template["Resources"][logical_id]["Properties"]["Tags"]
+    items = raw_tags.items() if isinstance(raw_tags, dict) else ((item["Key"], item["Value"]) for item in raw_tags)
     result = {
-        "Project": "nana-fortune",
-        "Environment": "staging",
+        key: state["parameters"][value["Ref"]]
+        if isinstance(value, dict) and set(value) == {"Ref"}
+        else value
+        for key, value in items
+    }
+    result.update({
         "aws:cloudformation:stack-id": f"arn:aws:cloudformation:{HARNESS.REGION}:{ACCOUNT}:stack/{HARNESS.STACK_NAME}/fixture",
         "aws:cloudformation:stack-name": HARNESS.STACK_NAME,
         "aws:cloudformation:logical-id": logical_id,
-    }
+    })
     for key, value in state.get("tag_overrides", {}).get(logical_id, {}).items():
         if value is None:
             result.pop(key, None)
@@ -114,7 +121,12 @@ def base_state():
         "stack_status": "UPDATE_COMPLETE",
         "stack_name": HARNESS.STACK_NAME,
         "stack_tags": {"Project": "nana-fortune", "Environment": "staging"},
-        "parameters": dict(HARNESS.EXPECTED_PARAMETERS),
+        "parameters": {
+            **HARNESS.EXPECTED_PARAMETERS,
+            "Environment": "staging",
+            "Owner": "fixture-owner",
+            "CostCenter": "fixture-cost-center",
+        },
         "resources": resource_map(),
         "lambda_state": "Active",
         "lambda_update": "Successful",
@@ -225,7 +237,11 @@ def response_for(state, service, operation, kwargs):
             }
         }
     if (service, operation) == ("dynamodb", "list_tags_of_resource"):
-        return {"Tags": [{"Key": key, "Value": value} for key, value in cloudformation_tags(state, "ReadingUsersTable").items()]}
+        table_name = kwargs["ResourceArn"].rsplit("/", 1)[-1]
+        logical_id = next(
+            key for key in HARNESS.TABLE_LOGICAL_IDS if resources[key]["PhysicalResourceId"] == table_name
+        )
+        return {"Tags": [{"Key": key, "Value": value} for key, value in cloudformation_tags(state, logical_id).items()]}
     if (service, operation) == ("apigatewayv2", "get_routes"):
         return {
             "Items": [
@@ -352,6 +368,17 @@ class AdapterBoundaryTests(unittest.TestCase):
             with self.assertRaises(HARNESS.HarnessError):
                 backend.validate_boundary()
 
+    def test_logical_to_physical_mapping_change_fails_closed_on_revalidation(self):
+        state = base_state()
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
+        state["resources"]["ReadingUsersTable"] = {
+            **state["resources"]["ReadingUsersTable"],
+            "PhysicalResourceId": "other-staging-users",
+        }
+        with self.assertRaises(HARNESS.HarnessError):
+            backend.validate_boundary()
+
     def test_esm_enabled_and_nonempty_queue_fail_closed(self):
         for key, value in (("esm_state", "Enabled"), ("queue_counts", ("1", "0", "0"))):
             state = base_state()
@@ -361,32 +388,60 @@ class AdapterBoundaryTests(unittest.TestCase):
             with self.assertRaises(HARNESS.HarnessError):
                 backend.validate_runtime()
 
-    def test_resource_level_staging_and_cloudformation_tags_are_required(self):
-        for logical_id in ("ReadingUsersTable", "ReadingRequestFunction", "ReadingHttpApi"):
+    def test_explicit_project_and_environment_tags_are_required(self):
+        for logical_id in ("ReadingUsersTable", "LightQueue", "ReadingRequestFunction", "ReadingHttpApi"):
+            for key in ("Project", "Environment"):
+                state = base_state()
+                state["tag_overrides"][logical_id] = {key: None}
+                backend, _ = backend_for(state)
+                backend.validate_boundary()
+                with self.assertRaises(HARNESS.HarnessError):
+                    backend.validate_runtime()
+
+    def test_all_explicit_template_tags_are_required(self):
+        for logical_id in ("ReadingUsersTable", "LightQueue", "ReadingRequestFunction", "ReadingHttpApi"):
             state = base_state()
-            state["tag_overrides"][logical_id] = {"aws:cloudformation:stack-id": None}
+            state["tag_overrides"][logical_id] = {"Component": None}
             backend, _ = backend_for(state)
             backend.validate_boundary()
             with self.assertRaises(HARNESS.HarnessError):
                 backend.validate_runtime()
 
-    def test_sqs_requires_explicit_tags_but_not_unavailable_cloudformation_tags(self):
-        state = base_state()
-        state["tag_overrides"]["LightQueue"] = {
-            "aws:cloudformation:stack-id": None,
-            "aws:cloudformation:stack-name": None,
-            "aws:cloudformation:logical-id": None,
-        }
-        backend, _ = backend_for(state)
-        backend.validate_boundary()
-        backend.validate_runtime()
-        for key in ("Project", "Environment"):
+    def test_dynamodb_and_sqs_allow_absent_cloudformation_generated_tags(self):
+        for logical_id in ("ReadingUsersTable", "LightQueue"):
             state = base_state()
-            state["tag_overrides"]["LightQueue"] = {key: None}
+            state["tag_overrides"][logical_id] = {
+                "aws:cloudformation:stack-id": None,
+                "aws:cloudformation:stack-name": None,
+                "aws:cloudformation:logical-id": None,
+            }
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            backend.validate_runtime()
+
+    def test_cloudformation_generated_tags_fail_closed_only_when_present_and_wrong(self):
+        for logical_id in ("ReadingUsersTable", "LightQueue", "ReadingRequestFunction", "ReadingHttpApi"):
+            state = base_state()
+            state["tag_overrides"][logical_id] = {"aws:cloudformation:logical-id": "WrongLogicalId"}
             backend, _ = backend_for(state)
             backend.validate_boundary()
             with self.assertRaises(HARNESS.HarnessError):
                 backend.validate_runtime()
+
+    def test_custom_tag_not_declared_by_template_is_not_required(self):
+        state = base_state()
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
+        backend.validate_runtime()
+        self.assertNotIn("Purpose", cloudformation_tags(state, "ReadingUsersTable"))
+
+    def test_resource_tag_production_identifier_fails_closed(self):
+        state = base_state()
+        state["tag_overrides"]["ReadingUsersTable"] = {"Unexpected": "production"}
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
+        with self.assertRaises(HARNESS.HarnessError):
+            backend.validate_runtime()
 
     def test_lambda_queue_esm_and_route_physical_ids_must_match(self):
         mutations = (

@@ -173,6 +173,7 @@ class AwsSdkBackend:
         self.resources: dict[str, dict[str, Any]] = {}
         self.table_arns: dict[str, str] = {}
         self.stack_id = ""
+        self.stack_parameters: dict[str, str] = {}
         self._put_attempted = False
         self._clock = clock
         self._sleep = sleeper
@@ -231,6 +232,11 @@ class AwsSdkBackend:
         }
         if any(parameters.get(key) != value for key, value in EXPECTED_PARAMETERS.items()):
             raise HarnessError("staging safety switches are invalid")
+        self.stack_parameters = {
+            str(key): str(value)
+            for key, value in parameters.items()
+            if isinstance(key, str) and isinstance(value, str)
+        }
         if refresh_resources:
             summaries = self._call("cloudformation", "list_stack_resources", StackName=STACK_NAME).get(
                 "StackResourceSummaries", []
@@ -268,28 +274,56 @@ class AwsSdkBackend:
         self._validate_identity()
         return self._validate_stack(refresh_resources=True)
 
-    def _validate_resource_tags(
-        self,
-        logical_id: str,
-        value: Any,
-        *,
-        require_cloudformation_ownership: bool = True,
-    ) -> None:
+    def _explicit_template_tags(self, logical_id: str) -> dict[str, str]:
+        template_path = Path(__file__).resolve().parents[1] / "infrastructure" / "reading-staging" / "template.json"
+        try:
+            template = json.loads(template_path.read_text(encoding="utf-8"))
+            properties = template["Resources"][logical_id].get("Properties", {})
+            raw_tags = properties.get("Tags", {})
+        except (OSError, KeyError, TypeError, json.JSONDecodeError) as error:
+            raise HarnessError("tracked staging template tags are unavailable") from error
+
+        if isinstance(raw_tags, list):
+            entries = ((item.get("Key"), item.get("Value")) for item in raw_tags if isinstance(item, dict))
+        elif isinstance(raw_tags, dict):
+            entries = raw_tags.items()
+        else:
+            raise HarnessError("tracked staging template tags are invalid")
+
+        expected: dict[str, str] = {}
+        for key, raw_value in entries:
+            if not isinstance(key, str):
+                raise HarnessError("tracked staging template tags are invalid")
+            if isinstance(raw_value, str):
+                value = raw_value
+            elif isinstance(raw_value, dict) and set(raw_value) == {"Ref"}:
+                value = self.stack_parameters.get(raw_value["Ref"], "")
+            else:
+                raise HarnessError("tracked staging template tags are invalid")
+            if not value:
+                raise HarnessError("tracked staging template tags are unresolved")
+            expected[key] = value
+        if not expected:
+            raise HarnessError("tracked staging template has no explicit tags")
+        return expected
+
+    def _validate_resource_tags(self, logical_id: str, value: Any) -> None:
         resource_tags = value if isinstance(value, dict) else {}
-        expected = {
-            "Project": "nana-fortune",
-            "Environment": STAGE_NAME,
-        }
-        if require_cloudformation_ownership:
-            expected.update(
-                {
-                    "aws:cloudformation:stack-id": self.stack_id,
-                    "aws:cloudformation:stack-name": STACK_NAME,
-                    "aws:cloudformation:logical-id": logical_id,
-                }
-            )
+        expected = self._explicit_template_tags(logical_id)
         if any(resource_tags.get(key) != expected_value for key, expected_value in expected.items()):
             raise HarnessError("staging resource tags are invalid")
+        cloudformation_tags = {
+            "aws:cloudformation:stack-id": self.stack_id,
+            "aws:cloudformation:stack-name": STACK_NAME,
+            "aws:cloudformation:logical-id": logical_id,
+        }
+        if any(
+            key in resource_tags and resource_tags[key] != expected_value
+            for key, expected_value in cloudformation_tags.items()
+        ):
+            raise HarnessError("staging CloudFormation resource tags are invalid")
+        if any(_is_production_identifier(key) or _is_production_identifier(item) for key, item in resource_tags.items()):
+            raise HarnessError("staging resource tags contain a production identifier")
 
     def _validate_api_secret_and_kms(
         self, function_configurations: Mapping[str, Mapping[str, Any]]
@@ -382,10 +416,7 @@ class AwsSdkBackend:
         if value.get("QueueArn") != f"{expected_prefix}{queue_name}":
             raise HarnessError("staging queue physical identity is invalid")
         queue_tags = self._call("sqs", "list_queue_tags", QueueUrl=queue_url).get("Tags", {})
-        # CloudFormation does not expose its three generated ownership tags on
-        # these deployed SQS resources. The explicit template tags and the
-        # CloudFormation logical/physical inventory remain mandatory.
-        self._validate_resource_tags(logical_id, queue_tags, require_cloudformation_ownership=False)
+        self._validate_resource_tags(logical_id, queue_tags)
         for key in (
             "ApproximateNumberOfMessages",
             "ApproximateNumberOfMessagesNotVisible",
@@ -424,10 +455,9 @@ class AwsSdkBackend:
         for logical_id in QUEUE_LOGICAL_IDS:
             self._queue_attributes(logical_id)
         self.table_arns = {logical_id: self._validate_table(logical_id) for logical_id in TABLE_LOGICAL_IDS}
-        users_tags = self._call(
-            "dynamodb", "list_tags_of_resource", ResourceArn=self.table_arns["ReadingUsersTable"]
-        ).get("Tags", [])
-        self._validate_resource_tags("ReadingUsersTable", _safe_tags(users_tags))
+        for logical_id, table_arn in self.table_arns.items():
+            tags = self._call("dynamodb", "list_tags_of_resource", ResourceArn=table_arn).get("Tags", [])
+            self._validate_resource_tags(logical_id, _safe_tags(tags))
 
         api_id = self._resource("ReadingHttpApi")["PhysicalResourceId"]
         if not re.fullmatch(r"[a-z0-9]+", api_id) or _is_production_identifier(api_id):
