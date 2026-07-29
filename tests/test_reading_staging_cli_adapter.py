@@ -154,6 +154,7 @@ def base_state():
             "POST /reading": "integrations/request-integration",
             "GET /reading/status": "integrations/status-integration",
         },
+        "route_response_overrides": {},
         "integration_overrides": {},
         "route_id_overrides": {},
         "lambda_name_override": None,
@@ -271,17 +272,21 @@ def response_for(state, service, operation, kwargs):
             ),
             "Tags": cloudformation_tags(state, "ReadingHttpApi"),
         }
-    if (service, operation) == ("apigatewayv2", "get_routes"):
-        return {
-            "Items": [
-                {
-                    "RouteKey": route,
-                    "RouteId": state["route_id_overrides"].get(route) or resources["ReadingRequestRoute" if route == "POST /reading" else "ReadingStatusRoute"]["PhysicalResourceId"],
-                    "Target": target,
-                }
-                for route, target in state["route_targets"].items()
-            ]
+    if (service, operation) == ("apigatewayv2", "get_route"):
+        expected = {
+            resources["ReadingRequestRoute"]["PhysicalResourceId"]: "POST /reading",
+            resources["ReadingStatusRoute"]["PhysicalResourceId"]: "GET /reading/status",
         }
+        route_key = expected[kwargs["RouteId"]]
+        value = {
+            "RouteId": state["route_id_overrides"].get(route_key) or kwargs["RouteId"],
+            "RouteKey": route_key,
+            "Target": state["route_targets"][route_key],
+            "AuthorizationType": "NONE",
+            "ApiGatewayManaged": False,
+        }
+        value.update(state["route_response_overrides"].get(route_key, {}))
+        return value
     if (service, operation) == ("apigatewayv2", "get_integration"):
         integration_id = kwargs["IntegrationId"]
         is_request = integration_id == "request-integration"
@@ -440,6 +445,49 @@ class AdapterBoundaryTests(unittest.TestCase):
         backend.validate_boundary()
         with self.assertRaises(HARNESS.HarnessError):
             backend.validate_runtime()
+
+    def test_api_gateway_reads_are_exact_individual_calls_only(self):
+        state = base_state()
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
+        backend.validate_runtime()
+        operations = [operation for service, operation, _kwargs in state["calls"] if service == "apigatewayv2"]
+        self.assertEqual(operations.count("get_api"), 1)
+        self.assertEqual(operations.count("get_route"), 2)
+        self.assertEqual(operations.count("get_integration"), 2)
+        self.assertEqual(operations.count("get_routes"), 0)
+        self.assertEqual(operations.count("get_integrations"), 0)
+        self.assertEqual(operations.count("get_tags"), 0)
+        route_calls = [kwargs for service, operation, kwargs in state["calls"] if (service, operation) == ("apigatewayv2", "get_route")]
+        integration_calls = [kwargs for service, operation, kwargs in state["calls"] if (service, operation) == ("apigatewayv2", "get_integration")]
+        self.assertEqual(
+            {call["RouteId"] for call in route_calls},
+            {state["resources"][logical]["PhysicalResourceId"] for logical in HARNESS.ROUTE_LOGICAL_IDS},
+        )
+        self.assertEqual(
+            {call["IntegrationId"] for call in integration_calls},
+            {state["resources"][logical]["PhysicalResourceId"] for logical in HARNESS.INTEGRATION_LOGICAL_IDS},
+        )
+
+    def test_stack_mapping_has_exactly_two_routes_and_two_integrations(self):
+        self.assertEqual(len(HARNESS.ROUTE_LOGICAL_IDS), 2)
+        self.assertEqual(len(HARNESS.INTEGRATION_LOGICAL_IDS), 2)
+        for logical_ids in (HARNESS.ROUTE_LOGICAL_IDS, HARNESS.INTEGRATION_LOGICAL_IDS):
+            state = base_state()
+            state["resources"].pop(logical_ids[-1])
+            backend, _ = backend_for(state)
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_boundary()
+            state = base_state()
+            state["resources"][f"Unexpected{logical_ids[-1]}"] = {
+                "LogicalResourceId": f"Unexpected{logical_ids[-1]}",
+                "PhysicalResourceId": "unexpected-staging-id",
+                "ResourceType": state["resources"][logical_ids[-1]]["ResourceType"],
+                "ResourceStatus": "CREATE_COMPLETE",
+            }
+            backend, _ = backend_for(state)
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_boundary()
 
     def test_one_session_creates_all_clients_in_fixed_region(self):
         backend, session = backend_for()
@@ -622,11 +670,28 @@ class AdapterBoundaryTests(unittest.TestCase):
                     backend.validate_runtime()
             request.assert_not_called()
 
+    def test_individual_route_response_shape_must_match_exactly(self):
+        for overrides in (
+            {"RouteId": "other-route"},
+            {"RouteKey": "POST /other"},
+            {"Target": "integrations/other-integration"},
+            {"AuthorizationType": "AWS_IAM"},
+            {"ApiGatewayManaged": True},
+        ):
+            state = base_state()
+            state["route_response_overrides"]["POST /reading"] = overrides
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_runtime()
+
     def test_integration_shape_mismatch_fails_closed(self):
         for overrides in (
+            {"IntegrationId": "other-integration"},
             {"IntegrationUri": "arn:aws:lambda:ap-northeast-1:123456789012:function:other"},
             {"PayloadFormatVersion": "1.0"},
             {"TimeoutInMillis": 1},
+            {"TimeoutInMillis": 29000},
             {"RequestParameters": {"overwrite:path": "/reading"}},
         ):
             state = base_state()

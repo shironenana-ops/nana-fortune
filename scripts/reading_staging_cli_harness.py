@@ -87,6 +87,8 @@ TABLE_LOGICAL_IDS = (
 )
 QUEUE_LOGICAL_IDS = ("LightQueue", "DeepQueue", "LightDeadLetterQueue", "DeepDeadLetterQueue")
 ESM_LOGICAL_IDS = ("LightEventSourceMapping", "DeepEventSourceMapping")
+ROUTE_LOGICAL_IDS = ("ReadingRequestRoute", "ReadingStatusRoute")
+INTEGRATION_LOGICAL_IDS = ("ReadingRequestIntegration", "ReadingStatusIntegration")
 FUNCTION_LOGICAL_IDS = (
     "ReadingRequestFunction",
     "ReadingStatusFunction",
@@ -514,24 +516,25 @@ class AwsSdkBackend:
         ):
             raise HarnessError("staging HTTP API identity is invalid")
         self._validate_resource_tags("ReadingHttpApi", api.get("Tags"))
-        routes = self._call("apigatewayv2", "get_routes", ApiId=api_id).get("Items", [])
-        route_map = {
-            item.get("RouteKey"): (item.get("RouteId"), item.get("Target"))
-            for item in routes
-            if isinstance(item, dict) and isinstance(item.get("RouteKey"), str)
-        }
-        expected_routes = {
-            "POST /reading": (
-                self._resource("ReadingRequestRoute")["PhysicalResourceId"],
-                f"integrations/{self._resource('ReadingRequestIntegration')['PhysicalResourceId']}",
-            ),
-            "GET /reading/status": (
-                self._resource("ReadingStatusRoute")["PhysicalResourceId"],
-                f"integrations/{self._resource('ReadingStatusIntegration')['PhysicalResourceId']}",
-            ),
-        }
-        if route_map != expected_routes:
-            raise HarnessError("staging API route targets are invalid")
+        for route_logical_id, route_key, integration_logical_id in (
+            ("ReadingRequestRoute", "POST /reading", "ReadingRequestIntegration"),
+            ("ReadingStatusRoute", "GET /reading/status", "ReadingStatusIntegration"),
+        ):
+            route_id = self._resource(route_logical_id)["PhysicalResourceId"]
+            integration_id = self._resource(integration_logical_id)["PhysicalResourceId"]
+            route = self._call("apigatewayv2", "get_route", ApiId=api_id, RouteId=route_id)
+            if (
+                route.get("RouteId") != route_id
+                or route.get("RouteKey") != route_key
+                or route.get("Target") != f"integrations/{integration_id}"
+                or route.get("AuthorizationType") != "NONE"
+                or route.get("ApiGatewayManaged") is not False
+                or any(
+                    _is_production_identifier(value)
+                    for value in (route.get("RouteId"), route.get("RouteKey"), route.get("Target"))
+                )
+            ):
+                raise HarnessError("staging API route target is invalid")
 
         integrations: dict[str, Any] = {}
         for logical_id, function_logical_id, expected_timeout in (
@@ -543,13 +546,17 @@ class AwsSdkBackend:
                 "apigatewayv2", "get_integration", ApiId=api_id, IntegrationId=integration_id
             )
             if (
-                value.get("IntegrationId") not in (None, integration_id)
-                or value.get("IntegrationType") not in (None, "AWS_PROXY")
-                or value.get("IntegrationMethod") not in (None, "POST")
+                value.get("IntegrationId") != integration_id
+                or value.get("IntegrationType") != "AWS_PROXY"
+                or value.get("IntegrationMethod") != "POST"
                 or value.get("PayloadFormatVersion") != "2.0"
                 or value.get("TimeoutInMillis") != expected_timeout
                 or value.get("RequestParameters") not in (None, {})
                 or value.get("IntegrationUri") != function_configurations[function_logical_id].get("FunctionArn")
+                or any(
+                    _is_production_identifier(item)
+                    for item in (value.get("IntegrationId"), value.get("IntegrationUri"))
+                )
             ):
                 raise HarnessError("staging API integration is invalid")
             integrations[logical_id] = value

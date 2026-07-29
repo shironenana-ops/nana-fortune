@@ -61,8 +61,12 @@ the expected API ID, HTTP protocol, exact staging name and endpoint, and every
 tag explicitly declared for `ReadingHttpApi` in the tracked template. In
 particular, `Project=nana-fortune` and `Environment=staging` must match.
 `GetTags` is not called and there is no tag-endpoint fallback or IAM resource.
-Routes and integrations remain bound to their own read APIs and the exact
-CloudFormation route/integration mapping described above.
+Each of the two routes is read once with `GetRoute`, and each of the two
+integrations is read once with `GetIntegration`, using only the physical IDs
+from the exact CloudFormation mapping. `GetRoutes` and `GetIntegrations`
+collection calls are not used and have no fallback. Route ID/key/target,
+authorization type, managed state, and integration ID/type/method/URI/payload
+version/timeout must all match the tracked staging contract.
 
 SDK failures are converted to an allow-listed diagnostic containing only the
 phase, exception class, HTTP status, AWS error code, and a fixed
@@ -159,7 +163,8 @@ approved before execution.
 - `lambda:GetEventSourceMapping` for two staging mappings;
 - `apigateway:GET` for one exact staging HTTP API, two exact routes, and two
   exact integrations. The HTTP API response itself supplies the tracked tags;
-  `/tags/*` and tag-endpoint permissions are not granted;
+  collection resources, `/tags/*`, and tag-endpoint permissions are not
+  granted;
 - `sqs:GetQueueAttributes`, `sqs:ListQueueTags` for four staging queues;
 - `dynamodb:DescribeTable` and `dynamodb:ListTagsOfResource` for six staging
   tables;
