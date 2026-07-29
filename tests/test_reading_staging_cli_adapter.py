@@ -278,14 +278,16 @@ def response_for(state, service, operation, kwargs):
             resources["ReadingStatusRoute"]["PhysicalResourceId"]: "GET /reading/status",
         }
         route_key = expected[kwargs["RouteId"]]
+        overrides = state["route_response_overrides"].get(route_key, {})
         value = {
             "RouteId": state["route_id_overrides"].get(route_key) or kwargs["RouteId"],
             "RouteKey": route_key,
             "Target": state["route_targets"][route_key],
             "AuthorizationType": "NONE",
-            "ApiGatewayManaged": False,
         }
-        value.update(state["route_response_overrides"].get(route_key, {}))
+        if not overrides.get("_omit_managed"):
+            value["ApiGatewayManaged"] = False
+        value.update({key: item for key, item in overrides.items() if key != "_omit_managed"})
         return value
     if (service, operation) == ("apigatewayv2", "get_integration"):
         integration_id = kwargs["IntegrationId"]
@@ -685,6 +687,21 @@ class AdapterBoundaryTests(unittest.TestCase):
             with self.assertRaises(HARNESS.HarnessError):
                 backend.validate_runtime()
 
+    def test_route_managed_flag_accepts_only_omitted_or_boolean_false(self):
+        for overrides in ({"_omit_managed": True}, {"ApiGatewayManaged": False}):
+            state = base_state()
+            state["route_response_overrides"]["POST /reading"] = overrides
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            backend.validate_runtime()
+        for value in (True, "false", 0, None):
+            state = base_state()
+            state["route_response_overrides"]["POST /reading"] = {"ApiGatewayManaged": value}
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_runtime()
+
     def test_integration_shape_mismatch_fails_closed(self):
         for overrides in (
             {"IntegrationId": "other-integration"},
@@ -696,6 +713,21 @@ class AdapterBoundaryTests(unittest.TestCase):
         ):
             state = base_state()
             state["integration_overrides"] = overrides
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_runtime()
+
+    def test_integration_managed_flag_accepts_only_omitted_or_boolean_false(self):
+        for overrides in ({}, {"ApiGatewayManaged": False}):
+            state = base_state()
+            state["integration_overrides"] = overrides
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            backend.validate_runtime()
+        for value in (True, "false", 0, None):
+            state = base_state()
+            state["integration_overrides"] = {"ApiGatewayManaged": value}
             backend, _ = backend_for(state)
             backend.validate_boundary()
             with self.assertRaises(HARNESS.HarnessError):

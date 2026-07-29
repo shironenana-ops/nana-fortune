@@ -196,6 +196,13 @@ def _safe_aws_failure(service: str, operation: str, error: Exception) -> Harness
     )
 
 
+def _validate_unmanaged_api_gateway_resource(value: Mapping[str, Any]) -> None:
+    if "ApiGatewayManaged" not in value:
+        return
+    if value["ApiGatewayManaged"] is not False:
+        raise HarnessError("API Gateway resource is managed or has an invalid managed flag")
+
+
 class AwsSdkBackend:
     """Staging-only adapter backed by one injected boto3 Session."""
 
@@ -523,12 +530,12 @@ class AwsSdkBackend:
             route_id = self._resource(route_logical_id)["PhysicalResourceId"]
             integration_id = self._resource(integration_logical_id)["PhysicalResourceId"]
             route = self._call("apigatewayv2", "get_route", ApiId=api_id, RouteId=route_id)
+            _validate_unmanaged_api_gateway_resource(route)
             if (
                 route.get("RouteId") != route_id
                 or route.get("RouteKey") != route_key
                 or route.get("Target") != f"integrations/{integration_id}"
                 or route.get("AuthorizationType") != "NONE"
-                or route.get("ApiGatewayManaged") is not False
                 or any(
                     _is_production_identifier(value)
                     for value in (route.get("RouteId"), route.get("RouteKey"), route.get("Target"))
@@ -545,6 +552,7 @@ class AwsSdkBackend:
             value = self._call(
                 "apigatewayv2", "get_integration", ApiId=api_id, IntegrationId=integration_id
             )
+            _validate_unmanaged_api_gateway_resource(value)
             if (
                 value.get("IntegrationId") != integration_id
                 or value.get("IntegrationType") != "AWS_PROXY"

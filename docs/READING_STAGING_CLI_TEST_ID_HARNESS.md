@@ -68,6 +68,12 @@ collection calls are not used and have no fallback. Route ID/key/target,
 authorization type, managed state, and integration ID/type/method/URI/payload
 version/timeout must all match the tracked staging contract.
 
+`ApiGatewayManaged` is optional in the AWS response. For stack-mapped
+`AWS::ApiGatewayV2::Route` and `AWS::ApiGatewayV2::Integration` resources, an
+omitted key and the boolean value `false` both mean unmanaged. Boolean `true`,
+`null`, strings, numbers, and every other type fail closed. This normalization
+does not relax any required route or integration identity field.
+
 SDK failures are converted to an allow-listed diagnostic containing only the
 phase, exception class, HTTP status, AWS error code, and a fixed
 classification. Raw exception messages, account/API/resource identifiers,
