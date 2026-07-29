@@ -55,6 +55,14 @@ person. Its literal value is never printed by the harness.
 - integration URI, payload version, timeout, method, type, and absence of path
   rewriting must match the Phase 1 contract.
 
+API Gateway V2 authorizes `GetTags` against the management tag endpoint, not
+the tagged HTTP API ARN itself. The temporary graduation policy therefore uses
+one independent read-only statement for the URL-encoded, exact HTTP API tag
+endpoint. It has no wildcard resource and requires Tokyo plus the explicit
+`Project=nana-fortune` and `Environment=staging` resource-tag conditions.
+Routes and integrations are never passed to `GetTags`; their boundary remains
+the exact stack mapping and route/integration contract described above.
+
 Immediately before the sole conditional write, the same Session rechecks the
 STS identity, stack/account/region and physical-resource inventory, exact users
 table ARN/resource tags, and the request/status Lambda configuration, switches,
@@ -144,7 +152,8 @@ approved before execution.
   Lambdas;
 - `lambda:GetEventSourceMapping` for two staging mappings;
 - `apigateway:GET` for one staging HTTP API, its tags, two routes, and two
-  integrations;
+  integrations; HTTP API tag access uses a separate exact tag-endpoint
+  resource with the staging conditions above;
 - `sqs:GetQueueAttributes`, `sqs:ListQueueTags` for four staging queues;
 - `dynamodb:DescribeTable` and `dynamodb:ListTagsOfResource` for six staging
   tables;

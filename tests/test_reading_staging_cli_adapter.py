@@ -293,6 +293,75 @@ class AdapterBoundaryTests(unittest.TestCase):
         self.assertEqual(actual, HARNESS.EXPECTED_RESOURCE_TYPES)
         self.assertEqual(len(actual), 32)
 
+    def test_api_gateway_resource_arn_is_exact_and_accountless(self):
+        api_id = "abc123def4"
+        value = HARNESS._api_gateway_resource_arn(api_id, expected_api_id=api_id)
+        HARNESS._validate_api_gateway_resource_arn(value, expected_api_id=api_id)
+        self.assertEqual(value.split(":", 5)[4], "")
+        self.assertEqual(value.split(":", 5)[5], f"/apis/{api_id}")
+
+    def test_api_gateway_resource_arn_rejects_account_execute_api_route_integration_and_id_mismatch(self):
+        api_id = "abc123def4"
+        invalid = (
+            f"arn:aws:apigateway:{HARNESS.REGION}:{ACCOUNT}:/apis/{api_id}",
+            f"arn:aws:execute-api:{HARNESS.REGION}:{ACCOUNT}:{api_id}",
+            f"arn:aws:apigateway:{HARNESS.REGION}::/apis/{api_id}/routes/route",
+            f"arn:aws:apigateway:{HARNESS.REGION}::/apis/{api_id}/integrations/integration",
+        )
+        for value in invalid:
+            with self.assertRaises(HARNESS.HarnessError):
+                HARNESS._validate_api_gateway_resource_arn(value, expected_api_id=api_id)
+        with self.assertRaises(HARNESS.HarnessError):
+            HARNESS._validate_api_gateway_resource_arn(
+                f"arn:aws:apigateway:{HARNESS.REGION}::/apis/other123",
+                expected_api_id=api_id,
+            )
+
+    def test_api_gateway_tag_permission_is_exact_read_only_and_staging_conditioned(self):
+        api_id = "abc123def4"
+        api_arn = HARNESS._api_gateway_resource_arn(api_id, expected_api_id=api_id)
+        statement = HARNESS._api_gateway_tag_read_statement(api_arn, expected_api_id=api_id)
+        context = {
+            "aws:RequestedRegion": HARNESS.REGION,
+            "aws:ResourceTag/Project": "nana-fortune",
+            "aws:ResourceTag/Environment": HARNESS.STAGE_NAME,
+        }
+
+        def authorized(candidate, resource, values):
+            required = candidate.get("Condition", {}).get("StringEquals", {})
+            return (
+                candidate.get("Effect") == "Allow"
+                and candidate.get("Action") == "apigateway:GET"
+                and candidate.get("Resource") == resource
+                and all(values.get(key) == value for key, value in required.items())
+            )
+
+        self.assertEqual(statement["Action"], "apigateway:GET")
+        self.assertNotEqual(statement["Resource"], api_arn)
+        self.assertNotIn("*", statement["Resource"])
+        self.assertEqual(
+            statement["Condition"]["StringEquals"],
+            {
+                "aws:RequestedRegion": HARNESS.REGION,
+                "aws:ResourceTag/Project": "nana-fortune",
+                "aws:ResourceTag/Environment": HARNESS.STAGE_NAME,
+            },
+        )
+        self.assertTrue(authorized(statement, statement["Resource"], context))
+        self.assertFalse(
+            authorized(
+                {"Effect": "Allow", "Action": "apigateway:GET", "Resource": api_arn},
+                statement["Resource"],
+                context,
+            )
+        )
+        self.assertFalse(
+            authorized(statement, statement["Resource"], {**context, "aws:ResourceTag/Environment": "production"})
+        )
+        production_arn = f"arn:aws:apigateway:{HARNESS.REGION}::/apis/production"
+        with self.assertRaises(HARNESS.HarnessError):
+            HARNESS._api_gateway_tag_read_statement(production_arn, expected_api_id="production")
+
     def test_one_session_creates_all_clients_in_fixed_region(self):
         backend, session = backend_for()
         self.assertEqual(set(backend.clients), set(HARNESS.CLIENT_SERVICES))

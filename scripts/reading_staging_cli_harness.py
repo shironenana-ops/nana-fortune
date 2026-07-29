@@ -28,6 +28,7 @@ from typing import Any, Callable, Mapping
 
 PROFILE = "shirone-staging-graduation"
 REGION = "ap-northeast-1"
+PARTITION = "aws"
 STACK_NAME = "nana-reading-staging"
 STAGE_NAME = "staging"
 TEST_USER_ID = "reading-light-smoke@staging.invalid"
@@ -152,6 +153,41 @@ def _is_production_identifier(value: Any) -> bool:
     if not isinstance(value, str):
         return True
     return re.search(r"(?:^|[-_/:])prod(?:uction)?(?:$|[-_/:])", value.lower()) is not None
+
+
+def _api_gateway_resource_arn(api_id: str, *, expected_api_id: str) -> str:
+    if (
+        not isinstance(api_id, str)
+        or api_id != expected_api_id
+        or re.fullmatch(r"[a-z0-9]+", api_id) is None
+        or _is_production_identifier(api_id)
+    ):
+        raise HarnessError("staging API identifier is invalid")
+    return f"arn:{PARTITION}:apigateway:{REGION}::/apis/{api_id}"
+
+
+def _validate_api_gateway_resource_arn(value: str, *, expected_api_id: str) -> None:
+    expected = _api_gateway_resource_arn(expected_api_id, expected_api_id=expected_api_id)
+    if value != expected or _is_production_identifier(value):
+        raise HarnessError("staging API resource ARN is invalid")
+
+
+def _api_gateway_tag_read_statement(api_arn: str, *, expected_api_id: str) -> dict[str, Any]:
+    _validate_api_gateway_resource_arn(api_arn, expected_api_id=expected_api_id)
+    tag_endpoint = f"arn:{PARTITION}:apigateway:{REGION}::/tags/{urllib.parse.quote(api_arn, safe='')}"
+    return {
+        "Sid": "ReadStagingHttpApiTags",
+        "Effect": "Allow",
+        "Action": "apigateway:GET",
+        "Resource": tag_endpoint,
+        "Condition": {
+            "StringEquals": {
+                "aws:RequestedRegion": REGION,
+                "aws:ResourceTag/Project": "nana-fortune",
+                "aws:ResourceTag/Environment": STAGE_NAME,
+            }
+        },
+    }
 
 
 class AwsSdkBackend:
@@ -460,9 +496,7 @@ class AwsSdkBackend:
             self._validate_resource_tags(logical_id, _safe_tags(tags))
 
         api_id = self._resource("ReadingHttpApi")["PhysicalResourceId"]
-        if not re.fullmatch(r"[a-z0-9]+", api_id) or _is_production_identifier(api_id):
-            raise HarnessError("staging API identifier is invalid")
-        api_arn = f"arn:aws:apigateway:{REGION}::/apis/{api_id}"
+        api_arn = _api_gateway_resource_arn(api_id, expected_api_id=api_id)
         api_tags = self._call("apigatewayv2", "get_tags", ResourceArn=api_arn).get("Tags", {})
         self._validate_resource_tags("ReadingHttpApi", api_tags)
         routes = self._call("apigatewayv2", "get_routes", ApiId=api_id).get("Items", [])
@@ -660,8 +694,7 @@ class AwsSdkBackend:
 
     def api_base(self) -> str:
         api_id = self._resource("ReadingHttpApi")["PhysicalResourceId"]
-        if not re.fullmatch(r"[a-z0-9]+", api_id) or _is_production_identifier(api_id):
-            raise HarnessError("staging API identifier is invalid")
+        _api_gateway_resource_arn(api_id, expected_api_id=api_id)
         return f"https://{api_id}.execute-api.{REGION}.amazonaws.com/{STAGE_NAME}"
 
 
