@@ -33,8 +33,6 @@ class FakeBackend:
 
     def validate_runtime(self):
         self.runtime += 1
-
-    def validate_secret_and_get_session_secret(self):
         return self.secret
 
     def get_item(self, logical_id, key):
@@ -42,7 +40,9 @@ class FakeBackend:
             return self.user
         return None
 
-    def put_test_user(self, item, fixture_password, password_matches):
+    def put_test_user(self, item, fixture_password, password_matches, session_secret):
+        if session_secret != self.secret:
+            raise AssertionError("unexpected session secret")
         self.puts += 1
         self.user = item
         return True
@@ -78,21 +78,15 @@ def valid_user():
 
 
 class HarnessTests(unittest.TestCase):
-    def test_config_requires_exact_staging_account_and_secret_boundary(self):
-        env = {
-            "SHIRONE_STAGING_EXPECTED_ACCOUNT_ID": "123456789012",
-            "SHIRONE_STAGING_RUNTIME_SECRET_ARN": "arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:nana-reading-staging-runtime-AbCd",
-        }
+    def test_config_requires_exact_staging_account_without_secret_arn(self):
+        env = {"SHIRONE_STAGING_EXPECTED_ACCOUNT_ID": "123456789012"}
         self.assertEqual(HARNESS.load_config(env).expected_account_id, "123456789012")
         for invalid in (
             {},
             {**env, "SHIRONE_STAGING_EXPECTED_ACCOUNT_ID": "123"},
-            {**env, "SHIRONE_STAGING_RUNTIME_SECRET_ARN": env["SHIRONE_STAGING_RUNTIME_SECRET_ARN"].replace("staging", "prod")},
-            {**env, "SHIRONE_STAGING_RUNTIME_SECRET_ARN": env["SHIRONE_STAGING_RUNTIME_SECRET_ARN"].replace("ap-northeast-1", "us-east-1")},
         ):
             with self.assertRaises(HARNESS.HarnessError):
                 HARNESS.load_config(invalid)
-
     def test_dry_run_does_not_construct_aws_backend(self):
         with mock.patch.object(HARNESS.AwsSdkBackend, "create", side_effect=AssertionError("must not construct")):
             output = io.StringIO()
@@ -119,6 +113,7 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(backend.user["plan"], {"S": "light"})
         self.assertEqual(backend.user["subscription_status"], {"S": "active"})
         self.assertNotIn("SHIRONE_STAGING_SESSION_TOKEN", os.environ)
+        self.assertNotIn("SESSION_TOKEN_SECRET", os.environ)
         self.assertEqual(output.getvalue(), "")
         self.assertEqual([item[0] for item in calls], ["POST", "GET"])
         self.assertEqual(backend.metrics_checked, 1)

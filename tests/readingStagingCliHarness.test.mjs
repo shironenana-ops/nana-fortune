@@ -41,6 +41,8 @@ test("harness and shared signer contain no committed credential or unsafe defaul
   assert.match(harness, /boto3\.Session/u);
   assert.match(harness, /integrations\/\{self\._resource/u);
   assert.doesNotMatch(harness, /SHIRONE_STAGING_SESSION_TOKEN|subprocess/u);
+  assert.doesNotMatch(harness, /SHIRONE_STAGING_RUNTIME_SECRET_ARN|secretsmanager/iu);
+  assert.doesNotMatch(harness, /os\.environ\s*\[/u);
   assert.doesNotMatch(harness, /delete-item|update-item|batch-write-item|transact-write-items/iu);
   assert.doesNotMatch(harness, /["']scan["']/iu);
 });

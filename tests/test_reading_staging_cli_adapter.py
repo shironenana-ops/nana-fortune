@@ -18,8 +18,7 @@ sys.modules[SPEC.name] = HARNESS
 SPEC.loader.exec_module(HARNESS)
 
 ACCOUNT = "123456789012"
-SECRET_ARN = f"arn:aws:secretsmanager:{HARNESS.REGION}:{ACCOUNT}:secret:nana-reading-staging-runtime-AbCd"
-CONFIG = HARNESS.HarnessConfig(ACCOUNT, SECRET_ARN)
+CONFIG = HARNESS.HarnessConfig(ACCOUNT)
 
 
 class ConditionalFailure(Exception):
@@ -135,9 +134,10 @@ def base_state():
         "esm_uuid_override": None,
         "queue_arn_override": None,
         "tag_overrides": {},
-        "secret_arn": SECRET_ARN,
-        "secret_tags": {"Project": "nana-fortune", "Environment": "staging"},
-        "secret": "unit-session-secret-that-is-long-enough-only",
+        "request_secret": "unit-session-secret-that-is-long-enough-only",
+        "status_secret": "unit-session-secret-that-is-long-enough-only",
+        "request_kms": None,
+        "status_kms": None,
         "items": {},
         "worker_datapoints": [{"Sum": 0.0}],
         "bedrock_results": [{"Id": "bedrockinvocations", "StatusCode": "Complete", "Values": [0.0]}],
@@ -172,22 +172,28 @@ def response_for(state, service, operation, kwargs):
             env = {
                 "READING_GENERATE_API_ENABLED": state["request_generate"],
                 "READING_ASYNC_PAID_ENABLED": state["request_async"],
-                "SESSION_TOKEN_SECRET": state["secret"],
             }
+            if state["request_secret"] is not None:
+                env["SESSION_TOKEN_SECRET"] = state["request_secret"]
         elif name.endswith("status"):
             env = {
                 "READING_STATUS_API_ENABLED": state["status_enabled"],
-                "SESSION_TOKEN_SECRET": state["secret"],
             }
+            if state["status_secret"] is not None:
+                env["SESSION_TOKEN_SECRET"] = state["status_secret"]
         else:
             env = {"READING_BEDROCK_ENABLED": state["bedrock_enabled"]}
-        return {
+        result = {
             "FunctionName": state["lambda_name_override"] or name,
             "State": state["lambda_state"],
             "LastUpdateStatus": state["lambda_update"],
             "FunctionArn": f"arn:aws:lambda:{HARNESS.REGION}:{ACCOUNT}:function:{name}",
             "Environment": {"Variables": env},
         }
+        kms = state["request_kms"] if name.endswith("request") else state["status_kms"] if name.endswith("status") else None
+        if kms is not None:
+            result["KMSKeyArn"] = kms
+        return result
     if (service, operation) == ("lambda", "list_tags"):
         function_name = kwargs["Resource"].rsplit(":", 1)[-1]
         logical_id = next(
@@ -246,13 +252,6 @@ def response_for(state, service, operation, kwargs):
         }
         value.update(state["integration_overrides"])
         return value
-    if (service, operation) == ("secretsmanager", "describe_secret"):
-        return {
-            "ARN": state["secret_arn"],
-            "Tags": [{"Key": key, "Value": value} for key, value in state["secret_tags"].items()],
-        }
-    if (service, operation) == ("secretsmanager", "get_secret_value"):
-        return {"SecretString": '{"session_token_secret":"' + state["secret"] + '"}'}
     if (service, operation) == ("dynamodb", "get_item"):
         key = tuple(sorted((name, tuple(value.items())) for name, value in kwargs["Key"].items()))
         return {"Item": state["items"][key]} if key in state["items"] else {}
@@ -434,33 +433,75 @@ class AdapterBoundaryTests(unittest.TestCase):
             with self.assertRaises(HARNESS.HarnessError):
                 backend.validate_runtime()
 
-    def test_secret_account_region_and_tags_fail_closed(self):
-        for mutate in ("account", "region", "tag"):
+    def test_request_and_status_lambda_secret_must_exist_and_match(self):
+        for mutate in ("request_missing", "status_missing", "request_empty", "status_empty", "mismatch"):
             state = base_state()
-            if mutate == "account":
-                state["secret_arn"] = SECRET_ARN.replace(ACCOUNT, "999999999999")
-            elif mutate == "region":
-                state["secret_arn"] = SECRET_ARN.replace(HARNESS.REGION, "us-east-1")
+            if mutate == "request_missing":
+                state["request_secret"] = None
+            elif mutate == "status_missing":
+                state["status_secret"] = None
+            elif mutate == "request_empty":
+                state["request_secret"] = ""
+            elif mutate == "status_empty":
+                state["status_secret"] = ""
             else:
-                state["secret_tags"]["Environment"] = "production"
+                state["status_secret"] = "different"
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            with self.assertRaises(HARNESS.HarnessError) as raised:
+                backend.validate_runtime()
+            self.assertNotIn("unit-session-secret", str(raised.exception))
+            self.assertNotIn("different", str(raised.exception))
+
+    def test_lambda_kms_key_is_optional_but_must_match_staging_boundary(self):
+        state = base_state()
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
+        self.assertEqual(backend.validate_runtime(), state["request_secret"])
+
+        valid_kms = f"arn:aws:kms:{HARNESS.REGION}:{ACCOUNT}:key/11111111-1111-4111-8111-111111111111"
+        state = base_state()
+        state["request_kms"] = valid_kms
+        state["status_kms"] = valid_kms
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
+        self.assertEqual(backend.validate_runtime(), state["request_secret"])
+
+        for request_kms, status_kms in (
+            (valid_kms, None),
+            (valid_kms, valid_kms.replace(ACCOUNT, "999999999999")),
+            (valid_kms, valid_kms.replace(HARNESS.REGION, "us-east-1")),
+        ):
+            state = base_state()
+            state["request_kms"] = request_kms
+            state["status_kms"] = status_kms
             backend, _ = backend_for(state)
             backend.validate_boundary()
             with self.assertRaises(HARNESS.HarnessError):
-                backend.validate_secret_and_get_session_secret()
+                backend.validate_runtime()
+
+    def test_no_secrets_manager_client_or_call_is_created(self):
+        state = base_state()
+        backend, session = backend_for(state)
+        backend.validate_boundary()
+        backend.validate_runtime()
+        self.assertNotIn("secretsmanager", backend.clients)
+        self.assertNotIn(("secretsmanager", HARNESS.REGION), session.created)
+        self.assertFalse(any(service == "secretsmanager" for service, _operation, _kwargs in state["calls"]))
 
 
 class AdapterWriteAndMetricTests(unittest.TestCase):
     def prepared(self, state=None, **kwargs):
         backend, session = backend_for(state, **kwargs)
         backend.validate_boundary()
-        backend.validate_runtime()
-        return backend, session
+        session_secret = backend.validate_runtime()
+        return backend, session, session_secret
 
     def test_conditional_put_race_reloads_consistently_and_accepts_exact_fixture(self):
         state = base_state()
-        backend, _ = self.prepared(state)
+        backend, _, session_secret = self.prepared(state)
         password_hash, password_matches, _ = HARNESS._lambda_imports()
-        fixture_password = HARNESS._fixture_password(state["secret"])
+        fixture_password = HARNESS._fixture_password(state["request_secret"])
         item = {
             "user_id": {"S": HARNESS.TEST_USER_ID},
             "password": {"S": password_hash(fixture_password, salt=b"0123456789abcdef")},
@@ -470,15 +511,15 @@ class AdapterWriteAndMetricTests(unittest.TestCase):
         key = (("user_id", (("S", HARNESS.TEST_USER_ID),)),)
         state["items"][key] = item
         state["handlers"][("dynamodb", "put_item")] = lambda _kwargs: (_ for _ in ()).throw(ConditionalFailure())
-        self.assertFalse(backend.put_test_user(item, fixture_password, password_matches))
+        self.assertFalse(backend.put_test_user(item, fixture_password, password_matches, session_secret))
         get_calls = [call for call in state["calls"] if call[:2] == ("dynamodb", "get_item")]
         self.assertTrue(get_calls[-1][2]["ConsistentRead"])
 
     def test_conditional_put_race_rejects_mismatched_fixture(self):
         state = base_state()
-        backend, _ = self.prepared(state)
+        backend, _, session_secret = self.prepared(state)
         password_hash, password_matches, _ = HARNESS._lambda_imports()
-        fixture_password = HARNESS._fixture_password(state["secret"])
+        fixture_password = HARNESS._fixture_password(state["request_secret"])
         requested = {
             "user_id": {"S": HARNESS.TEST_USER_ID},
             "password": {"S": password_hash(fixture_password, salt=b"0123456789abcdef")},
@@ -491,25 +532,26 @@ class AdapterWriteAndMetricTests(unittest.TestCase):
         state["items"][key] = existing
         state["handlers"][("dynamodb", "put_item")] = lambda _kwargs: (_ for _ in ()).throw(ConditionalFailure())
         with self.assertRaises(HARNESS.HarnessError):
-            backend.put_test_user(requested, fixture_password, password_matches)
+            backend.put_test_user(requested, fixture_password, password_matches, session_secret)
 
-    def test_prewrite_rechecks_identity_table_secret_and_stack(self):
+    def test_prewrite_rechecks_identity_table_lambda_secret_and_stack(self):
         state = base_state()
-        backend, _ = self.prepared(state)
+        backend, _, session_secret = self.prepared(state)
         password_hash, password_matches, _ = HARNESS._lambda_imports()
-        fixture_password = HARNESS._fixture_password(state["secret"])
+        fixture_password = HARNESS._fixture_password(state["request_secret"])
         item = {
             "user_id": {"S": HARNESS.TEST_USER_ID},
             "password": {"S": password_hash(fixture_password, salt=b"0123456789abcdef")},
             "plan": {"S": "light"},
             "subscription_status": {"S": "active"},
         }
-        self.assertTrue(backend.put_test_user(item, fixture_password, password_matches))
+        self.assertTrue(backend.put_test_user(item, fixture_password, password_matches, session_secret))
         calls = [(service, operation) for service, operation, _ in state["calls"]]
         self.assertGreaterEqual(calls.count(("sts", "get_caller_identity")), 2)
         self.assertGreaterEqual(calls.count(("cloudformation", "describe_stacks")), 2)
         self.assertGreaterEqual(calls.count(("dynamodb", "describe_table")), 7)
-        self.assertIn(("secretsmanager", "describe_secret"), calls)
+        self.assertGreaterEqual(calls.count(("lambda", "get_function_configuration")), 6)
+        self.assertNotIn(("secretsmanager", "describe_secret"), calls)
 
     def test_metric_real_shapes_confirm_zero_and_reject_activity(self):
         state = base_state()

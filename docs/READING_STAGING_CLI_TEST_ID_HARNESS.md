@@ -28,7 +28,7 @@ person. Its literal value is never printed by the harness.
 
 - one `boto3.Session` is fixed to the temporary least-privilege profile
   `shirone-staging-graduation` and region
-  `ap-northeast-1`; all eight service clients come from that Session;
+  `ap-northeast-1`; all seven service clients come from that Session;
 - caller account must equal `SHIRONE_STAGING_EXPECTED_ACCOUNT_ID` and caller
   must be a non-root assumed role;
 - stack name/StackId/ARN, `UPDATE_COMPLETE` state, exact 32-resource logical
@@ -43,10 +43,11 @@ person. Its literal value is never printed by the harness.
 - the four deployed SQS queues/DLQs do not expose those three generated tags,
   so their boundary instead requires exact CloudFormation logical/physical
   mapping, queue ARN account/region, and the two explicit template tags;
-- the runtime secret ARN must match the expected account, region, staging name,
-  and project/environment tags;
-- the retrieved `session_token_secret` must constant-time match the already
-  resolved request and status Lambda environment values;
+- the existing implementation-defined `SESSION_TOKEN_SECRET` key must be
+  present and non-empty in both request and status Lambda configurations;
+- the two already-resolved Lambda environment values must constant-time match;
+- request/status `KMSKeyArn` must both be absent or must be the same single
+  customer-managed key in the expected account and Tokyo region;
 - `POST /reading` must target exactly
   `integrations/<ReadingRequestIntegration physical ID>`;
 - `GET /reading/status` must target exactly
@@ -56,8 +57,9 @@ person. Its literal value is never printed by the harness.
 
 Immediately before the sole conditional write, the same Session rechecks the
 STS identity, stack/account/region and physical-resource inventory, exact users
-table ARN/resource tags, and exact secret ARN/tags. Profile or credential
-resolution is not restarted during execution.
+table ARN/resource tags, and the request/status Lambda configuration, switches,
+secret equality, and KMS boundary. Profile or credential resolution is not
+restarted during execution.
 
 Stack-level `Project`/`Environment` tags are deliberately not a prerequisite.
 The tracked template applies tags to supported resources, the design plan says
@@ -77,8 +79,9 @@ race occurs, one consistent `GetItem` follows; execution continues only when
 the exact four-field item and modern password hash verify against that fixture
 password. The harness never updates or deletes the item.
 
-The session token, fixture password, and secret stay in local variables in the
-same Python process. The token is passed directly to the two bounded HTTP
+The session token, fixture password, and deployed Lambda secret stay in local
+variables in the same Python process. Neither Secrets Manager nor a secret ARN
+is used. The token is passed directly to the two bounded HTTP
 requests and is never placed in an environment variable or child process.
 Redirects are refused, so the Authorization header cannot be forwarded to
 another host. None of these values is written to a file, command argument,
@@ -116,10 +119,9 @@ npm run test:reading-staging-cli-harness
 ```
 
 Local tests inject SDK-shaped fakes and perform no AWS or HTTP access. Dry-run
-does not import boto3, create a Session/client, or start a subprocess. The local
-Python interpreter used during implementation did not already contain boto3,
-so no package was downloaded. A separately approved AWS run must use an
-existing runtime that provides boto3; absence is a fail-closed prerequisite.
+does not import boto3, create a Session/client, or start a subprocess. The
+separately approved external Python 3.12 virtual environment supplies boto3;
+absence is a fail-closed prerequisite.
 
 After the two non-secret boundary variables are set only in the current local
 process, the separately approved execution shape is:
@@ -137,8 +139,6 @@ approved before execution.
   explicit identity-policy Allow;
 - `cloudformation:DescribeStacks`, `cloudformation:ListStackResources` for the
   one staging stack;
-- `secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue` for one
-  tagged staging runtime secret;
 - `lambda:GetFunctionConfiguration`, `lambda:ListTags` for four staging
   Lambdas;
 - `lambda:GetEventSourceMapping` for two staging mappings;
@@ -152,10 +152,14 @@ approved before execution.
   `dynamodb:LeadingKeys` to the fixed staging test ID;
 - `cloudwatch:GetMetricStatistics`, `cloudwatch:GetMetricData` for read-only
   supplemental evidence.
+- `kms:Decrypt` for one exact customer-managed key only when request/status
+  Lambda configurations both identify that same key; no KMS permission is
+  needed when `KMSKeyArn` is absent.
 
 Not required: Lambda Invoke, SQS Send/Receive/Delete, Bedrock Invoke,
 DynamoDB Update/Delete/Scan/Query/Batch/Transaction, deploy, or any production
-permission. No IAM policy is created by this work.
+permission. Secrets Manager permissions are explicitly not required. No IAM
+policy is created by the harness implementation itself.
 
 ## Login Lambda packaging boundary
 

@@ -95,13 +95,13 @@ FUNCTION_LOGICAL_IDS = (
 CLIENT_SERVICES = (
     "sts",
     "cloudformation",
-    "secretsmanager",
     "lambda",
     "apigatewayv2",
     "sqs",
     "dynamodb",
     "cloudwatch",
 )
+SESSION_SECRET_ENV_KEY = "SESSION_TOKEN_SECRET"
 
 
 class HarnessError(RuntimeError):
@@ -111,7 +111,6 @@ class HarnessError(RuntimeError):
 @dataclass(frozen=True)
 class HarnessConfig:
     expected_account_id: str
-    runtime_secret_arn: str
 
 
 def _lambda_imports() -> tuple[Any, Any, Any]:
@@ -126,13 +125,9 @@ def _lambda_imports() -> tuple[Any, Any, Any]:
 
 def load_config(env: Mapping[str, str]) -> HarnessConfig:
     account = env.get("SHIRONE_STAGING_EXPECTED_ACCOUNT_ID", "")
-    secret_arn = env.get("SHIRONE_STAGING_RUNTIME_SECRET_ARN", "")
     if not re.fullmatch(r"[0-9]{12}", account):
         raise HarnessError("expected staging account is not configured")
-    pattern = rf"arn:aws:secretsmanager:{re.escape(REGION)}:{account}:secret:[A-Za-z0-9/_+=.@-]+"
-    if not re.fullmatch(pattern, secret_arn) or "staging" not in secret_arn.lower() or "prod" in secret_arn.lower():
-        raise HarnessError("runtime secret ARN is outside the staging boundary")
-    return HarnessConfig(account, secret_arn)
+    return HarnessConfig(account)
 
 
 def _load_session_factory() -> Callable[..., Any]:
@@ -296,38 +291,56 @@ class AwsSdkBackend:
         if any(resource_tags.get(key) != expected_value for key, expected_value in expected.items()):
             raise HarnessError("staging resource tags are invalid")
 
-    def _validate_secret_metadata(self) -> None:
-        description = self._call(
-            "secretsmanager", "describe_secret", SecretId=self.config.runtime_secret_arn
-        )
-        if description.get("ARN") != self.config.runtime_secret_arn:
-            raise HarnessError("runtime secret identity is outside the staging boundary")
-        tags = _safe_tags(description.get("Tags"))
-        if tags.get("Environment") != STAGE_NAME or tags.get("Project") != "nana-fortune":
-            raise HarnessError("runtime secret tags are outside the staging boundary")
+    def _validate_api_secret_and_kms(
+        self, function_configurations: Mapping[str, Mapping[str, Any]]
+    ) -> tuple[str, str | None]:
+        request_configuration = function_configurations.get("ReadingRequestFunction", {})
+        status_configuration = function_configurations.get("ReadingStatusFunction", {})
+        request_variables = request_configuration.get("Environment", {}).get("Variables", {})
+        status_variables = status_configuration.get("Environment", {}).get("Variables", {})
+        request_secret = request_variables.get(SESSION_SECRET_ENV_KEY) if isinstance(request_variables, dict) else None
+        status_secret = status_variables.get(SESSION_SECRET_ENV_KEY) if isinstance(status_variables, dict) else None
+        if not isinstance(request_secret, str) or not request_secret:
+            raise HarnessError("request Lambda session secret is missing")
+        if not isinstance(status_secret, str) or not status_secret:
+            raise HarnessError("status Lambda session secret is missing")
+        if not hmac.compare_digest(request_secret, status_secret):
+            raise HarnessError("request and status Lambda session secrets differ")
 
-    def validate_secret_and_get_session_secret(self) -> str:
-        self._validate_secret_metadata()
-        secret_response = self._call(
-            "secretsmanager", "get_secret_value", SecretId=self.config.runtime_secret_arn
-        )
-        secret_string = secret_response.get("SecretString")
-        if not isinstance(secret_string, str):
-            raise HarnessError("runtime secret document is invalid")
-        try:
-            secret_document = json.loads(secret_string)
-        except json.JSONDecodeError as error:
-            raise HarnessError("runtime secret document is invalid") from error
-        session_secret = secret_document.get("session_token_secret") if isinstance(secret_document, dict) else None
-        if not isinstance(session_secret, str) or len(session_secret) < 32:
-            raise HarnessError("runtime session secret is invalid")
-        for logical_id in ("ReadingRequestFunction", "ReadingStatusFunction"):
-            function_name = self._resource(logical_id)["PhysicalResourceId"]
-            configuration = self._call("lambda", "get_function_configuration", FunctionName=function_name)
-            deployed_secret = configuration.get("Environment", {}).get("Variables", {}).get("SESSION_TOKEN_SECRET")
-            if not isinstance(deployed_secret, str) or not hmac.compare_digest(session_secret, deployed_secret):
-                raise HarnessError("runtime secret does not match the staging API Lambda")
-        return session_secret
+        request_kms = request_configuration.get("KMSKeyArn") or None
+        status_kms = status_configuration.get("KMSKeyArn") or None
+        if request_kms != status_kms:
+            raise HarnessError("request and status Lambda KMS keys differ")
+        if request_kms is not None:
+            expected_prefix = f"arn:aws:kms:{REGION}:{self.config.expected_account_id}:key/"
+            if (
+                not isinstance(request_kms, str)
+                or not request_kms.startswith(expected_prefix)
+                or _is_production_identifier(request_kms)
+            ):
+                raise HarnessError("Lambda KMS key is outside the staging boundary")
+        return request_secret, request_kms
+
+    def _load_function_configurations(self, logical_ids: tuple[str, ...]) -> dict[str, dict[str, Any]]:
+        function_configurations: dict[str, dict[str, Any]] = {}
+        expected_lambda_prefix = f"arn:aws:lambda:{REGION}:{self.config.expected_account_id}:function:"
+        for logical_id in logical_ids:
+            physical_id = self._resource(logical_id)["PhysicalResourceId"]
+            configuration = self._call("lambda", "get_function_configuration", FunctionName=physical_id)
+            function_arn = configuration.get("FunctionArn", "")
+            if (
+                configuration.get("State") != "Active"
+                or configuration.get("LastUpdateStatus") != "Successful"
+                or configuration.get("FunctionName") not in (None, physical_id)
+                or not isinstance(function_arn, str)
+                or not function_arn.startswith(expected_lambda_prefix)
+                or _is_production_identifier(function_arn)
+            ):
+                raise HarnessError("staging Lambda is not ready")
+            function_tags = self._call("lambda", "list_tags", Resource=function_arn).get("Tags", {})
+            self._validate_resource_tags(logical_id, function_tags)
+            function_configurations[logical_id] = configuration
+        return function_configurations
 
     def _validate_table(self, logical_id: str, *, expected_arn: str | None = None) -> str:
         table_name = self._resource(logical_id)["PhysicalResourceId"]
@@ -393,25 +406,8 @@ class AwsSdkBackend:
             raise HarnessError("worker event source mapping is enabled or mismatched")
         return {"State": "Disabled", "UUID": expected_uuid}
 
-    def validate_runtime(self) -> dict[str, Any]:
-        function_configurations: dict[str, dict[str, Any]] = {}
-        expected_lambda_prefix = f"arn:aws:lambda:{REGION}:{self.config.expected_account_id}:function:"
-        for logical_id in FUNCTION_LOGICAL_IDS:
-            physical_id = self._resource(logical_id)["PhysicalResourceId"]
-            configuration = self._call("lambda", "get_function_configuration", FunctionName=physical_id)
-            function_arn = configuration.get("FunctionArn", "")
-            if (
-                configuration.get("State") != "Active"
-                or configuration.get("LastUpdateStatus") != "Successful"
-                or configuration.get("FunctionName") not in (None, physical_id)
-                or not isinstance(function_arn, str)
-                or not function_arn.startswith(expected_lambda_prefix)
-                or _is_production_identifier(function_arn)
-            ):
-                raise HarnessError("staging Lambda is not ready")
-            function_tags = self._call("lambda", "list_tags", Resource=function_arn).get("Tags", {})
-            self._validate_resource_tags(logical_id, function_tags)
-            function_configurations[logical_id] = configuration
+    def validate_runtime(self) -> str:
+        function_configurations = self._load_function_configurations(FUNCTION_LOGICAL_IDS)
         request_env = function_configurations["ReadingRequestFunction"].get("Environment", {}).get("Variables", {})
         status_env = function_configurations["ReadingStatusFunction"].get("Environment", {}).get("Variables", {})
         if request_env.get("READING_GENERATE_API_ENABLED") != "true" or request_env.get("READING_ASYNC_PAID_ENABLED") != "false":
@@ -422,6 +418,7 @@ class AwsSdkBackend:
             worker_env = function_configurations[logical_id].get("Environment", {}).get("Variables", {})
             if worker_env.get("READING_BEDROCK_ENABLED") != "false":
                 raise HarnessError("worker Bedrock switch is enabled")
+        session_secret, _kms_key_arn = self._validate_api_secret_and_kms(function_configurations)
         for logical_id in ESM_LOGICAL_IDS:
             self._event_source_mapping_state(logical_id)
         for logical_id in QUEUE_LOGICAL_IDS:
@@ -477,7 +474,7 @@ class AwsSdkBackend:
             ):
                 raise HarnessError("staging API integration is invalid")
             integrations[logical_id] = value
-        return {"parameters": dict(EXPECTED_PARAMETERS), "integrations": integrations}
+        return session_secret
 
     def _table_name(self, logical_id: str) -> str:
         return self._resource(logical_id)["PhysicalResourceId"]
@@ -493,7 +490,7 @@ class AwsSdkBackend:
         item = value.get("Item")
         return item if isinstance(item, dict) else None
 
-    def _pre_write_revalidate(self) -> None:
+    def _pre_write_revalidate(self, expected_session_secret: str) -> None:
         self._validate_identity()
         self._validate_stack(refresh_resources=True)
         users_arn = self.table_arns.get("ReadingUsersTable")
@@ -502,7 +499,18 @@ class AwsSdkBackend:
         self._validate_table("ReadingUsersTable", expected_arn=users_arn)
         users_tags = self._call("dynamodb", "list_tags_of_resource", ResourceArn=users_arn).get("Tags", [])
         self._validate_resource_tags("ReadingUsersTable", _safe_tags(users_tags))
-        self._validate_secret_metadata()
+        configurations = self._load_function_configurations(
+            ("ReadingRequestFunction", "ReadingStatusFunction")
+        )
+        request_env = configurations["ReadingRequestFunction"].get("Environment", {}).get("Variables", {})
+        status_env = configurations["ReadingStatusFunction"].get("Environment", {}).get("Variables", {})
+        if request_env.get("READING_GENERATE_API_ENABLED") != "true" or request_env.get("READING_ASYNC_PAID_ENABLED") != "false":
+            raise HarnessError("request Lambda switches are invalid")
+        if status_env.get("READING_STATUS_API_ENABLED") != "true":
+            raise HarnessError("status Lambda switch is invalid")
+        current_session_secret, _kms_key_arn = self._validate_api_secret_and_kms(configurations)
+        if not hmac.compare_digest(expected_session_secret, current_session_secret):
+            raise HarnessError("Lambda session secret changed before write")
 
     @staticmethod
     def _error_code(error: Exception) -> str | None:
@@ -512,11 +520,17 @@ class AwsSdkBackend:
         error_value = response.get("Error")
         return error_value.get("Code") if isinstance(error_value, dict) else None
 
-    def put_test_user(self, item: dict[str, Any], fixture_password: str, password_matches: Any) -> bool:
+    def put_test_user(
+        self,
+        item: dict[str, Any],
+        fixture_password: str,
+        password_matches: Any,
+        session_secret: str,
+    ) -> bool:
         if self._put_attempted or item.get("user_id") != {"S": TEST_USER_ID}:
             raise HarnessError("test user write scope was exceeded")
         self._put_attempted = True
-        self._pre_write_revalidate()
+        self._pre_write_revalidate(session_secret)
         try:
             self.clients["dynamodb"].put_item(
                 TableName=self._table_name("ReadingUsersTable"),
@@ -702,8 +716,7 @@ def _validate_existing_user(item: dict[str, Any], fixture_password: str, passwor
 
 def execute_harness(backend: AwsSdkBackend) -> dict[str, Any]:
     backend.validate_boundary()
-    backend.validate_runtime()
-    session_secret = backend.validate_secret_and_get_session_secret()
+    session_secret = backend.validate_runtime()
     token = ""
     fixture_password = ""
     try:
@@ -718,7 +731,7 @@ def execute_harness(backend: AwsSdkBackend) -> dict[str, Any]:
                 "plan": {"S": "light"},
                 "subscription_status": {"S": "active"},
             }
-            created = backend.put_test_user(item, fixture_password, password_matches)
+            created = backend.put_test_user(item, fixture_password, password_matches, session_secret)
             del item
         else:
             _validate_existing_user(existing, fixture_password, password_matches)
