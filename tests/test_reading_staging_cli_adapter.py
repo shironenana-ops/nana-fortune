@@ -1,9 +1,11 @@
 """Adapter-level safety tests for the staging CLI harness (no AWS/HTTP)."""
 
 import importlib.util
+import io
 import json
 import sys
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -24,6 +26,18 @@ CONFIG = HARNESS.HarnessConfig(ACCOUNT)
 class ConditionalFailure(Exception):
     def __init__(self):
         self.response = {"Error": {"Code": "ConditionalCheckFailedException"}}
+
+
+class SensitiveClientError(Exception):
+    def __init__(self):
+        super().__init__(
+            "denied arn:aws:sts::999999999999:assumed-role/private-role/session "
+            "on arn:aws:apigateway:ap-northeast-1::/apis/private-api"
+        )
+        self.response = {
+            "Error": {"Code": "AccessDeniedException", "Message": str(self)},
+            "ResponseMetadata": {"HTTPStatusCode": 403, "RequestId": "private-request-id"},
+        }
 
 
 class FakeClient:
@@ -145,6 +159,10 @@ def base_state():
         "lambda_name_override": None,
         "esm_uuid_override": None,
         "queue_arn_override": None,
+        "api_id_override": None,
+        "api_protocol": "HTTP",
+        "api_name_override": None,
+        "api_endpoint_override": None,
         "tag_overrides": {},
         "request_secret": "unit-session-secret-that-is-long-enough-only",
         "status_secret": "unit-session-secret-that-is-long-enough-only",
@@ -242,6 +260,17 @@ def response_for(state, service, operation, kwargs):
             key for key in HARNESS.TABLE_LOGICAL_IDS if resources[key]["PhysicalResourceId"] == table_name
         )
         return {"Tags": [{"Key": key, "Value": value} for key, value in cloudformation_tags(state, logical_id).items()]}
+    if (service, operation) == ("apigatewayv2", "get_api"):
+        api_id = resources["ReadingHttpApi"]["PhysicalResourceId"]
+        return {
+            "ApiId": state["api_id_override"] or api_id,
+            "ProtocolType": state["api_protocol"],
+            "Name": state["api_name_override"] or f"{HARNESS.STACK_NAME}-reading-http-api",
+            "ApiEndpoint": state["api_endpoint_override"] or (
+                f"https://{api_id}.execute-api.{HARNESS.REGION}.amazonaws.com"
+            ),
+            "Tags": cloudformation_tags(state, "ReadingHttpApi"),
+        }
     if (service, operation) == ("apigatewayv2", "get_routes"):
         return {
             "Items": [
@@ -253,8 +282,6 @@ def response_for(state, service, operation, kwargs):
                 for route, target in state["route_targets"].items()
             ]
         }
-    if (service, operation) == ("apigatewayv2", "get_tags"):
-        return {"Tags": cloudformation_tags(state, "ReadingHttpApi")}
     if (service, operation) == ("apigatewayv2", "get_integration"):
         integration_id = kwargs["IntegrationId"]
         is_request = integration_id == "request-integration"
@@ -293,6 +320,51 @@ class AdapterBoundaryTests(unittest.TestCase):
         self.assertEqual(actual, HARNESS.EXPECTED_RESOURCE_TYPES)
         self.assertEqual(len(actual), 32)
 
+    def test_aws_client_error_output_is_allow_listed_and_identifier_free(self):
+        state = base_state()
+        state["handlers"][("sts", "get_caller_identity")] = lambda _kwargs: (_ for _ in ()).throw(
+            SensitiveClientError()
+        )
+        backend, _ = backend_for(state)
+        with self.assertRaises(HARNESS.HarnessError) as raised:
+            backend.validate_boundary()
+        safe_error = raised.exception
+        safe_text = str(safe_error)
+        self.assertIn("exception_class=SensitiveClientError", safe_text)
+        self.assertIn("http_status=403", safe_text)
+        self.assertIn("aws_error_code=AccessDeniedException", safe_text)
+        for forbidden in (
+            "999999999999",
+            "assumed-role",
+            "private-role",
+            "private-api",
+            "private-request-id",
+            "arn:aws",
+        ):
+            self.assertNotIn(forbidden, safe_text)
+
+        output = io.StringIO()
+        with (
+            mock.patch.object(HARNESS, "load_config", return_value=CONFIG),
+            mock.patch.object(HARNESS.AwsSdkBackend, "create", side_effect=safe_error),
+            redirect_stdout(output),
+        ):
+            self.assertEqual(
+                HARNESS.main(["--execute", "--confirm", HARNESS.CONFIRMATION]),
+                1,
+            )
+        rendered = output.getvalue()
+        self.assertIn("STAGING_CLI_HARNESS_FAILED", rendered)
+        for forbidden in (
+            "999999999999",
+            "assumed-role",
+            "private-role",
+            "private-api",
+            "private-request-id",
+            "arn:aws",
+        ):
+            self.assertNotIn(forbidden, rendered)
+
     def test_api_gateway_resource_arn_is_exact_and_accountless(self):
         api_id = "abc123def4"
         value = HARNESS._api_gateway_resource_arn(api_id, expected_api_id=api_id)
@@ -317,50 +389,57 @@ class AdapterBoundaryTests(unittest.TestCase):
                 expected_api_id=api_id,
             )
 
-    def test_api_gateway_tag_permission_is_exact_read_only_and_staging_conditioned(self):
-        api_id = "abc123def4"
-        api_arn = HARNESS._api_gateway_resource_arn(api_id, expected_api_id=api_id)
-        statement = HARNESS._api_gateway_tag_read_statement(api_arn, expected_api_id=api_id)
-        context = {
-            "aws:RequestedRegion": HARNESS.REGION,
-            "aws:ResourceTag/Project": "nana-fortune",
-            "aws:ResourceTag/Environment": HARNESS.STAGE_NAME,
+    def test_get_api_is_the_only_api_tag_source_and_requires_exact_identity(self):
+        state = base_state()
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
+        backend.validate_runtime()
+        get_api_calls = [call for call in state["calls"] if call[:2] == ("apigatewayv2", "get_api")]
+        get_tags_calls = [call for call in state["calls"] if call[:2] == ("apigatewayv2", "get_tags")]
+        self.assertEqual(len(get_api_calls), 1)
+        self.assertEqual(get_api_calls[0][2], {"ApiId": state["resources"]["ReadingHttpApi"]["PhysicalResourceId"]})
+        self.assertEqual(get_tags_calls, [])
+
+        for key, value in (
+            ("api_id_override", "other123"),
+            ("api_protocol", "WEBSOCKET"),
+            ("api_name_override", "nana-reading-production-http-api"),
+            ("api_endpoint_override", "https://production.execute-api.ap-northeast-1.amazonaws.com"),
+        ):
+            state = base_state()
+            state[key] = value
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_runtime()
+
+    def test_get_api_tags_fail_closed_when_missing_or_mismatched(self):
+        for overrides in (
+            {"Project": None},
+            {"Environment": "development"},
+            {"Unexpected": "production"},
+        ):
+            state = base_state()
+            state["tag_overrides"]["ReadingHttpApi"] = overrides
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_runtime()
+
+        state = base_state()
+        state["handlers"][("apigatewayv2", "get_api")] = lambda _kwargs: {
+            "ApiId": state["resources"]["ReadingHttpApi"]["PhysicalResourceId"],
+            "ProtocolType": "HTTP",
+            "Name": f"{HARNESS.STACK_NAME}-reading-http-api",
+            "ApiEndpoint": (
+                f"https://{state['resources']['ReadingHttpApi']['PhysicalResourceId']}"
+                f".execute-api.{HARNESS.REGION}.amazonaws.com"
+            ),
         }
-
-        def authorized(candidate, resource, values):
-            required = candidate.get("Condition", {}).get("StringEquals", {})
-            return (
-                candidate.get("Effect") == "Allow"
-                and candidate.get("Action") == "apigateway:GET"
-                and candidate.get("Resource") == resource
-                and all(values.get(key) == value for key, value in required.items())
-            )
-
-        self.assertEqual(statement["Action"], "apigateway:GET")
-        self.assertNotEqual(statement["Resource"], api_arn)
-        self.assertNotIn("*", statement["Resource"])
-        self.assertEqual(
-            statement["Condition"]["StringEquals"],
-            {
-                "aws:RequestedRegion": HARNESS.REGION,
-                "aws:ResourceTag/Project": "nana-fortune",
-                "aws:ResourceTag/Environment": HARNESS.STAGE_NAME,
-            },
-        )
-        self.assertTrue(authorized(statement, statement["Resource"], context))
-        self.assertFalse(
-            authorized(
-                {"Effect": "Allow", "Action": "apigateway:GET", "Resource": api_arn},
-                statement["Resource"],
-                context,
-            )
-        )
-        self.assertFalse(
-            authorized(statement, statement["Resource"], {**context, "aws:ResourceTag/Environment": "production"})
-        )
-        production_arn = f"arn:aws:apigateway:{HARNESS.REGION}::/apis/production"
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
         with self.assertRaises(HARNESS.HarnessError):
-            HARNESS._api_gateway_tag_read_statement(production_arn, expected_api_id="production")
+            backend.validate_runtime()
 
     def test_one_session_creates_all_clients_in_fixed_region(self):
         backend, session = backend_for()

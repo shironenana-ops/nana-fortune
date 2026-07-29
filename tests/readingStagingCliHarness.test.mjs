@@ -40,6 +40,8 @@ test("harness and shared signer contain no committed credential or unsafe defaul
   assert.match(harness, /CREATE_STAGING_LIGHT_TEST_ID_AND_RUN_PHASE1_SMOKE/u);
   assert.match(harness, /boto3\.Session/u);
   assert.match(harness, /integrations\/\{self\._resource/u);
+  assert.match(harness, /"apigatewayv2", "get_api"/u);
+  assert.doesNotMatch(harness, /get_tags|\/tags\//u);
   assert.doesNotMatch(harness, /SHIRONE_STAGING_SESSION_TOKEN|subprocess/u);
   assert.doesNotMatch(harness, /SHIRONE_STAGING_RUNTIME_SECRET_ARN|secretsmanager/iu);
   assert.doesNotMatch(harness, /os\.environ\s*\[/u);

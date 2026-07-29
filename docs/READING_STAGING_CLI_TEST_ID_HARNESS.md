@@ -55,13 +55,19 @@ person. Its literal value is never printed by the harness.
 - integration URI, payload version, timeout, method, type, and absence of path
   rewriting must match the Phase 1 contract.
 
-API Gateway V2 authorizes `GetTags` against the management tag endpoint, not
-the tagged HTTP API ARN itself. The temporary graduation policy therefore uses
-one independent read-only statement for the URL-encoded, exact HTTP API tag
-endpoint. It has no wildcard resource and requires Tokyo plus the explicit
-`Project=nana-fortune` and `Environment=staging` resource-tag conditions.
-Routes and integrations are never passed to `GetTags`; their boundary remains
-the exact stack mapping and route/integration contract described above.
+The HTTP API boundary uses one `GetApi` call with the API ID taken from the
+exact CloudFormation physical-resource mapping. The same response must contain
+the expected API ID, HTTP protocol, exact staging name and endpoint, and every
+tag explicitly declared for `ReadingHttpApi` in the tracked template. In
+particular, `Project=nana-fortune` and `Environment=staging` must match.
+`GetTags` is not called and there is no tag-endpoint fallback or IAM resource.
+Routes and integrations remain bound to their own read APIs and the exact
+CloudFormation route/integration mapping described above.
+
+SDK failures are converted to an allow-listed diagnostic containing only the
+phase, exception class, HTTP status, AWS error code, and a fixed
+classification. Raw exception messages, account/API/resource identifiers,
+request IDs, secrets, tokens, and full responses are not printed.
 
 Immediately before the sole conditional write, the same Session rechecks the
 STS identity, stack/account/region and physical-resource inventory, exact users
@@ -151,9 +157,9 @@ approved before execution.
 - `lambda:GetFunctionConfiguration`, `lambda:ListTags` for four staging
   Lambdas;
 - `lambda:GetEventSourceMapping` for two staging mappings;
-- `apigateway:GET` for one staging HTTP API, its tags, two routes, and two
-  integrations; HTTP API tag access uses a separate exact tag-endpoint
-  resource with the staging conditions above;
+- `apigateway:GET` for one exact staging HTTP API, two exact routes, and two
+  exact integrations. The HTTP API response itself supplies the tracked tags;
+  `/tags/*` and tag-endpoint permissions are not granted;
 - `sqs:GetQueueAttributes`, `sqs:ListQueueTags` for four staging queues;
 - `dynamodb:DescribeTable` and `dynamodb:ListTagsOfResource` for six staging
   tables;

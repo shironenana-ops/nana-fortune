@@ -172,22 +172,26 @@ def _validate_api_gateway_resource_arn(value: str, *, expected_api_id: str) -> N
         raise HarnessError("staging API resource ARN is invalid")
 
 
-def _api_gateway_tag_read_statement(api_arn: str, *, expected_api_id: str) -> dict[str, Any]:
-    _validate_api_gateway_resource_arn(api_arn, expected_api_id=expected_api_id)
-    tag_endpoint = f"arn:{PARTITION}:apigateway:{REGION}::/tags/{urllib.parse.quote(api_arn, safe='')}"
-    return {
-        "Sid": "ReadStagingHttpApiTags",
-        "Effect": "Allow",
-        "Action": "apigateway:GET",
-        "Resource": tag_endpoint,
-        "Condition": {
-            "StringEquals": {
-                "aws:RequestedRegion": REGION,
-                "aws:ResourceTag/Project": "nana-fortune",
-                "aws:ResourceTag/Environment": STAGE_NAME,
-            }
-        },
-    }
+def _safe_error_token(value: Any) -> str:
+    return value if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9._-]{1,64}", value) else "UNKNOWN"
+
+
+def _safe_aws_failure(service: str, operation: str, error: Exception) -> HarnessError:
+    exception_class = _safe_error_token(type(error).__name__)
+    response = getattr(error, "response", None)
+    response = response if isinstance(response, dict) else {}
+    metadata = response.get("ResponseMetadata")
+    metadata = metadata if isinstance(metadata, dict) else {}
+    status = metadata.get("HTTPStatusCode")
+    safe_status = str(status) if isinstance(status, int) and 100 <= status <= 599 else "UNKNOWN"
+    error_value = response.get("Error")
+    error_value = error_value if isinstance(error_value, dict) else {}
+    code = _safe_error_token(error_value.get("Code"))
+    return HarnessError(
+        "AWS_OPERATION_FAILED "
+        f"phase={service}/{operation} exception_class={exception_class} "
+        f"http_status={safe_status} aws_error_code={code} classification=AWS_SDK_CALL_FAILED"
+    )
 
 
 class AwsSdkBackend:
@@ -223,7 +227,7 @@ class AwsSdkBackend:
         try:
             response = getattr(self.clients[service], operation)(**kwargs)
         except Exception as error:
-            raise HarnessError(f"AWS operation failed: {service}/{operation}") from error
+            raise _safe_aws_failure(service, operation, error) from None
         if not isinstance(response, dict):
             raise HarnessError(f"AWS response shape was invalid: {service}/{operation}")
         return response
@@ -496,9 +500,20 @@ class AwsSdkBackend:
             self._validate_resource_tags(logical_id, _safe_tags(tags))
 
         api_id = self._resource("ReadingHttpApi")["PhysicalResourceId"]
-        api_arn = _api_gateway_resource_arn(api_id, expected_api_id=api_id)
-        api_tags = self._call("apigatewayv2", "get_tags", ResourceArn=api_arn).get("Tags", {})
-        self._validate_resource_tags("ReadingHttpApi", api_tags)
+        _api_gateway_resource_arn(api_id, expected_api_id=api_id)
+        api = self._call("apigatewayv2", "get_api", ApiId=api_id)
+        api_endpoint = api.get("ApiEndpoint")
+        api_name = api.get("Name")
+        if (
+            api.get("ApiId") != api_id
+            or api.get("ProtocolType") != "HTTP"
+            or api_name != f"{STACK_NAME}-reading-http-api"
+            or api_endpoint != f"https://{api_id}.execute-api.{REGION}.amazonaws.com"
+            or _is_production_identifier(api_name)
+            or _is_production_identifier(api_endpoint)
+        ):
+            raise HarnessError("staging HTTP API identity is invalid")
+        self._validate_resource_tags("ReadingHttpApi", api.get("Tags"))
         routes = self._call("apigatewayv2", "get_routes", ApiId=api_id).get("Items", [])
         route_map = {
             item.get("RouteKey"): (item.get("RouteId"), item.get("Target"))
