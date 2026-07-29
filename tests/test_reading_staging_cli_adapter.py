@@ -285,7 +285,11 @@ class AdapterBoundaryTests(unittest.TestCase):
         self.assertTrue(all(region == HARNESS.REGION for _, region in session.created))
 
     def test_wrong_profile_or_region_rejected_before_client_creation(self):
-        for session in (FakeSession(region_name="us-east-1"), FakeSession(profile_name="default")):
+        for session in (
+            FakeSession(region_name="us-east-1"),
+            FakeSession(profile_name="shirone-staging"),
+            FakeSession(profile_name="default"),
+        ):
             with self.assertRaises(HARNESS.HarnessError):
                 HARNESS.AwsSdkBackend(CONFIG, session)
             self.assertEqual(session.created, [])

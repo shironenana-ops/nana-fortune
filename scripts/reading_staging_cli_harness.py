@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 
-PROFILE = "shirone-staging"
+PROFILE = "shirone-staging-graduation"
 REGION = "ap-northeast-1"
 STACK_NAME = "nana-reading-staging"
 STAGE_NAME = "staging"

@@ -26,7 +26,8 @@ person. Its literal value is never printed by the harness.
 
 ## Fail-closed checks before the one allowed write
 
-- one `boto3.Session` is fixed to profile `shirone-staging` and region
+- one `boto3.Session` is fixed to the temporary least-privilege profile
+  `shirone-staging-graduation` and region
   `ap-northeast-1`; all eight service clients come from that Session;
 - caller account must equal `SHIRONE_STAGING_EXPECTED_ACCOUNT_ID` and caller
   must be a non-root assumed role;
