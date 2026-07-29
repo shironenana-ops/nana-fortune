@@ -1,6 +1,7 @@
 """Adapter-level safety tests for the staging CLI harness (no AWS/HTTP)."""
 
 import importlib.util
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -43,8 +44,9 @@ class FakeClient:
 
 
 class FakeSession:
-    def __init__(self, state=None, region_name=HARNESS.REGION):
+    def __init__(self, state=None, region_name=HARNESS.REGION, profile_name=HARNESS.PROFILE):
         self.region_name = region_name
+        self.profile_name = profile_name
         self.state = state or base_state()
         self.created = []
 
@@ -75,10 +77,31 @@ def resource_map():
         "ReadingRequestIntegration": "request-integration",
         "ReadingStatusIntegration": "status-integration",
     }
-    return {
-        key: {"LogicalResourceId": key, "PhysicalResourceId": value}
-        for key, value in physical.items()
+    result = {}
+    for key, resource_type in HARNESS.EXPECTED_RESOURCE_TYPES.items():
+        result[key] = {
+            "LogicalResourceId": key,
+            "PhysicalResourceId": physical.get(key, f"fixture-{key.lower()}"),
+            "ResourceType": resource_type,
+            "ResourceStatus": "CREATE_COMPLETE",
+        }
+    return result
+
+
+def cloudformation_tags(state, logical_id):
+    result = {
+        "Project": "nana-fortune",
+        "Environment": "staging",
+        "aws:cloudformation:stack-id": f"arn:aws:cloudformation:{HARNESS.REGION}:{ACCOUNT}:stack/{HARNESS.STACK_NAME}/fixture",
+        "aws:cloudformation:stack-name": HARNESS.STACK_NAME,
+        "aws:cloudformation:logical-id": logical_id,
     }
+    for key, value in state.get("tag_overrides", {}).get(logical_id, {}).items():
+        if value is None:
+            result.pop(key, None)
+        else:
+            result[key] = value
+    return result
 
 
 def base_state():
@@ -90,6 +113,7 @@ def base_state():
             "Arn": f"arn:aws:sts::{ACCOUNT}:assumed-role/shirone-staging/fixture",
         },
         "stack_status": "UPDATE_COMPLETE",
+        "stack_name": HARNESS.STACK_NAME,
         "stack_tags": {"Project": "nana-fortune", "Environment": "staging"},
         "parameters": dict(HARNESS.EXPECTED_PARAMETERS),
         "resources": resource_map(),
@@ -106,6 +130,11 @@ def base_state():
             "GET /reading/status": "integrations/status-integration",
         },
         "integration_overrides": {},
+        "route_id_overrides": {},
+        "lambda_name_override": None,
+        "esm_uuid_override": None,
+        "queue_arn_override": None,
+        "tag_overrides": {},
         "secret_arn": SECRET_ARN,
         "secret_tags": {"Project": "nana-fortune", "Environment": "staging"},
         "secret": "unit-session-secret-that-is-long-enough-only",
@@ -123,6 +152,7 @@ def response_for(state, service, operation, kwargs):
         return {
             "Stacks": [
                 {
+                    "StackName": state["stack_name"],
                     "StackStatus": state["stack_status"],
                     "StackId": f"arn:aws:cloudformation:{HARNESS.REGION}:{ACCOUNT}:stack/{HARNESS.STACK_NAME}/fixture",
                     "Tags": [{"Key": key, "Value": value} for key, value in state["stack_tags"].items()],
@@ -152,23 +182,35 @@ def response_for(state, service, operation, kwargs):
         else:
             env = {"READING_BEDROCK_ENABLED": state["bedrock_enabled"]}
         return {
+            "FunctionName": state["lambda_name_override"] or name,
             "State": state["lambda_state"],
             "LastUpdateStatus": state["lambda_update"],
             "FunctionArn": f"arn:aws:lambda:{HARNESS.REGION}:{ACCOUNT}:function:{name}",
             "Environment": {"Variables": env},
         }
+    if (service, operation) == ("lambda", "list_tags"):
+        function_name = kwargs["Resource"].rsplit(":", 1)[-1]
+        logical_id = next(
+            key for key in HARNESS.FUNCTION_LOGICAL_IDS if resources[key]["PhysicalResourceId"] == function_name
+        )
+        return {"Tags": cloudformation_tags(state, logical_id)}
     if (service, operation) == ("lambda", "get_event_source_mapping"):
-        return {"State": state["esm_state"]}
+        return {"State": state["esm_state"], "UUID": state["esm_uuid_override"] or kwargs["UUID"]}
     if (service, operation) == ("sqs", "get_queue_attributes"):
         visible, inflight, delayed = state["queue_counts"]
         return {
             "Attributes": {
-                "QueueArn": f"arn:aws:sqs:{HARNESS.REGION}:{ACCOUNT}:{kwargs['QueueUrl'].rsplit('/', 1)[-1]}",
+                "QueueArn": state["queue_arn_override"] or f"arn:aws:sqs:{HARNESS.REGION}:{ACCOUNT}:{kwargs['QueueUrl'].rsplit('/', 1)[-1]}",
                 "ApproximateNumberOfMessages": visible,
                 "ApproximateNumberOfMessagesNotVisible": inflight,
                 "ApproximateNumberOfMessagesDelayed": delayed,
             }
         }
+    if (service, operation) == ("sqs", "list_queue_tags"):
+        logical_id = next(
+            key for key in HARNESS.QUEUE_LOGICAL_IDS if resources[key]["PhysicalResourceId"] == kwargs["QueueUrl"]
+        )
+        return {"Tags": cloudformation_tags(state, logical_id)}
     if (service, operation) == ("dynamodb", "describe_table"):
         return {
             "Table": {
@@ -176,13 +218,21 @@ def response_for(state, service, operation, kwargs):
                 "TableArn": f"arn:aws:dynamodb:{HARNESS.REGION}:{ACCOUNT}:table/{kwargs['TableName']}",
             }
         }
+    if (service, operation) == ("dynamodb", "list_tags_of_resource"):
+        return {"Tags": [{"Key": key, "Value": value} for key, value in cloudformation_tags(state, "ReadingUsersTable").items()]}
     if (service, operation) == ("apigatewayv2", "get_routes"):
         return {
             "Items": [
-                {"RouteKey": route, "Target": target}
+                {
+                    "RouteKey": route,
+                    "RouteId": state["route_id_overrides"].get(route) or resources["ReadingRequestRoute" if route == "POST /reading" else "ReadingStatusRoute"]["PhysicalResourceId"],
+                    "Target": target,
+                }
                 for route, target in state["route_targets"].items()
             ]
         }
+    if (service, operation) == ("apigatewayv2", "get_tags"):
+        return {"Tags": cloudformation_tags(state, "ReadingHttpApi")}
     if (service, operation) == ("apigatewayv2", "get_integration"):
         integration_id = kwargs["IntegrationId"]
         is_request = integration_id == "request-integration"
@@ -216,23 +266,29 @@ def response_for(state, service, operation, kwargs):
     raise AssertionError(f"unexpected fake call: {service}/{operation}")
 
 
-def backend_for(state=None, region_name=HARNESS.REGION, **kwargs):
-    session = FakeSession(state or base_state(), region_name=region_name)
+def backend_for(state=None, region_name=HARNESS.REGION, profile_name=HARNESS.PROFILE, **kwargs):
+    session = FakeSession(state or base_state(), region_name=region_name, profile_name=profile_name)
     return HARNESS.AwsSdkBackend(CONFIG, session, **kwargs), session
 
 
 class AdapterBoundaryTests(unittest.TestCase):
+    def test_exact_resource_contract_matches_tracked_iac_template(self):
+        template = json.loads((ROOT / "infrastructure" / "reading-staging" / "template.json").read_text(encoding="utf-8"))
+        actual = {logical_id: resource["Type"] for logical_id, resource in template["Resources"].items()}
+        self.assertEqual(actual, HARNESS.EXPECTED_RESOURCE_TYPES)
+        self.assertEqual(len(actual), 32)
+
     def test_one_session_creates_all_clients_in_fixed_region(self):
         backend, session = backend_for()
         self.assertEqual(set(backend.clients), set(HARNESS.CLIENT_SERVICES))
         self.assertEqual(len(session.created), len(HARNESS.CLIENT_SERVICES))
         self.assertTrue(all(region == HARNESS.REGION for _, region in session.created))
 
-    def test_wrong_region_rejected_before_client_creation(self):
-        session = FakeSession(region_name="us-east-1")
-        with self.assertRaises(HARNESS.HarnessError):
-            HARNESS.AwsSdkBackend(CONFIG, session)
-        self.assertEqual(session.created, [])
+    def test_wrong_profile_or_region_rejected_before_client_creation(self):
+        for session in (FakeSession(region_name="us-east-1"), FakeSession(profile_name="default")):
+            with self.assertRaises(HARNESS.HarnessError):
+                HARNESS.AwsSdkBackend(CONFIG, session)
+            self.assertEqual(session.created, [])
 
     def test_wrong_account_and_root_are_rejected(self):
         for identity in (
@@ -245,22 +301,53 @@ class AdapterBoundaryTests(unittest.TestCase):
             with self.assertRaises(HARNESS.HarnessError):
                 backend.validate_boundary()
 
-    def test_stack_status_tag_and_switch_fail_closed(self):
-        mutations = (
-            ("stack_status", "UPDATE_ROLLBACK_COMPLETE"),
-            ("stack_tags", {"Project": "nana-fortune", "Environment": "production"}),
-        )
-        for key, value in mutations:
-            state = base_state()
-            state[key] = value
-            backend, _ = backend_for(state)
-            with self.assertRaises(HARNESS.HarnessError):
-                backend.validate_boundary()
+    def test_stack_status_and_switch_fail_closed_but_stack_tags_are_not_required(self):
+        state = base_state()
+        state["stack_status"] = "UPDATE_ROLLBACK_COMPLETE"
+        backend, _ = backend_for(state)
+        with self.assertRaises(HARNESS.HarnessError):
+            backend.validate_boundary()
+        state = base_state()
+        state["stack_tags"] = {}
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
         state = base_state()
         state["parameters"]["ReadingBedrockEnabled"] = "true"
         backend, _ = backend_for(state)
         with self.assertRaises(HARNESS.HarnessError):
             backend.validate_boundary()
+
+    def test_stack_name_and_resource_physical_ids_reject_production_identifiers(self):
+        state = base_state()
+        state["stack_name"] = "other-staging-stack"
+        backend, _ = backend_for(state)
+        with self.assertRaises(HARNESS.HarnessError):
+            backend.validate_boundary()
+        state = base_state()
+        state["resources"]["ReadingRequestFunction"]["PhysicalResourceId"] = "nana-reading-production-request"
+        backend, _ = backend_for(state)
+        with self.assertRaises(HARNESS.HarnessError):
+            backend.validate_boundary()
+
+    def test_resource_inventory_requires_exact_32_logical_ids_types_and_statuses(self):
+        for mutate in ("missing", "extra", "type", "status"):
+            state = base_state()
+            if mutate == "missing":
+                state["resources"].pop("ReadingApiStage")
+            elif mutate == "extra":
+                state["resources"]["UnexpectedResource"] = {
+                    "LogicalResourceId": "UnexpectedResource",
+                    "PhysicalResourceId": "unexpected",
+                    "ResourceType": "AWS::S3::Bucket",
+                    "ResourceStatus": "CREATE_COMPLETE",
+                }
+            elif mutate == "type":
+                state["resources"]["ReadingUsersTable"]["ResourceType"] = "AWS::S3::Bucket"
+            else:
+                state["resources"]["ReadingUsersTable"]["ResourceStatus"] = "DELETE_COMPLETE"
+            backend, _ = backend_for(state)
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_boundary()
 
     def test_esm_enabled_and_nonempty_queue_fail_closed(self):
         for key, value in (("esm_state", "Enabled"), ("queue_counts", ("1", "0", "0"))):
@@ -270,6 +357,35 @@ class AdapterBoundaryTests(unittest.TestCase):
             backend.validate_boundary()
             with self.assertRaises(HARNESS.HarnessError):
                 backend.validate_runtime()
+
+    def test_resource_level_staging_and_cloudformation_tags_are_required(self):
+        for logical_id in ("ReadingUsersTable", "ReadingRequestFunction", "LightQueue", "ReadingHttpApi"):
+            state = base_state()
+            state["tag_overrides"][logical_id] = {"aws:cloudformation:stack-id": None}
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_runtime()
+
+    def test_lambda_queue_esm_and_route_physical_ids_must_match(self):
+        mutations = (
+            ("lambda_name_override", "other-staging-function"),
+            ("queue_arn_override", f"arn:aws:sqs:{HARNESS.REGION}:{ACCOUNT}:other-staging-queue"),
+            ("esm_uuid_override", "99999999-9999-4999-8999-999999999999"),
+        )
+        for key, value in mutations:
+            state = base_state()
+            state[key] = value
+            backend, _ = backend_for(state)
+            backend.validate_boundary()
+            with self.assertRaises(HARNESS.HarnessError):
+                backend.validate_runtime()
+        state = base_state()
+        state["route_id_overrides"]["POST /reading"] = "other-route"
+        backend, _ = backend_for(state)
+        backend.validate_boundary()
+        with self.assertRaises(HARNESS.HarnessError):
+            backend.validate_runtime()
 
     def test_route_targets_must_match_exact_integration_ids(self):
         for target in (None, "integrations/status-integration", "prefix/integrations/request-integration"):

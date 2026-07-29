@@ -42,26 +42,39 @@ EXPECTED_PARAMETERS = {
     "ReadingBedrockEnabled": "false",
     "WorkerEventSourceMappingsEnabled": "false",
 }
-REQUIRED_RESOURCES = {
-    "ReadingUsersTable",
-    "ReadingHistoryTable",
-    "ReadingIdempotencyTable",
-    "ReadingRateLimitTable",
-    "ReadingDeepQuotaTable",
-    "ReadingJobsTable",
-    "LightQueue",
-    "DeepQueue",
-    "LightDeadLetterQueue",
-    "DeepDeadLetterQueue",
-    "LightEventSourceMapping",
-    "DeepEventSourceMapping",
-    "ReadingRequestFunction",
-    "ReadingStatusFunction",
-    "LightWorkerFunction",
-    "DeepWorkerFunction",
-    "ReadingHttpApi",
-    "ReadingRequestIntegration",
-    "ReadingStatusIntegration",
+EXPECTED_RESOURCE_TYPES = {
+    "DeepDeadLetterQueue": "AWS::SQS::Queue",
+    "DeepEventSourceMapping": "AWS::Lambda::EventSourceMapping",
+    "DeepQueue": "AWS::SQS::Queue",
+    "DeepWorkerFunction": "AWS::Lambda::Function",
+    "DeepWorkerLogGroup": "AWS::Logs::LogGroup",
+    "DeepWorkerRole": "AWS::IAM::Role",
+    "LightDeadLetterQueue": "AWS::SQS::Queue",
+    "LightEventSourceMapping": "AWS::Lambda::EventSourceMapping",
+    "LightQueue": "AWS::SQS::Queue",
+    "LightWorkerFunction": "AWS::Lambda::Function",
+    "LightWorkerLogGroup": "AWS::Logs::LogGroup",
+    "LightWorkerRole": "AWS::IAM::Role",
+    "ReadingApiStage": "AWS::ApiGatewayV2::Stage",
+    "ReadingDeepQuotaTable": "AWS::DynamoDB::Table",
+    "ReadingHistoryTable": "AWS::DynamoDB::Table",
+    "ReadingHttpApi": "AWS::ApiGatewayV2::Api",
+    "ReadingIdempotencyTable": "AWS::DynamoDB::Table",
+    "ReadingJobsTable": "AWS::DynamoDB::Table",
+    "ReadingRateLimitTable": "AWS::DynamoDB::Table",
+    "ReadingRequestFunction": "AWS::Lambda::Function",
+    "ReadingRequestIntegration": "AWS::ApiGatewayV2::Integration",
+    "ReadingRequestInvokePermission": "AWS::Lambda::Permission",
+    "ReadingRequestLogGroup": "AWS::Logs::LogGroup",
+    "ReadingRequestRole": "AWS::IAM::Role",
+    "ReadingRequestRoute": "AWS::ApiGatewayV2::Route",
+    "ReadingStatusFunction": "AWS::Lambda::Function",
+    "ReadingStatusIntegration": "AWS::ApiGatewayV2::Integration",
+    "ReadingStatusInvokePermission": "AWS::Lambda::Permission",
+    "ReadingStatusLogGroup": "AWS::Logs::LogGroup",
+    "ReadingStatusRole": "AWS::IAM::Role",
+    "ReadingStatusRoute": "AWS::ApiGatewayV2::Route",
+    "ReadingUsersTable": "AWS::DynamoDB::Table",
 }
 TABLE_LOGICAL_IDS = (
     "ReadingUsersTable",
@@ -157,13 +170,14 @@ class AwsSdkBackend:
         clock: Callable[[], float] = time.monotonic,
         sleeper: Callable[[float], None] = time.sleep,
     ):
-        if getattr(session, "region_name", None) != REGION:
-            raise HarnessError("SDK session region is outside the staging boundary")
+        if getattr(session, "region_name", None) != REGION or getattr(session, "profile_name", None) != PROFILE:
+            raise HarnessError("SDK session profile or region is outside the staging boundary")
         self.config = config
         self.session = session
         self.clients = {service: session.client(service, region_name=REGION) for service in CLIENT_SERVICES}
         self.resources: dict[str, dict[str, Any]] = {}
         self.table_arns: dict[str, str] = {}
+        self.stack_id = ""
         self._put_attempted = False
         self._clock = clock
         self._sleep = sleeper
@@ -207,11 +221,14 @@ class AwsSdkBackend:
         stack = stacks[0]
         stack_id = stack.get("StackId", "")
         expected_stack_prefix = f"arn:aws:cloudformation:{REGION}:{self.config.expected_account_id}:stack/{STACK_NAME}/"
-        if not isinstance(stack_id, str) or not stack_id.startswith(expected_stack_prefix) or _is_production_identifier(stack_id):
+        if (
+            stack.get("StackName") != STACK_NAME
+            or not isinstance(stack_id, str)
+            or not stack_id.startswith(expected_stack_prefix)
+            or _is_production_identifier(stack_id)
+        ):
             raise HarnessError("stack identity is outside the staging boundary")
-        tags = _safe_tags(stack.get("Tags"))
-        if tags.get("Environment") != STAGE_NAME or tags.get("Project") != "nana-fortune":
-            raise HarnessError("staging stack tags are invalid")
+        self.stack_id = stack_id
         parameters = {
             item.get("ParameterKey"): item.get("ParameterValue")
             for item in stack.get("Parameters", [])
@@ -228,11 +245,25 @@ class AwsSdkBackend:
                 for item in summaries
                 if isinstance(item, dict) and isinstance(item.get("LogicalResourceId"), str)
             }
-            if not REQUIRED_RESOURCES.issubset(current):
+            if set(current) != set(EXPECTED_RESOURCE_TYPES):
                 raise HarnessError("staging resource inventory is incomplete")
+            for logical_id, expected_type in EXPECTED_RESOURCE_TYPES.items():
+                resource = current[logical_id]
+                status = resource.get("ResourceStatus")
+                physical_id = resource.get("PhysicalResourceId")
+                if (
+                    resource.get("ResourceType") != expected_type
+                    or not isinstance(status, str)
+                    or not status.endswith("_COMPLETE")
+                    or status.startswith(("DELETE_", "ROLLBACK_"))
+                    or not isinstance(physical_id, str)
+                    or not physical_id
+                    or _is_production_identifier(physical_id)
+                ):
+                    raise HarnessError("staging resource inventory is invalid")
             if self.resources and any(
                 current[key].get("PhysicalResourceId") != self.resources[key].get("PhysicalResourceId")
-                for key in REQUIRED_RESOURCES
+                for key in EXPECTED_RESOURCE_TYPES
             ):
                 raise HarnessError("staging resource inventory changed during execution")
             self.resources = current
@@ -241,6 +272,18 @@ class AwsSdkBackend:
     def validate_boundary(self) -> dict[str, str]:
         self._validate_identity()
         return self._validate_stack(refresh_resources=True)
+
+    def _validate_resource_tags(self, logical_id: str, value: Any) -> None:
+        resource_tags = value if isinstance(value, dict) else {}
+        expected = {
+            "Project": "nana-fortune",
+            "Environment": STAGE_NAME,
+            "aws:cloudformation:stack-id": self.stack_id,
+            "aws:cloudformation:stack-name": STACK_NAME,
+            "aws:cloudformation:logical-id": logical_id,
+        }
+        if any(resource_tags.get(key) != expected_value for key, expected_value in expected.items()):
+            raise HarnessError("staging resource tags are invalid")
 
     def _validate_secret_metadata(self) -> None:
         description = self._call(
@@ -311,6 +354,11 @@ class AwsSdkBackend:
         expected_prefix = f"arn:aws:sqs:{REGION}:{self.config.expected_account_id}:"
         if not isinstance(value, dict) or not str(value.get("QueueArn", "")).startswith(expected_prefix):
             raise HarnessError("staging queue is outside the staging boundary")
+        queue_name = queue_url.rsplit("/", 1)[-1]
+        if value.get("QueueArn") != f"{expected_prefix}{queue_name}":
+            raise HarnessError("staging queue physical identity is invalid")
+        queue_tags = self._call("sqs", "list_queue_tags", QueueUrl=queue_url).get("Tags", {})
+        self._validate_resource_tags(logical_id, queue_tags)
         for key in (
             "ApproximateNumberOfMessages",
             "ApproximateNumberOfMessagesNotVisible",
@@ -324,6 +372,13 @@ class AwsSdkBackend:
                 raise HarnessError("staging queue is not empty")
         return {str(key): str(item) for key, item in value.items()}
 
+    def _event_source_mapping_state(self, logical_id: str) -> dict[str, str]:
+        expected_uuid = self._resource(logical_id)["PhysicalResourceId"]
+        value = self._call("lambda", "get_event_source_mapping", UUID=expected_uuid)
+        if value.get("State") != "Disabled" or value.get("UUID") not in (None, expected_uuid):
+            raise HarnessError("worker event source mapping is enabled or mismatched")
+        return {"State": "Disabled", "UUID": expected_uuid}
+
     def validate_runtime(self) -> dict[str, Any]:
         function_configurations: dict[str, dict[str, Any]] = {}
         expected_lambda_prefix = f"arn:aws:lambda:{REGION}:{self.config.expected_account_id}:function:"
@@ -334,11 +389,14 @@ class AwsSdkBackend:
             if (
                 configuration.get("State") != "Active"
                 or configuration.get("LastUpdateStatus") != "Successful"
+                or configuration.get("FunctionName") not in (None, physical_id)
                 or not isinstance(function_arn, str)
                 or not function_arn.startswith(expected_lambda_prefix)
                 or _is_production_identifier(function_arn)
             ):
                 raise HarnessError("staging Lambda is not ready")
+            function_tags = self._call("lambda", "list_tags", Resource=function_arn).get("Tags", {})
+            self._validate_resource_tags(logical_id, function_tags)
             function_configurations[logical_id] = configuration
         request_env = function_configurations["ReadingRequestFunction"].get("Environment", {}).get("Variables", {})
         status_env = function_configurations["ReadingStatusFunction"].get("Environment", {}).get("Variables", {})
@@ -351,27 +409,36 @@ class AwsSdkBackend:
             if worker_env.get("READING_BEDROCK_ENABLED") != "false":
                 raise HarnessError("worker Bedrock switch is enabled")
         for logical_id in ESM_LOGICAL_IDS:
-            value = self._call(
-                "lambda", "get_event_source_mapping", UUID=self._resource(logical_id)["PhysicalResourceId"]
-            )
-            if value.get("State") != "Disabled":
-                raise HarnessError("worker event source mapping is enabled")
+            self._event_source_mapping_state(logical_id)
         for logical_id in QUEUE_LOGICAL_IDS:
             self._queue_attributes(logical_id)
         self.table_arns = {logical_id: self._validate_table(logical_id) for logical_id in TABLE_LOGICAL_IDS}
+        users_tags = self._call(
+            "dynamodb", "list_tags_of_resource", ResourceArn=self.table_arns["ReadingUsersTable"]
+        ).get("Tags", [])
+        self._validate_resource_tags("ReadingUsersTable", _safe_tags(users_tags))
 
         api_id = self._resource("ReadingHttpApi")["PhysicalResourceId"]
         if not re.fullmatch(r"[a-z0-9]+", api_id) or _is_production_identifier(api_id):
             raise HarnessError("staging API identifier is invalid")
+        api_arn = f"arn:aws:apigateway:{REGION}::/apis/{api_id}"
+        api_tags = self._call("apigatewayv2", "get_tags", ResourceArn=api_arn).get("Tags", {})
+        self._validate_resource_tags("ReadingHttpApi", api_tags)
         routes = self._call("apigatewayv2", "get_routes", ApiId=api_id).get("Items", [])
         route_map = {
-            item.get("RouteKey"): item.get("Target")
+            item.get("RouteKey"): (item.get("RouteId"), item.get("Target"))
             for item in routes
             if isinstance(item, dict) and isinstance(item.get("RouteKey"), str)
         }
         expected_routes = {
-            "POST /reading": f"integrations/{self._resource('ReadingRequestIntegration')['PhysicalResourceId']}",
-            "GET /reading/status": f"integrations/{self._resource('ReadingStatusIntegration')['PhysicalResourceId']}",
+            "POST /reading": (
+                self._resource("ReadingRequestRoute")["PhysicalResourceId"],
+                f"integrations/{self._resource('ReadingRequestIntegration')['PhysicalResourceId']}",
+            ),
+            "GET /reading/status": (
+                self._resource("ReadingStatusRoute")["PhysicalResourceId"],
+                f"integrations/{self._resource('ReadingStatusIntegration')['PhysicalResourceId']}",
+            ),
         }
         if route_map != expected_routes:
             raise HarnessError("staging API route targets are invalid")
@@ -419,6 +486,8 @@ class AwsSdkBackend:
         if not users_arn:
             raise HarnessError("users table was not validated")
         self._validate_table("ReadingUsersTable", expected_arn=users_arn)
+        users_tags = self._call("dynamodb", "list_tags_of_resource", ResourceArn=users_arn).get("Tags", [])
+        self._validate_resource_tags("ReadingUsersTable", _safe_tags(users_tags))
         self._validate_secret_metadata()
 
     @staticmethod
@@ -454,9 +523,7 @@ class AwsSdkBackend:
         return {
             "queues": {logical_id: self._queue_attributes(logical_id) for logical_id in QUEUE_LOGICAL_IDS},
             "esm": {
-                logical_id: self._call(
-                    "lambda", "get_event_source_mapping", UUID=self._resource(logical_id)["PhysicalResourceId"]
-                ).get("State")
+                logical_id: self._event_source_mapping_state(logical_id)
                 for logical_id in ESM_LOGICAL_IDS
             },
             "test_user": self.get_item("ReadingUsersTable", {"user_id": {"S": TEST_USER_ID}}),

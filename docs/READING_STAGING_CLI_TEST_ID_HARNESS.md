@@ -30,10 +30,14 @@ person. Its literal value is never printed by the harness.
   `ap-northeast-1`; all eight service clients come from that Session;
 - caller account must equal `SHIRONE_STAGING_EXPECTED_ACCOUNT_ID` and caller
   must be a non-root assumed role;
-- stack identity, tags, `UPDATE_COMPLETE` state, resource inventory, and five
-  Phase 1 switch values must match the staging contract;
+- stack name/StackId/ARN, `UPDATE_COMPLETE` state, exact 32-resource logical
+  ID/type inventory, physical IDs, and five Phase 1 switch values must match
+  the staging contract;
 - both event-source mappings must be disabled and all four queues empty;
 - all six tables must be active in the expected account and Tokyo region;
+- the users table, four Lambdas, four queues/DLQs, and HTTP API must carry
+  `Project=nana-fortune`, `Environment=staging`, and exact
+  `aws:cloudformation:stack-id`, `stack-name`, and `logical-id` resource tags;
 - the runtime secret ARN must match the expected account, region, staging name,
   and project/environment tags;
 - the retrieved `session_token_secret` must constant-time match the already
@@ -47,8 +51,16 @@ person. Its literal value is never printed by the harness.
 
 Immediately before the sole conditional write, the same Session rechecks the
 STS identity, stack/account/region and physical-resource inventory, exact users
-table ARN, and exact secret ARN/tags. Profile or credential resolution is not
-restarted during execution.
+table ARN/resource tags, and exact secret ARN/tags. Profile or credential
+resolution is not restarted during execution.
+
+Stack-level `Project`/`Environment` tags are deliberately not a prerequisite.
+The tracked template applies tags to supported resources, the design plan says
+that resources are tagged, and the tracked creation/change-set procedures and
+history contain no stack-level `--tags` contract. Treating absent stack tags as
+an error would therefore invent a boundary that the deployed design never
+established. Resource-level tags and CloudFormation ownership tags are the
+enforced evidence instead.
 
 ## Write, token, and smoke behavior
 
@@ -122,11 +134,14 @@ approved before execution.
   one staging stack;
 - `secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue` for one
   tagged staging runtime secret;
-- `lambda:GetFunctionConfiguration` for four staging Lambdas;
+- `lambda:GetFunctionConfiguration`, `lambda:ListTags` for four staging
+  Lambdas;
 - `lambda:GetEventSourceMapping` for two staging mappings;
-- `apigateway:GET` for one staging HTTP API, two routes, and two integrations;
-- `sqs:GetQueueAttributes` for four staging queues;
-- `dynamodb:DescribeTable` for six staging tables;
+- `apigateway:GET` for one staging HTTP API, its tags, two routes, and two
+  integrations;
+- `sqs:GetQueueAttributes`, `sqs:ListQueueTags` for four staging queues;
+- `dynamodb:DescribeTable` for six staging tables and
+  `dynamodb:ListTagsOfResource` for the users table;
 - `dynamodb:GetItem` for the fixed test user and fixed nonexistent job keys;
 - `dynamodb:PutItem` for the users table only, constrained with
   `dynamodb:LeadingKeys` to the fixed staging test ID;
