@@ -19,6 +19,7 @@
     "test:reading-preparation": "node --test tests/readingRequestPreparation.test.mjs",
     "test:reading-bedrock": "node --test tests/readingBedrockRenderer.test.mjs",
     "test:reading-api-handler": "node --test tests/readingApiHandler.test.mjs",
+    "test:reading-staging-cli-harness": "node --test tests/readingStagingCliHarness.test.mjs",
     "test:reading-bedrock-smoke": "npm run build:reading-server && npm run build:reading-foundation && node scripts/smoke-reading-bedrock.mjs",
     "preview": "astro preview",
     "astro": "astro"
