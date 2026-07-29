@@ -42,9 +42,10 @@ class FakeBackend:
             return self.user
         return None
 
-    def put_test_user(self, item):
+    def put_test_user(self, item, fixture_password, password_matches):
         self.puts += 1
         self.user = item
+        return True
 
     def side_effect_state(self):
         value = {
@@ -60,24 +61,23 @@ class FakeBackend:
     def api_base(self):
         return "https://fixture.execute-api.ap-northeast-1.amazonaws.com/staging"
 
-    def validate_no_worker_or_bedrock_invocations(self, started_at):
-        self.assert_timestamp = started_at
+    def validate_no_worker_or_bedrock_invocations(self, started_at, finished_at):
+        self.assert_timestamps = (started_at, finished_at)
         self.metrics_checked += 1
 
 
 def valid_user():
+    password_hash, _, _ = HARNESS._lambda_imports()
+    fixture_password = HARNESS._fixture_password("unit-only-session-secret-never-for-aws")
     return {
         "user_id": {"S": HARNESS.TEST_USER_ID},
-        "password": {"S": "pbkdf2_sha256$600000$salt$digest"},
+        "password": {"S": password_hash(fixture_password, salt=b"0123456789abcdef")},
         "plan": {"S": "light"},
         "subscription_status": {"S": "active"},
     }
 
 
 class HarnessTests(unittest.TestCase):
-    def tearDown(self):
-        os.environ.pop("SHIRONE_STAGING_SESSION_TOKEN", None)
-
     def test_config_requires_exact_staging_account_and_secret_boundary(self):
         env = {
             "SHIRONE_STAGING_EXPECTED_ACCOUNT_ID": "123456789012",
@@ -94,7 +94,7 @@ class HarnessTests(unittest.TestCase):
                 HARNESS.load_config(invalid)
 
     def test_dry_run_does_not_construct_aws_backend(self):
-        with mock.patch.object(HARNESS, "AwsCliBackend", side_effect=AssertionError("must not construct")):
+        with mock.patch.object(HARNESS.AwsSdkBackend, "create", side_effect=AssertionError("must not construct")):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 self.assertEqual(HARNESS.main([]), 0)
@@ -143,12 +143,44 @@ class HarnessTests(unittest.TestCase):
                 HARNESS.execute_harness(backend)
         request.assert_not_called()
 
+    def test_existing_password_hash_must_be_modern_well_formed_and_match_fixture(self):
+        password_hash, _, _ = HARNESS._lambda_imports()
+        malformed_or_wrong = (
+            "sha256$600000$c2FsdHNhbHRzYWx0c2FsdA$ZGlnZXN0",
+            "pbkdf2_sha256$1$c2FsdHNhbHRzYWx0c2FsdA$ZGlnZXN0",
+            "pbkdf2_sha256$600000$bad!base64$ZGlnZXN0",
+            "pbkdf2_sha256$600000$c2hvcnQ$ZGlnZXN0",
+            "pbkdf2_sha256$600000$c2FsdHNhbHRzYWx0c2FsdA$ZGlnZXN0$extra",
+            password_hash("Different-Fixture-Password!", salt=b"0123456789abcdef"),
+        )
+        for stored_hash in malformed_or_wrong:
+            with self.subTest(stored_hash=stored_hash.split("$", 1)[0]):
+                user = valid_user()
+                user["password"] = {"S": stored_hash}
+                backend = FakeBackend(user)
+                with mock.patch.object(HARNESS, "_request_json") as request:
+                    with self.assertRaises(HARNESS.HarnessError):
+                        HARNESS.execute_harness(backend)
+                request.assert_not_called()
+
     def test_post_mismatch_stops_before_get_and_token_is_removed(self):
         backend = FakeBackend(valid_user())
         with mock.patch.object(HARNESS, "_request_json", return_value=(401, "AUTH_TOKEN_INVALID")) as request:
             with self.assertRaises(HARNESS.HarnessError):
                 HARNESS.execute_harness(backend)
         self.assertEqual(request.call_count, 1)
+        self.assertNotIn("SHIRONE_STAGING_SESSION_TOKEN", os.environ)
+
+    def test_get_mismatch_fails_closed(self):
+        backend = FakeBackend(valid_user())
+        with mock.patch.object(
+            HARNESS,
+            "_request_json",
+            side_effect=[(503, "READING_ASYNC_PAID_DISABLED"), (200, "UNEXPECTED")],
+        ) as request:
+            with self.assertRaises(HARNESS.HarnessError):
+                HARNESS.execute_harness(backend)
+        self.assertEqual(request.call_count, 2)
         self.assertNotIn("SHIRONE_STAGING_SESSION_TOKEN", os.environ)
 
     def test_side_effect_delta_fails_closed(self):

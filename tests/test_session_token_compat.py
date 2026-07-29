@@ -90,7 +90,10 @@ class SessionTokenCompatibilityTests(unittest.TestCase):
         spec.loader.exec_module(builder)
         with tempfile.TemporaryDirectory() as directory:
             archive_path = Path(directory) / "login.zip"
+            second_archive_path = Path(directory) / "login-second.zip"
             builder.build_package(archive_path)
+            builder.build_package(second_archive_path)
+            self.assertEqual(archive_path.read_bytes(), second_archive_path.read_bytes())
             with zipfile.ZipFile(archive_path) as archive:
                 self.assertEqual(set(archive.namelist()), {"login.py", "auth_security.py", "session_token.py"})
                 archive.extractall(Path(directory) / "extracted")

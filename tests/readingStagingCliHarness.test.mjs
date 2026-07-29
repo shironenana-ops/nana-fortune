@@ -16,7 +16,12 @@ function python() {
 }
 
 test("staging CLI harness unit suite passes without AWS access", () => {
-  const result = spawnSync(python(), ["-m", "unittest", "tests/test_reading_staging_cli_harness.py", "tests/test_session_token_compat.py"], {
+  const result = spawnSync(python(), [
+    "-m", "unittest",
+    "tests/test_reading_staging_cli_harness.py",
+    "tests/test_reading_staging_cli_adapter.py",
+    "tests/test_session_token_compat.py",
+  ], {
     cwd: process.cwd(),
     encoding: "utf8",
     env: { ...process.env, AWS_EC2_METADATA_DISABLED: "true" },
@@ -33,6 +38,9 @@ test("harness and shared signer contain no committed credential or unsafe defaul
   const harness = readFileSync("scripts/reading_staging_cli_harness.py", "utf8");
   assert.match(harness, /--execute/u);
   assert.match(harness, /CREATE_STAGING_LIGHT_TEST_ID_AND_RUN_PHASE1_SMOKE/u);
+  assert.match(harness, /boto3\.Session/u);
+  assert.match(harness, /integrations\/\{self\._resource/u);
+  assert.doesNotMatch(harness, /SHIRONE_STAGING_SESSION_TOKEN|subprocess/u);
   assert.doesNotMatch(harness, /delete-item|update-item|batch-write-item|transact-write-items/iu);
   assert.doesNotMatch(harness, /["']scan["']/iu);
 });

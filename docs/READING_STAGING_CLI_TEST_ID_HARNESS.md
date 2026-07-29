@@ -13,8 +13,7 @@ separate operation; implementation and local tests do not execute it.
 
 ## Reused contracts
 
-- password storage uses `lambda/auth_security.py::password_hash`, the same
-  PBKDF2 format used by `lambda/signup.py`;
+- password storage and verification use `lambda/auth_security.py`;
 - the item has the existing users keys `user_id`, `password`, `plan`, and
   `subscription_status` only;
 - token creation uses the pure signer imported by `lambda/login.py` from
@@ -27,38 +26,48 @@ person. Its literal value is never printed by the harness.
 
 ## Fail-closed checks before the one allowed write
 
-- profile is fixed to `shirone-staging`, region to `ap-northeast-1`, stack to
-  `nana-reading-staging`, and stage to `staging`;
+- one `boto3.Session` is fixed to profile `shirone-staging` and region
+  `ap-northeast-1`; all eight service clients come from that Session;
 - caller account must equal `SHIRONE_STAGING_EXPECTED_ACCOUNT_ID` and caller
   must be a non-root assumed role;
-- stack tags must be `Project=nana-fortune` and `Environment=staging`;
-- stack must be `UPDATE_COMPLETE` and the five switch values must match Phase 1;
-- all required physical resources must be discovered from that stack, never by
-  a guessed name;
+- stack identity, tags, `UPDATE_COMPLETE` state, resource inventory, and five
+  Phase 1 switch values must match the staging contract;
 - both event-source mappings must be disabled and all four queues empty;
 - all six tables must be active in the expected account and Tokyo region;
-- the fixed users key may be absent or contain only the exact approved test
-  identity, and the fixed missing job key must remain absent;
-- the runtime secret ARN is supplied through
-  `SHIRONE_STAGING_RUNTIME_SECRET_ARN`, must belong to the expected account and
-  region, contain `staging`, exclude `prod`, and carry matching project and
-  environment tags;
+- the runtime secret ARN must match the expected account, region, staging name,
+  and project/environment tags;
 - the retrieved `session_token_secret` must constant-time match the already
-  resolved request Lambda environment value;
-- API routes and integrations must retain their exact Phase 1 shape.
+  resolved request and status Lambda environment values;
+- `POST /reading` must target exactly
+  `integrations/<ReadingRequestIntegration physical ID>`;
+- `GET /reading/status` must target exactly
+  `integrations/<ReadingStatusIntegration physical ID>`;
+- integration URI, payload version, timeout, method, type, and absence of path
+  rewriting must match the Phase 1 contract.
 
-## Write and smoke behavior
+Immediately before the sole conditional write, the same Session rechecks the
+STS identity, stack/account/region and physical-resource inventory, exact users
+table ARN, and exact secret ARN/tags. Profile or credential resolution is not
+restarted during execution.
+
+## Write, token, and smoke behavior
 
 The harness first performs a consistent `GetItem` for the fixed ID. If absent,
 it performs exactly one conditional `PutItem` into `ReadingUsersTable`. The
-item is `light / active` and contains a freshly generated PBKDF2 password hash.
-If an item already exists, it is reused only when its exact four-field schema
-matches. The harness never updates or deletes the item.
+item is `light / active` and contains a PBKDF2 password hash for a fixture
+password derived in-process from the staging session secret. If a conditional
+race occurs, one consistent `GetItem` follows; execution continues only when
+the exact four-field item and modern password hash verify against that fixture
+password. The harness never updates or deletes the item.
 
-The session token and secret stay in process memory. The token is temporarily
-placed in `SHIRONE_STAGING_SESSION_TOKEN` in the current process, used for one
-POST and one GET, then removed in `finally`. Neither value is written to a
-file, command argument, console, report, or log.
+The session token, fixture password, and secret stay in local variables in the
+same Python process. The token is passed directly to the two bounded HTTP
+requests and is never placed in an environment variable or child process.
+Redirects are refused, so the Authorization header cannot be forwarded to
+another host. None of these values is written to a file, command argument,
+console, report, or log. Clearing Python references in `finally` limits their
+lifetime but does **not** guarantee cryptographic erasure of immutable strings
+from process memory.
 
 Expected responses are:
 
@@ -66,63 +75,72 @@ Expected responses are:
 - `GET /reading/status`: 404 `READING_STATUS_NOT_FOUND`.
 
 Before and after the HTTP calls, the harness compares the fixed user item, the
-fixed missing job, queue attributes, and ESM states. It then
-waits for CloudWatch publication and requires light/deep worker and aggregate
-Bedrock invocations to remain zero. Any mismatch stops without cleanup writes.
+fixed missing job, queue attributes, and ESM states. The fixed staging user is
+intentionally retained for repeatable tests. Cleanup is a destructive,
+human-approved separate procedure; this harness has no delete capability.
 
-## Local validation
+## Worker and Bedrock evidence
+
+ESM `Disabled`, Bedrock switch `false`, empty queues, and unchanged before/after
+state are the primary evidence that worker and Bedrock paths were unreachable.
+CloudWatch is supplemental evidence and never replaces these guards.
+
+The harness records the exact smoke start and finish times, then polls for no
+more than 300 seconds at 30-second intervals. `ZERO_CONFIRMED` requires an
+actual completed metric result containing zero-valued data. Empty Lambda
+datapoints or empty Bedrock MetricData values are `NO_DATA`, not zero. A
+nonzero value stops immediately; `NO_DATA` remaining at the deadline also
+fails closed. No earlier fixed window is treated as evidence for this run.
+
+## Local validation and execution prerequisite
 
 ```powershell
 npm run test:reading-staging-cli-harness
 ```
 
-This uses fake adapters only and performs no AWS or HTTP access.
+Local tests inject SDK-shaped fakes and perform no AWS or HTTP access. Dry-run
+does not import boto3, create a Session/client, or start a subprocess. The local
+Python interpreter used during implementation did not already contain boto3,
+so no package was downloaded. A separately approved AWS run must use an
+existing runtime that provides boto3; absence is a fail-closed prerequisite.
 
-## Future approved execution shape
-
-Do not place either environment value in a command transcript or committed
-file. After setting them in the current local process, the separately approved
-execution command is:
+After the two non-secret boundary variables are set only in the current local
+process, the separately approved execution shape is:
 
 ```text
 <python> scripts/reading_staging_cli_harness.py --execute --confirm CREATE_STAGING_LIGHT_TEST_ID_AND_RUN_PHASE1_SMOKE
 ```
 
-## Required IAM permissions
+## IAM permissions for later review
 
-Scope every resource permission to the exact staging resource discovered and
+Scope resource permissions to the exact staging resources discovered and
 approved before execution.
 
-- `sts:GetCallerIdentity`;
-- `cloudformation:DescribeStacks`, `cloudformation:ListStackResources` for
-  `nana-reading-staging`;
-- `secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue` for the one
+- caller identity is rechecked, but `sts:GetCallerIdentity` does not require an
+  explicit identity-policy Allow;
+- `cloudformation:DescribeStacks`, `cloudformation:ListStackResources` for the
+  one staging stack;
+- `secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue` for one
   tagged staging runtime secret;
-- `lambda:GetFunctionConfiguration` for the four staging Lambdas;
-- `lambda:GetEventSourceMapping` for the two staging mappings;
-- `apigateway:GET` for the one staging HTTP API, its two routes, and two
-  integrations;
-- `sqs:GetQueueAttributes` for the four staging queues;
-- `dynamodb:DescribeTable` for the six staging tables;
-- `dynamodb:GetItem` for the fixed test user key and fixed nonexistent job key;
-- `dynamodb:PutItem` for `ReadingUsersTable` only, additionally constrained to
-  the fixed test partition key where the IAM policy mechanism permits it;
+- `lambda:GetFunctionConfiguration` for four staging Lambdas;
+- `lambda:GetEventSourceMapping` for two staging mappings;
+- `apigateway:GET` for one staging HTTP API, two routes, and two integrations;
+- `sqs:GetQueueAttributes` for four staging queues;
+- `dynamodb:DescribeTable` for six staging tables;
+- `dynamodb:GetItem` for the fixed test user and fixed nonexistent job keys;
+- `dynamodb:PutItem` for the users table only, constrained with
+  `dynamodb:LeadingKeys` to the fixed staging test ID;
 - `cloudwatch:GetMetricStatistics`, `cloudwatch:GetMetricData` for read-only
-  post-smoke evidence.
+  supplemental evidence.
 
-No IAM permission is required for Lambda invocation, SQS send/receive/delete,
-Bedrock invocation, DynamoDB update/delete/batch/transaction, deployment, or
-production resources.
+Not required: Lambda Invoke, SQS Send/Receive/Delete, Bedrock Invoke,
+DynamoDB Update/Delete/Scan/Query/Batch/Transaction, deploy, or any production
+permission. No IAM policy is created by this work.
 
-`dynamodb:Scan` is deliberately not required. The POST kill switch is checked
-before request execution, the status request is read-only, and the harness
-compares only the two fixed records plus queue, event-source-mapping, and
-worker/Bedrock metrics before and after the smoke test. Broad table scans would
-increase data exposure without providing a reliable operation-level audit.
+## Login Lambda packaging boundary
 
-The repository previously had no tracked, reproducible packaging command for
-the existing Python login Lambda. `scripts/build_login_lambda.py` now builds a
-fixed allow-list ZIP containing `login.py`, `auth_security.py`, and
-`session_token.py`. Its regression test extracts that ZIP and imports the login
-handler from the same root-level module layout used by Lambda. No package is
-uploaded by this workflow.
+`scripts/build_login_lambda.py` builds a fixed allow-list ZIP containing
+`login.py`, `auth_security.py`, and `session_token.py`. Future login Lambda
+deployment must use this builder or an equivalent fixed allow-list process;
+broad globs and ad-hoc ZIP creation are not accepted. This workflow builds and
+imports the ZIP locally only and does not upload it.
