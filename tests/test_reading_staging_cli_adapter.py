@@ -860,26 +860,120 @@ class AdapterWriteAndMetricTests(unittest.TestCase):
         self.assertEqual(
             backend._metric_snapshot(1_700_000_000, 1_700_000_010),
             {
-                "LightWorkerFunction": "ZERO_CONFIRMED",
-                "DeepWorkerFunction": "ZERO_CONFIRMED",
-                "Bedrock": "ZERO_CONFIRMED",
+                "LightWorkerFunction": {"classification": "MEASURED_ZERO", "measured_sum": 0.0},
+                "DeepWorkerFunction": {"classification": "MEASURED_ZERO", "measured_sum": 0.0},
+                "Bedrock": {"classification": "MEASURED_ZERO", "measured_sum": 0.0},
             },
         )
         state["worker_datapoints"] = [{"Timestamp": "fixture", "Sum": 1.0}]
+        snapshot = backend._metric_snapshot(1_700_000_000, 1_700_000_010)
+        self.assertEqual(snapshot["LightWorkerFunction"]["classification"], "MEASURED_NONZERO")
+        backend, _ = backend_for(
+            state,
+            clock=lambda: 0.0,
+            wall_clock=lambda: 1_700_000_020,
+            sleeper=lambda _seconds: None,
+        )
+        backend.validate_boundary()
+        backend.validate_runtime()
         with self.assertRaises(HARNESS.HarnessError):
-            backend._metric_snapshot(1_700_000_000, 1_700_000_010)
+            backend.validate_no_worker_or_bedrock_invocations(
+                1_700_000_000, 1_700_000_010, backend.side_effect_state()
+            )
 
-    def test_cloudwatch_empty_is_no_data_and_deadline_fails_closed(self):
+    def test_cloudwatch_empty_with_all_controls_uses_sparse_metric_evidence(self):
         state = base_state()
         state["worker_datapoints"] = []
         state["bedrock_results"] = [{"Id": "bedrockinvocations", "StatusCode": "Complete", "Values": []}]
         ticks = iter((0.0, 301.0))
-        backend, _ = backend_for(state, clock=lambda: next(ticks), sleeper=lambda _seconds: None)
+        backend, _ = backend_for(
+            state,
+            clock=lambda: next(ticks),
+            wall_clock=lambda: 1_700_000_020,
+            sleeper=lambda _seconds: None,
+        )
+        backend.validate_boundary()
+        backend.validate_runtime()
+        expected_state = backend.side_effect_state()
+        snapshot = backend._metric_snapshot(1_700_000_000, 1_700_000_010)
+        self.assertTrue(all(value["classification"] == "NO_DATA" for value in snapshot.values()))
+        evidence = backend.validate_no_worker_or_bedrock_invocations(
+            1_700_000_000, 1_700_000_010, expected_state
+        )
+        self.assertEqual(
+            evidence["evidence_label"],
+            "NO_INVOCATION_OBSERVED_WITH_DETERMINISTIC_CONTROLS",
+        )
+        self.assertEqual(evidence["deterministic_controls"], "PASS")
+        self.assertTrue(all(value is None for value in evidence["measured_sum"].values()))
+
+    def test_sparse_metric_evidence_fails_when_switch_esm_queue_or_ddb_changes(self):
+        mutations = (
+            lambda state: state.update(request_async="true"),
+            lambda state: state.update(esm_state="Enabled"),
+            lambda state: state.update(queue_counts=("1", "0", "0")),
+            lambda state: state["items"].update({(("job_ref", (("S", HARNESS.MISSING_JOB_REF),)),): {"job_ref": {"S": HARNESS.MISSING_JOB_REF}}}),
+        )
+        for mutate in mutations:
+            with self.subTest(mutation=mutate):
+                state = base_state()
+                state["worker_datapoints"] = []
+                state["bedrock_results"] = [
+                    {"Id": "bedrockinvocations", "StatusCode": "Complete", "Values": []}
+                ]
+                ticks = iter((0.0, 301.0))
+                backend, _ = backend_for(
+                    state,
+                    clock=lambda: next(ticks),
+                    wall_clock=lambda: 1_700_000_020,
+                    sleeper=lambda _seconds: None,
+                )
+                backend.validate_boundary()
+                backend.validate_runtime()
+                expected_state = backend.side_effect_state()
+                mutate(state)
+                with self.assertRaises(HARNESS.HarnessError):
+                    backend.validate_no_worker_or_bedrock_invocations(
+                        1_700_000_000, 1_700_000_010, expected_state
+                    )
+
+    def test_partial_query_error_fill_and_invalid_window_fail_closed(self):
+        self.assertEqual(
+            HARNESS._classify_invocation_values([0.0], uses_fill=True)["classification"],
+            "QUERY_FAILURE",
+        )
+        state = base_state()
+        state["bedrock_results"] = [
+            {"Id": "bedrockinvocations", "StatusCode": "PartialData", "Values": [0.0]}
+        ]
+        backend, _ = backend_for(state)
         backend.resources = state["resources"]
         snapshot = backend._metric_snapshot(1_700_000_000, 1_700_000_010)
-        self.assertTrue(all(value == "NO_DATA" for value in snapshot.values()))
+        self.assertEqual(snapshot["Bedrock"]["classification"], "QUERY_FAILURE")
         with self.assertRaises(HARNESS.HarnessError):
-            backend.validate_no_worker_or_bedrock_invocations(1_700_000_000, 1_700_000_010)
+            backend._metric_snapshot(1_700_000_010, 1_700_000_000)
+
+        state = base_state()
+        state["handlers"][("cloudwatch", "get_metric_statistics")] = lambda _kwargs: (_ for _ in ()).throw(
+            SensitiveClientError()
+        )
+        backend, _ = backend_for(state)
+        backend.resources = state["resources"]
+        with self.assertRaises(HARNESS.HarnessError):
+            backend._metric_snapshot(1_700_000_000, 1_700_000_010)
+
+    def test_metric_query_window_is_utc_and_contains_api_smoke(self):
+        state = base_state()
+        backend, session = backend_for(state)
+        backend.resources = state["resources"]
+        backend._metric_snapshot(1_700_000_000, 1_700_000_020)
+        calls = [call for call in state["calls"] if call[0] == "cloudwatch"]
+        self.assertEqual(len(calls), 3)
+        for _service, _operation, kwargs in calls:
+            self.assertEqual(kwargs["StartTime"].tzinfo, HARNESS.timezone.utc)
+            self.assertEqual(kwargs["EndTime"].tzinfo, HARNESS.timezone.utc)
+            self.assertLessEqual(kwargs["StartTime"].timestamp(), 1_700_000_000)
+            self.assertGreaterEqual(kwargs["EndTime"].timestamp(), 1_700_000_020)
 
 
 class AdapterLocalSafetyTests(unittest.TestCase):

@@ -61,9 +61,24 @@ class FakeBackend:
     def api_base(self):
         return "https://fixture.execute-api.ap-northeast-1.amazonaws.com/staging"
 
-    def validate_no_worker_or_bedrock_invocations(self, started_at, finished_at):
+    def validate_no_worker_or_bedrock_invocations(self, started_at, finished_at, expected_state):
         self.assert_timestamps = (started_at, finished_at)
+        self.assert_expected_state = expected_state
         self.metrics_checked += 1
+        return {
+            "classification": {
+                "LightWorkerFunction": HARNESS.METRIC_MEASURED_ZERO,
+                "DeepWorkerFunction": HARNESS.METRIC_MEASURED_ZERO,
+                "Bedrock": HARNESS.METRIC_MEASURED_ZERO,
+            },
+            "measured_sum": {
+                "LightWorkerFunction": 0.0,
+                "DeepWorkerFunction": 0.0,
+                "Bedrock": 0.0,
+            },
+            "deterministic_controls": "PASS",
+            "evidence_label": HARNESS.EVIDENCE_ZERO_MEASURED,
+        }
 
 
 def valid_user():
@@ -107,7 +122,11 @@ class HarnessTests(unittest.TestCase):
         output = io.StringIO()
         with mock.patch.object(HARNESS, "_request_json", side_effect=request), contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
             result = HARNESS.execute_harness(backend)
-        self.assertEqual(result, {"created": True, "post": "PASS", "get": "PASS", "side_effects": "ZERO"})
+        self.assertEqual(result["created"], True)
+        self.assertEqual(result["post"], "PASS")
+        self.assertEqual(result["get"], "PASS")
+        self.assertEqual(result["side_effects"], "ZERO")
+        self.assertEqual(result["invocation_evidence"]["evidence_label"], HARNESS.EVIDENCE_ZERO_MEASURED)
         self.assertEqual(backend.puts, 1)
         self.assertEqual(set(backend.user), {"user_id", "password", "plan", "subscription_status"})
         self.assertEqual(backend.user["plan"], {"S": "light"})
@@ -117,6 +136,7 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), "")
         self.assertEqual([item[0] for item in calls], ["POST", "GET"])
         self.assertEqual(backend.metrics_checked, 1)
+        self.assertEqual(backend.assert_expected_state, backend.side_effect_state())
 
     def test_existing_exact_user_is_reused_without_write(self):
         backend = FakeBackend(valid_user())

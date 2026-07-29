@@ -12,6 +12,7 @@ import base64
 import hashlib
 import hmac
 import json
+import math
 import os
 import re
 import sys
@@ -36,6 +37,12 @@ MISSING_JOB_REF = "11111111-1111-4111-8111-111111111111"
 CONFIRMATION = "CREATE_STAGING_LIGHT_TEST_ID_AND_RUN_PHASE1_SMOKE"
 METRIC_MAX_WAIT_SECONDS = 300
 METRIC_RETRY_SECONDS = 30
+METRIC_MEASURED_ZERO = "MEASURED_ZERO"
+METRIC_MEASURED_NONZERO = "MEASURED_NONZERO"
+METRIC_NO_DATA = "NO_DATA"
+METRIC_QUERY_FAILURE = "QUERY_FAILURE"
+EVIDENCE_ZERO_MEASURED = "ZERO_INVOCATIONS_MEASURED"
+EVIDENCE_NO_INVOCATION_WITH_CONTROLS = "NO_INVOCATION_OBSERVED_WITH_DETERMINISTIC_CONTROLS"
 EXPECTED_PARAMETERS = {
     "ReadingGenerateApiEnabled": "true",
     "ReadingStatusApiEnabled": "true",
@@ -203,6 +210,28 @@ def _validate_unmanaged_api_gateway_resource(value: Mapping[str, Any]) -> None:
         raise HarnessError("API Gateway resource is managed or has an invalid managed flag")
 
 
+def _classify_invocation_values(
+    values: Any,
+    *,
+    query_status: str = "Complete",
+    uses_fill: bool = False,
+) -> dict[str, Any]:
+    if uses_fill or query_status != "Complete" or not isinstance(values, list):
+        return {"classification": METRIC_QUERY_FAILURE, "measured_sum": None}
+    if not values:
+        return {"classification": METRIC_NO_DATA, "measured_sum": None}
+    try:
+        measured_sum = sum(float(value) for value in values)
+    except (TypeError, ValueError):
+        return {"classification": METRIC_QUERY_FAILURE, "measured_sum": None}
+    if not math.isfinite(measured_sum) or measured_sum < 0:
+        return {"classification": METRIC_QUERY_FAILURE, "measured_sum": None}
+    return {
+        "classification": METRIC_MEASURED_ZERO if measured_sum == 0 else METRIC_MEASURED_NONZERO,
+        "measured_sum": measured_sum,
+    }
+
+
 class AwsSdkBackend:
     """Staging-only adapter backed by one injected boto3 Session."""
 
@@ -212,6 +241,7 @@ class AwsSdkBackend:
         session: Any,
         *,
         clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], float] = time.time,
         sleeper: Callable[[float], None] = time.sleep,
     ):
         if getattr(session, "region_name", None) != REGION or getattr(session, "profile_name", None) != PROFILE:
@@ -225,6 +255,7 @@ class AwsSdkBackend:
         self.stack_parameters: dict[str, str] = {}
         self._put_attempted = False
         self._clock = clock
+        self._wall_clock = wall_clock
         self._sleep = sleeper
 
     @classmethod
@@ -652,10 +683,20 @@ class AwsSdkBackend:
             "missing_job": self.get_item("ReadingJobsTable", {"job_ref": {"S": MISSING_JOB_REF}}),
         }
 
-    def _metric_snapshot(self, started_at: float, finished_at: float) -> dict[str, str]:
+    def _metric_snapshot(self, started_at: float, observed_until: float) -> dict[str, dict[str, Any]]:
+        if (
+            not isinstance(started_at, (int, float))
+            or not isinstance(observed_until, (int, float))
+            or not math.isfinite(started_at)
+            or not math.isfinite(observed_until)
+            or observed_until < started_at
+        ):
+            raise HarnessError("invocation metric time window was invalid")
         start = datetime.fromtimestamp(started_at, timezone.utc)
-        end = datetime.fromtimestamp(max(finished_at, started_at + 1), timezone.utc)
-        evidence: dict[str, str] = {}
+        end = datetime.fromtimestamp(max(observed_until, started_at + 1), timezone.utc)
+        if start.tzinfo != timezone.utc or end.tzinfo != timezone.utc or end <= start:
+            raise HarnessError("invocation metric UTC window was invalid")
+        evidence: dict[str, dict[str, Any]] = {}
         for logical_id in ("LightWorkerFunction", "DeepWorkerFunction"):
             function_name = self._resource(logical_id)["PhysicalResourceId"]
             metric = self._call(
@@ -670,23 +711,22 @@ class AwsSdkBackend:
                 Statistics=["Sum"],
             )
             datapoints = metric.get("Datapoints")
-            if not isinstance(datapoints, list) or not datapoints:
-                evidence[logical_id] = "NO_DATA"
-                continue
-            try:
-                total = sum(float(point["Sum"]) for point in datapoints if isinstance(point, dict))
-            except (KeyError, TypeError, ValueError) as error:
-                raise HarnessError("worker invocation metric shape was invalid") from error
-            if total != 0:
-                raise HarnessError("worker invocation was detected")
-            evidence[logical_id] = "ZERO_CONFIRMED"
+            if not isinstance(datapoints, list):
+                evidence[logical_id] = _classify_invocation_values(None)
+            else:
+                sums = [point.get("Sum") for point in datapoints if isinstance(point, dict)]
+                if len(sums) != len(datapoints):
+                    evidence[logical_id] = _classify_invocation_values(None)
+                else:
+                    evidence[logical_id] = _classify_invocation_values(sums)
+        expression = "SUM(SEARCH('{AWS/Bedrock} MetricName=\"Invocations\"', 'Sum', 60))"
         metric = self._call(
             "cloudwatch",
             "get_metric_data",
             MetricDataQueries=[
                 {
                     "Id": "bedrockinvocations",
-                    "Expression": "SUM(SEARCH('{AWS/Bedrock} MetricName=\"Invocations\"', 'Sum', 60))",
+                    "Expression": expression,
                     "ReturnData": True,
                 }
             ],
@@ -696,30 +736,61 @@ class AwsSdkBackend:
         )
         results = metric.get("MetricDataResults")
         if not isinstance(results, list) or len(results) != 1 or not isinstance(results[0], dict):
-            evidence["Bedrock"] = "NO_DATA"
+            evidence["Bedrock"] = _classify_invocation_values(None)
         else:
             result = results[0]
-            values = result.get("Values")
-            if result.get("StatusCode") != "Complete" or not isinstance(values, list) or not values:
-                evidence["Bedrock"] = "NO_DATA"
-            else:
-                try:
-                    total = sum(float(value) for value in values)
-                except (TypeError, ValueError) as error:
-                    raise HarnessError("Bedrock invocation metric shape was invalid") from error
-                if total != 0:
-                    raise HarnessError("Bedrock invocation was detected")
-                evidence["Bedrock"] = "ZERO_CONFIRMED"
+            evidence["Bedrock"] = _classify_invocation_values(
+                result.get("Values"),
+                query_status=result.get("StatusCode", ""),
+                uses_fill="FILL(" in expression.upper(),
+            )
         return evidence
 
-    def validate_no_worker_or_bedrock_invocations(self, started_at: float, finished_at: float) -> dict[str, str]:
+    def _revalidate_deterministic_controls(self, expected_state: dict[str, Any]) -> None:
+        self.validate_boundary()
+        session_secret = self.validate_runtime()
+        session_secret = ""
+        if self.side_effect_state() != expected_state:
+            raise HarnessError("deterministic controls changed after API smoke")
+
+    def validate_no_worker_or_bedrock_invocations(
+        self,
+        started_at: float,
+        finished_at: float,
+        expected_state: dict[str, Any],
+    ) -> dict[str, Any]:
+        if finished_at < started_at:
+            raise HarnessError("API smoke time window was invalid")
         deadline = self._clock() + METRIC_MAX_WAIT_SECONDS
         while True:
-            evidence = self._metric_snapshot(started_at, finished_at)
-            if evidence and all(value == "ZERO_CONFIRMED" for value in evidence.values()):
-                return evidence
+            observed_until = max(finished_at, self._wall_clock())
+            evidence = self._metric_snapshot(started_at, observed_until)
+            classifications = {key: value["classification"] for key, value in evidence.items()}
+            if any(value == METRIC_QUERY_FAILURE for value in classifications.values()):
+                raise HarnessError("invocation metric query failed")
+            if any(value == METRIC_MEASURED_NONZERO for value in classifications.values()):
+                raise HarnessError("worker or Bedrock invocation was detected")
+            if classifications and all(value == METRIC_MEASURED_ZERO for value in classifications.values()):
+                self._revalidate_deterministic_controls(expected_state)
+                return {
+                    "classification": classifications,
+                    "measured_sum": {key: value["measured_sum"] for key, value in evidence.items()},
+                    "deterministic_controls": "PASS",
+                    "evidence_label": EVIDENCE_ZERO_MEASURED,
+                }
             if self._clock() >= deadline:
-                raise HarnessError("invocation metrics remained NO_DATA")
+                if not classifications or not all(
+                    value in (METRIC_MEASURED_ZERO, METRIC_NO_DATA)
+                    for value in classifications.values()
+                ):
+                    raise HarnessError("invocation metric classification was invalid")
+                self._revalidate_deterministic_controls(expected_state)
+                return {
+                    "classification": classifications,
+                    "measured_sum": {key: value["measured_sum"] for key, value in evidence.items()},
+                    "deterministic_controls": "PASS",
+                    "evidence_label": EVIDENCE_NO_INVOCATION_WITH_CONTROLS,
+                }
             self._sleep(METRIC_RETRY_SECONDS)
 
     def api_base(self) -> str:
@@ -855,8 +926,16 @@ def execute_harness(backend: AwsSdkBackend) -> dict[str, Any]:
         after = backend.side_effect_state()
         if before != after:
             raise HarnessError("smoke test produced an unexpected side effect")
-        backend.validate_no_worker_or_bedrock_invocations(smoke_started, smoke_finished)
-        return {"created": created, "post": "PASS", "get": "PASS", "side_effects": "ZERO"}
+        metric_evidence = backend.validate_no_worker_or_bedrock_invocations(
+            smoke_started, smoke_finished, after
+        )
+        return {
+            "created": created,
+            "post": "PASS",
+            "get": "PASS",
+            "side_effects": "ZERO",
+            "invocation_evidence": metric_evidence,
+        }
     finally:
         # Reference clearing reduces lifetime; Python does not guarantee secure
         # erasure of immutable strings from process memory.
@@ -891,6 +970,12 @@ def main(argv: list[str] | None = None) -> int:
     print("post_reading: PASS")
     print("get_reading_status: PASS")
     print("unexpected_side_effects: 0")
+    classifications = result["invocation_evidence"]["classification"].values()
+    print(f"invocation_measured_zero_count: {sum(value == METRIC_MEASURED_ZERO for value in classifications)}")
+    classifications = result["invocation_evidence"]["classification"].values()
+    print(f"invocation_no_data_count: {sum(value == METRIC_NO_DATA for value in classifications)}")
+    print(f"deterministic_controls: {result['invocation_evidence']['deterministic_controls']}")
+    print(f"invocation_evidence: {result['invocation_evidence']['evidence_label']}")
     return 0
 
 

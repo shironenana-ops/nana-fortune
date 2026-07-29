@@ -130,12 +130,23 @@ ESM `Disabled`, Bedrock switch `false`, empty queues, and unchanged before/after
 state are the primary evidence that worker and Bedrock paths were unreachable.
 CloudWatch is supplemental evidence and never replaces these guards.
 
-The harness records the exact smoke start and finish times, then polls for no
-more than 300 seconds at 30-second intervals. `ZERO_CONFIRMED` requires an
-actual completed metric result containing zero-valued data. Empty Lambda
-datapoints or empty Bedrock MetricData values are `NO_DATA`, not zero. A
-nonzero value stops immediately; `NO_DATA` remaining at the deadline also
-fails closed. No earlier fixed window is treated as evidence for this run.
+The harness records a UTC-safe window beginning before the first smoke request
+and extending through each CloudWatch observation after the requests. It polls
+for no more than 300 seconds at 30-second intervals. Results are classified as
+`MEASURED_ZERO`, `MEASURED_NONZERO`, `NO_DATA`, or `QUERY_FAILURE`.
+
+An actual completed result containing only zero-valued datapoints produces
+`ZERO_INVOCATIONS_MEASURED`. A positive value, malformed result, API error,
+`PartialData`, or an artificial Metric Math `FILL` value fails closed. Empty
+datapoints remain `NO_DATA` and are never described as a measured zero.
+
+At the deadline, `NO_DATA` is accepted only after revalidating the exact
+staging identity and 32-resource mapping, all five switch values, both disabled
+event-source mappings, four empty queues/DLQs, six table boundaries, unchanged
+API routes/integrations, and the unchanged side-effect snapshot. The expected
+503/404 API contracts must already have passed. That composite evidence is
+named `NO_INVOCATION_OBSERVED_WITH_DETERMINISTIC_CONTROLS`. No API smoke
+request is retried during metric polling.
 
 ## Local validation and execution prerequisite
 
