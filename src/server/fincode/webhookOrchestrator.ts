@@ -9,9 +9,14 @@ import {
 } from "./webhookHttpAdapter";
 import { normalizeFincodeSubscriptionEvent } from "./webhookNormalizer";
 import {
+  FINCODE_WEBHOOK_ATOMIC_COMPLETION_RESULTS,
+  FINCODE_WEBHOOK_CUSTOMER_LOOKUP_RESULTS,
+  isFincodeWebhookAtomicCompletionPlan,
+  isFincodeWebhookAtomicCompletionRequest,
   validateFincodeWebhookRetentionPolicy,
+  type FincodeWebhookAtomicCompletionPlanFactory,
+  type FincodeWebhookAtomicCompletionPort,
   type FincodeWebhookCustomerPort,
-  type FincodeWebhookEntitlementWriterPort,
   type FincodeWebhookLedgerPort,
   type FincodeWebhookRetentionPolicy,
 } from "./webhookPorts";
@@ -31,7 +36,8 @@ export type FincodeWebhookOrchestratorDependencies = {
   retentionPolicy: FincodeWebhookRetentionPolicy;
   ledger: FincodeWebhookLedgerPort;
   customers: FincodeWebhookCustomerPort;
-  entitlementWriter?: FincodeWebhookEntitlementWriterPort;
+  atomicCompletion?: FincodeWebhookAtomicCompletionPort;
+  completionPlanFactory?: FincodeWebhookAtomicCompletionPlanFactory;
   auditSink?: (line: string) => void;
   now?: () => number;
 };
@@ -191,32 +197,87 @@ export async function orchestrateFincodeWebhook(
     audit({ dependencies, correlationId, event: normalized, verificationOutcome: "error", responseClassification: "retry", replayOutcome: "new", resultCode: "WEBHOOK_CUSTOMER_LOOKUP_UNAVAILABLE", startedAt });
     return fincodeWebhookRetryResponse();
   }
-  if (!customer) {
+  if (!customer || typeof customer !== "object" ||
+      !FINCODE_WEBHOOK_CUSTOMER_LOOKUP_RESULTS.includes(customer.status)) {
+    await markFailed(dependencies, normalized, "CUSTOMER_LOOKUP_INVALID");
+    audit({ dependencies, correlationId, event: normalized, verificationOutcome: "error", responseClassification: "retry", replayOutcome: "new", resultCode: "WEBHOOK_CUSTOMER_LOOKUP_UNAVAILABLE", startedAt });
+    return fincodeWebhookRetryResponse();
+  }
+
+  if (customer.status === "NOT_FOUND") {
     await markFailed(dependencies, normalized, "CUSTOMER_NOT_FOUND");
-    audit({ dependencies, correlationId, event: normalized, verificationOutcome: "denied", responseClassification: "permanent_reject", replayOutcome: "new", resultCode: "WEBHOOK_CUSTOMER_NOT_FOUND", startedAt });
-    return fincodeWebhookRejectedResponse(400);
+    audit({ dependencies, correlationId, event: normalized, verificationOutcome: "error", responseClassification: "retry", replayOutcome: "new", resultCode: "WEBHOOK_CUSTOMER_NOT_FOUND", startedAt });
+    return fincodeWebhookRetryResponse();
+  }
+  if (customer.status === "CONFLICT") {
+    audit({ dependencies, correlationId, event: normalized, verificationOutcome: "denied", responseClassification: "permanent_reject", replayOutcome: "conflict", resultCode: "WEBHOOK_CONFLICT", startedAt });
+    return fincodeWebhookRejectedResponse(409);
   }
 
   const transition = decideFincodeSubscriptionTransition(normalized);
-  if (transition.decision === "NO_OP") {
-    try {
-      await dependencies.ledger.complete({ ...digestIdentity, resultCode: "NO_OP" });
-    } catch {
-      audit({ dependencies, correlationId, event: normalized, verificationOutcome: "error", responseClassification: "retry", replayOutcome: "new", transitionDecision: transition.decision, resultCode: "WEBHOOK_LEDGER_UNAVAILABLE", startedAt });
-      return fincodeWebhookRetryResponse();
-    }
-    audit({ dependencies, correlationId, event: normalized, verificationOutcome: "accepted", responseClassification: "acknowledged", replayOutcome: "new", transitionDecision: transition.decision, resultCode: "WEBHOOK_ACCEPTED", startedAt });
-    return fincodeWebhookAcknowledgedResponse();
-  }
-
-  // Current contract intentionally forbids all entitlement mutation. Merely injecting a writer cannot bypass it.
-  if (transition.mutationAllowed !== true || !dependencies.entitlementWriter) {
+  if (!dependencies.atomicCompletion || !dependencies.completionPlanFactory) {
     await markFailed(dependencies, normalized, "MUTATION_NOT_AVAILABLE");
     audit({ dependencies, correlationId, event: normalized, verificationOutcome: "error", responseClassification: "retry", replayOutcome: "new", transitionDecision: transition.decision, resultCode: "WEBHOOK_MUTATION_NOT_AVAILABLE", startedAt });
     return fincodeWebhookRetryResponse();
   }
 
-  // This branch is unreachable while FincodeTransitionResult.mutationAllowed is the literal false.
-  await markFailed(dependencies, normalized, "MUTATION_NOT_AVAILABLE");
+  let completionPlan;
+  try {
+    completionPlan = dependencies.completionPlanFactory({
+      event: normalized,
+      userReference: customer.userReference,
+      membershipSnapshot: customer.membershipSnapshot,
+      decision: transition.decision,
+    });
+  } catch {
+    completionPlan = null;
+  }
+  if (!isFincodeWebhookAtomicCompletionPlan(completionPlan) || completionPlan.decision !== transition.decision) {
+    await markFailed(dependencies, normalized, "MUTATION_NOT_AVAILABLE");
+    audit({ dependencies, correlationId, event: normalized, verificationOutcome: "error", responseClassification: "retry", replayOutcome: "new", transitionDecision: transition.decision, resultCode: "WEBHOOK_MUTATION_NOT_AVAILABLE", startedAt });
+    return fincodeWebhookRetryResponse();
+  }
+
+  const completionRequest = {
+    ...digestIdentity,
+    expectedLedgerState: "RESERVED" as const,
+    userReference: customer.userReference,
+    normalizedEvent: {
+      environment: normalized.environment,
+      eventType: normalized.eventType,
+      status: normalized.status,
+    },
+    completionPlan,
+    correlationDigest: createHash("sha256").update(correlationId, "utf8").digest("hex"),
+    retentionTtlSeconds: ttlSeconds,
+    completedAt: new Date(clock()).toISOString(),
+  };
+  if (!isFincodeWebhookAtomicCompletionRequest(completionRequest)) {
+    await markFailed(dependencies, normalized, "ATOMIC_COMPLETION_INVALID");
+    audit({ dependencies, correlationId, event: normalized, verificationOutcome: "error", responseClassification: "retry", replayOutcome: "new", transitionDecision: transition.decision, resultCode: "WEBHOOK_MUTATION_NOT_AVAILABLE", startedAt });
+    return fincodeWebhookRetryResponse();
+  }
+
+  let completionResult: string;
+  try {
+    completionResult = await dependencies.atomicCompletion.applyAndComplete(completionRequest);
+  } catch {
+    completionResult = "RETRYABLE_FAILURE";
+  }
+  if (!(FINCODE_WEBHOOK_ATOMIC_COMPLETION_RESULTS as readonly string[]).includes(completionResult)) {
+    completionResult = "RETRYABLE_FAILURE";
+  }
+
+  if (completionResult === "COMPLETED" || completionResult === "ALREADY_COMPLETED") {
+    audit({ dependencies, correlationId, event: normalized, verificationOutcome: "accepted", responseClassification: "acknowledged", replayOutcome: completionResult === "ALREADY_COMPLETED" ? "duplicate" : "new", transitionDecision: transition.decision, resultCode: completionResult === "ALREADY_COMPLETED" ? "WEBHOOK_DUPLICATE" : "WEBHOOK_ACCEPTED", startedAt });
+    return fincodeWebhookAcknowledgedResponse();
+  }
+  if (completionResult === "CONDITIONAL_CONFLICT") {
+    audit({ dependencies, correlationId, event: normalized, verificationOutcome: "denied", responseClassification: "permanent_reject", replayOutcome: "conflict", transitionDecision: transition.decision, resultCode: "WEBHOOK_CONFLICT", startedAt });
+    return fincodeWebhookRejectedResponse(409);
+  }
+
+  await markFailed(dependencies, normalized, "ATOMIC_COMPLETION_RETRYABLE");
+  audit({ dependencies, correlationId, event: normalized, verificationOutcome: "error", responseClassification: "retry", replayOutcome: "new", transitionDecision: transition.decision, resultCode: "WEBHOOK_LEDGER_UNAVAILABLE", startedAt });
   return fincodeWebhookRetryResponse();
 }

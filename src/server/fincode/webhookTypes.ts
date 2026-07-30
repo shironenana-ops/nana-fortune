@@ -95,7 +95,6 @@ export type FincodeTransitionDecision =
 
 export type FincodeTransitionResult = {
   decision: FincodeTransitionDecision;
-  mutationAllowed: false;
   reasonCode: string;
 };
 

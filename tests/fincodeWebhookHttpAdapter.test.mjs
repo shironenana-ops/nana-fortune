@@ -61,25 +61,69 @@ function boundary(overrides = {}) {
   };
 }
 
+function activeLightCompletionPlan(overrides = {}) {
+  return {
+    decision: "ACTIVATE_SUBSCRIPTION",
+    expectedMembership: {
+      version: 0,
+      plan: "free",
+      subscriptionStatus: "inactive",
+      periodKey: null,
+    },
+    plan: "light",
+    finalLedgerState: "COMPLETED",
+    period: {
+      source: "TRUSTED_MEMBERSHIP_SOURCE",
+      periodKey: "2026-08",
+      periodEnd: "2026-09-01T00:00:00.000Z",
+    },
+    entitlementMutation: {
+      kind: "SET_MEMBERSHIP",
+      plan: "light",
+      subscriptionStatus: "active",
+      deepEnabled: false,
+      monthlyVoiceLimit: 3,
+      cancelAtPeriodEnd: false,
+    },
+    quotaMutation: {
+      kind: "CREATE_PERIOD_ALLOWANCE",
+      periodKey: "2026-08",
+      lightLimit: 5,
+      preserveExistingUsage: true,
+    },
+    billingMutation: { kind: "NONE" },
+    resultCode: "ENTITLEMENT_APPLIED",
+    ledgerOnly: false,
+    ...overrides,
+  };
+}
+
 function fakeDependencies(overrides = {}) {
-  const calls = { reserve: [], complete: [], fail: [], customer: [], writer: [], audit: [] };
+  const calls = { reserve: [], fail: [], customer: [], plan: [], atomic: [], audit: [] };
   const dependencies = {
     boundary: boundary(),
     expectedSignature: SIGNATURE,
     retentionPolicy: { ttlSeconds: 3600, minimumTtlSeconds: 60, maximumTtlSeconds: 86400 },
     ledger: {
       async reserve(input) { calls.reserve.push(input); return "RESERVED"; },
-      async complete(input) { calls.complete.push(input); },
       async fail(input) { calls.fail.push(input); },
     },
     customers: {
       async findByOpaqueCustomerReference(input) {
         calls.customer.push(input);
-        return { userReference: "opaque-user-fixture" };
+        return {
+          status: "FOUND",
+          userReference: "opaque-user-fixture",
+          membershipSnapshot: { version: 0, plan: "free", subscriptionStatus: "inactive", periodKey: null },
+        };
       },
     },
-    entitlementWriter: {
-      async applyDecision(input) { calls.writer.push(input); },
+    completionPlanFactory(input) {
+      calls.plan.push(input);
+      return activeLightCompletionPlan({ decision: input.decision, expectedMembership: input.membershipSnapshot });
+    },
+    atomicCompletion: {
+      async applyAndComplete(input) { calls.atomic.push(input); return "COMPLETED"; },
     },
     auditSink(line) { calls.audit.push(line); },
     now: () => 1000,
@@ -163,7 +207,6 @@ test("completed duplicateだけ200、in-progress/unavailableは503、fingerprint
     const fixture = fakeDependencies({
       ledger: {
         async reserve(input) { fixture.calls.reserve.push(input); return reservation; },
-        async complete(input) { fixture.calls.complete.push(input); },
         async fail(input) { fixture.calls.fail.push(input); },
       },
     });
@@ -171,25 +214,57 @@ test("completed duplicateだけ200、in-progress/unavailableは503、fingerprint
     assert.equal(response.statusCode, expectedStatus);
     assert.equal(body(response).receive, expectedReceive);
     assert.equal(fixture.calls.customer.length, 0);
-    assert.equal(fixture.calls.writer.length, 0);
+    assert.equal(fixture.calls.atomic.length, 0);
   }
 });
 
-test("new eventはcustomer照合後もmutation不可なら503でledgerを完了しない", async () => {
-  const fixture = fakeDependencies();
-  const response = await fincode.orchestrateFincodeWebhook(event(), fixture.dependencies);
-  assert.equal(response.statusCode, 503);
-  assert.deepEqual(body(response), { receive: "1" });
-  assert.equal(fixture.calls.customer.length, 1);
-  assert.equal(fixture.calls.writer.length, 0);
-  assert.equal(fixture.calls.complete.length, 0);
-  assert.equal(fixture.calls.fail.length, 1);
-  assert.equal(fixture.calls.fail[0].retryableResultCode, "MUTATION_NOT_AVAILABLE");
+test("原子的完了Portの成功時だけ200になり、それ以外は固定409/503へfail closedする", async () => {
+  for (const [atomicResult, expectedStatus] of [
+    ["COMPLETED", 200],
+    ["ALREADY_COMPLETED", 200],
+    ["CONDITIONAL_CONFLICT", 409],
+    ["UNAVAILABLE", 503],
+    ["RETRYABLE_FAILURE", 503],
+    ["UNKNOWN_RESULT", 503],
+  ]) {
+    const fixture = fakeDependencies({
+      atomicCompletion: {
+        async applyAndComplete(input) { fixture.calls.atomic.push(input); return atomicResult; },
+      },
+    });
+    const response = await fincode.orchestrateFincodeWebhook(event(), fixture.dependencies);
+    assert.equal(response.statusCode, expectedStatus);
+    assert.equal(fixture.calls.atomic.length, 1);
+  }
+
+  const thrown = fakeDependencies({
+    atomicCompletion: { async applyAndComplete() { throw new Error("private transaction detail customer@example.invalid"); } },
+  });
+  const thrownResponse = await fincode.orchestrateFincodeWebhook(event(), thrown.dependencies);
+  assert.equal(thrownResponse.statusCode, 503);
+  assert.doesNotMatch(JSON.stringify([thrownResponse, thrown.calls.audit]), /private transaction|customer@example\.invalid/u);
 });
 
-test("customer missingは400、repository/ledger例外とretention不備は503で内部情報を漏らさない", async () => {
-  const missing = fakeDependencies({ customers: { async findByOpaqueCustomerReference() { return null; } } });
-  assert.equal((await fincode.orchestrateFincodeWebhook(event(), missing.dependencies)).statusCode, 400);
+test("原子的完了Portまたはreview済みplan factoryが未注入なら503で成功完了しない", async () => {
+  for (const missing of ["atomicCompletion", "completionPlanFactory"]) {
+    const fixture = fakeDependencies();
+    delete fixture.dependencies[missing];
+    const response = await fincode.orchestrateFincodeWebhook(event(), fixture.dependencies);
+    assert.equal(response.statusCode, 503);
+    assert.deepEqual(body(response), { receive: "1" });
+    assert.equal(fixture.calls.atomic.length, 0);
+    assert.equal(fixture.calls.fail.at(-1)?.retryableResultCode, "MUTATION_NOT_AVAILABLE");
+  }
+});
+
+test("customer mapping未作成とrepository障害は503、mapping conflictは409、形式/環境不正は400", async () => {
+  const missing = fakeDependencies({ customers: { async findByOpaqueCustomerReference() { return { status: "NOT_FOUND" }; } } });
+  assert.equal((await fincode.orchestrateFincodeWebhook(event(), missing.dependencies)).statusCode, 503);
+  assert.equal(missing.calls.atomic.length, 0);
+
+  const conflict = fakeDependencies({ customers: { async findByOpaqueCustomerReference() { return { status: "CONFLICT" }; } } });
+  assert.equal((await fincode.orchestrateFincodeWebhook(event(), conflict.dependencies)).statusCode, 409);
+  assert.equal(conflict.calls.atomic.length, 0);
 
   const repositoryError = fakeDependencies({
     customers: { async findByOpaqueCustomerReference() { throw new Error("arn:aws:dynamodb:region:000000000000:table/private customer@example.invalid"); } },
@@ -200,7 +275,6 @@ test("customer missingは400、repository/ledger例外とretention不備は503�
   const ledgerError = fakeDependencies({
     ledger: {
       async reserve() { throw new Error("RequestId secret-provider-reference"); },
-      async complete() {},
       async fail() {},
     },
   });
@@ -216,6 +290,18 @@ test("customer missingは400、repository/ledger例外とretention不備は503�
     assert.equal(invalid.calls.reserve.length, 0);
   }
 
+  const malformed = fakeDependencies();
+  assert.equal((await fincode.orchestrateFincodeWebhook(
+    event({ body: JSON.stringify(payload({ customer_id: "bad ref" })) }), malformed.dependencies,
+  )).statusCode, 400);
+  assert.equal(malformed.calls.reserve.length, 0);
+
+  const wrongEnvironment = fakeDependencies();
+  assert.equal((await fincode.orchestrateFincodeWebhook(
+    event({ body: JSON.stringify(payload({ customer_id: `prod_${"b".repeat(24)}` })) }), wrongEnvironment.dependencies,
+  )).statusCode, 400);
+  assert.equal(wrongEnvironment.calls.reserve.length, 0);
+
   const serialized = JSON.stringify([
     repositoryError.calls.audit,
     ledgerError.calls.audit,
@@ -226,28 +312,122 @@ test("customer missingは400、repository/ledger例外とretention不備は503�
   }
 });
 
-test("同一requestを6回受けても未実装writerを呼ばず成功扱いにもcompletedにもならない", async () => {
-  const fixture = fakeDependencies();
+test("同一eventを6回受けても原子的mutationは最大1回で、完了後の再送は200になる", async () => {
+  let completed = false;
+  const fixture = fakeDependencies({
+    ledger: {
+      async reserve(input) {
+        fixture.calls.reserve.push(input);
+        return completed ? "DUPLICATE_COMPLETED" : "RESERVED";
+      },
+      async fail(input) { fixture.calls.fail.push(input); },
+    },
+    atomicCompletion: {
+      async applyAndComplete(input) {
+        fixture.calls.atomic.push(input);
+        completed = true;
+        return "COMPLETED";
+      },
+    },
+  });
   for (let index = 0; index < 6; index += 1) {
     const response = await fincode.orchestrateFincodeWebhook(event(), fixture.dependencies);
-    assert.equal(response.statusCode, 503);
+    assert.equal(response.statusCode, 200);
   }
-  assert.equal(fixture.calls.writer.length, 0);
-  assert.equal(fixture.calls.complete.length, 0);
-  assert.equal(fixture.calls.fail.length, 6);
+  assert.equal(fixture.calls.atomic.length, 1);
+  assert.equal(fixture.calls.customer.length, 1);
+  assert.equal(fixture.calls.fail.length, 0);
 });
 
-test("ledger Portへ渡るのはdigestとTTLだけでprovider識別子やpayloadを含まない", async () => {
+test("原子的完了失敗後の再送はcompleted duplicateにならず再試行される", async () => {
+  const fixture = fakeDependencies({
+    atomicCompletion: {
+      async applyAndComplete(input) { fixture.calls.atomic.push(input); return "RETRYABLE_FAILURE"; },
+    },
+  });
+  for (let index = 0; index < 2; index += 1) {
+    assert.equal((await fincode.orchestrateFincodeWebhook(event(), fixture.dependencies)).statusCode, 503);
+  }
+  assert.equal(fixture.calls.atomic.length, 2);
+  assert.equal(fixture.calls.fail.length, 2);
+});
+
+test("ledger/原子的完了Portへraw provider識別子・payload・signatureを渡さない", async () => {
   const fixture = fakeDependencies();
   await fincode.orchestrateFincodeWebhook(event(), fixture.dependencies);
   assert.equal(fixture.calls.reserve.length, 1);
   assert.deepEqual(Object.keys(fixture.calls.reserve[0]).sort(), ["payloadFingerprint", "semanticEventKey", "ttlSeconds"]);
   assert.match(fixture.calls.reserve[0].semanticEventKey, /^[0-9a-f]{64}$/u);
   assert.match(fixture.calls.reserve[0].payloadFingerprint, /^[0-9a-f]{64}$/u);
-  const serialized = JSON.stringify([fixture.calls.reserve, fixture.calls.fail, fixture.calls.audit]);
+  assert.equal(fixture.calls.atomic.length, 1);
+  assert.deepEqual(Object.keys(fixture.calls.atomic[0]).sort(), [
+    "completedAt", "completionPlan", "correlationDigest", "expectedLedgerState", "normalizedEvent",
+    "payloadFingerprint", "retentionTtlSeconds", "semanticEventKey", "userReference",
+  ]);
+  assert.deepEqual(Object.keys(fixture.calls.atomic[0].normalizedEvent).sort(), ["environment", "eventType", "status"]);
+  assert.match(fixture.calls.atomic[0].correlationDigest, /^[0-9a-f]{64}$/u);
+  const serialized = JSON.stringify([fixture.calls.reserve, fixture.calls.fail, fixture.calls.atomic, fixture.calls.audit]);
   for (const raw of [SHOP, PLAN, CUSTOMER, SUBSCRIPTION, SIGNATURE, JSON.stringify(payload())]) {
     assert.doesNotMatch(serialized, new RegExp(raw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+});
+
+test("plan変更とINCOMPLETEは権利・quotaを変更せず原子的にMANUAL_REVIEWを確定できる", async () => {
+  const manualReviewPlan = (decision, resultCode, billingKind) => ({
+    decision,
+    expectedMembership: { version: 2, plan: "light", subscriptionStatus: "active", periodKey: "2026-07" },
+    plan: "UNCHANGED",
+    finalLedgerState: "MANUAL_REVIEW",
+    entitlementMutation: { kind: "NONE" },
+    quotaMutation: { kind: "NONE" },
+    billingMutation: { kind: billingKind },
+    resultCode,
+    ledgerOnly: false,
+  });
+
+  const planChange = fakeDependencies({
+    completionPlanFactory(input) {
+      planChange.calls.plan.push(input);
+      return manualReviewPlan(input.decision, "PLAN_CHANGE_MANUAL_REVIEW", "RECORD_MANUAL_REVIEW");
+    },
+  });
+  assert.equal((await fincode.orchestrateFincodeWebhook(event(), planChange.dependencies)).statusCode, 200);
+  assert.equal(planChange.calls.atomic[0].completionPlan.entitlementMutation.kind, "NONE");
+  assert.equal(planChange.calls.atomic[0].completionPlan.quotaMutation.kind, "NONE");
+
+  for (const userReference of ["new-free-user", "existing-active-user"]) {
+    const incomplete = fakeDependencies({
+      customers: { async findByOpaqueCustomerReference() {
+        return {
+          status: "FOUND",
+          userReference,
+          membershipSnapshot: userReference === "existing-active-user"
+            ? { version: 4, plan: "light", subscriptionStatus: "active", periodKey: "2026-07" }
+            : { version: 0, plan: "free", subscriptionStatus: "inactive", periodKey: null },
+        };
+      } },
+      completionPlanFactory(input) {
+        incomplete.calls.plan.push(input);
+        return {
+          ...manualReviewPlan(input.decision, "INCOMPLETE_RECORDED", "RECORD_INCOMPLETE"),
+          expectedMembership: input.membershipSnapshot,
+        };
+      },
+    });
+    const incompleteEvent = event({ body: JSON.stringify(payload({ status: "INCOMPLETE", event: "subscription.card.update" })) });
+    assert.equal((await fincode.orchestrateFincodeWebhook(incompleteEvent, incomplete.dependencies)).statusCode, 200);
+    assert.equal(incomplete.calls.atomic[0].completionPlan.entitlementMutation.kind, "NONE");
+    assert.equal(incomplete.calls.atomic[0].completionPlan.quotaMutation.kind, "NONE");
+  }
+});
+
+test("原子的完了planはtransactionに必要な安全な値を表現し不正shapeを拒否する", () => {
+  const fixturePlan = activeLightCompletionPlan();
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan(fixturePlan), true);
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, ledgerOnly: true }), false);
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, quotaMutation: { kind: "CREATE_PERIOD_ALLOWANCE", periodKey: "2099-01", lightLimit: 5, preserveExistingUsage: true } }), false);
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, resultCode: "UNKNOWN" }), false);
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, rawPlanId: PLAN }), false);
 });
 
 test("AWS SDK・実adapter・秘密値・production接続を追加せずPort境界を保つ", () => {
@@ -258,5 +438,6 @@ test("AWS SDK・実adapter・秘密値・production接続を追加せずPort境�
   ].map((path) => fs.readFileSync(path, "utf8")).join("\n");
   assert.doesNotMatch(sources, /@aws-sdk|DynamoDBClient|LambdaClient|fetch\s*\(|https?:\/\//u);
   assert.doesNotMatch(sources, /PutItem|UpdateItem|TransactWrite|SecretsManager/u);
-  assert.match(sources, /mutationAllowed !== true/);
+  assert.doesNotMatch(sources, /FincodeWebhookEntitlementWriterPort|ledger\.complete|\.complete\(\{\s*\.\.\.digestIdentity/u);
+  assert.match(sources, /FincodeWebhookAtomicCompletionPort/);
 });

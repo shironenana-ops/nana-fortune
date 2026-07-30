@@ -183,7 +183,7 @@ test("同一key＋同一fingerprintはduplicate、内容差はconflictでraw pay
   for (const raw of [SHOP, PLAN, CUSTOMER, SUBSCRIPTION, SIGNATURE]) assert.doesNotMatch(serialized, new RegExp(raw));
 });
 
-test("transitionは純粋decisionだけを返しwriter mutationを許可しない", () => {
+test("transitionは永続化権限を持たない純粋decisionだけを返す", () => {
   const cases = [
     ["ACTIVE", "subscription.card.regist", "ACTIVATE_SUBSCRIPTION"],
     ["ACTIVE", "subscription.card.update", "UPDATE_SUBSCRIPTION"],
@@ -195,10 +195,10 @@ test("transitionは純粋decisionだけを返しwriter mutationを許可しな�
     const normalized = fincode.validateAndNormalizeFincodeWebhook(request({ rawBody: JSON.stringify(payload({ status, event })) }));
     const result = fincode.decideFincodeSubscriptionTransition(normalized);
     assert.equal(result.decision, expected);
-    assert.equal(result.mutationAllowed, false);
+    assert.deepEqual(Object.keys(result).sort(), ["decision", "reasonCode"]);
   }
   const source = fs.readFileSync("src/server/fincode/webhookTransition.ts", "utf8");
-  assert.doesNotMatch(source, /Dynamo|UpdateItem|PutItem|fetch\s*\(/);
+  assert.doesNotMatch(source, /Dynamo|UpdateItem|PutItem|fetch\s*\(|mutationAllowed/);
 });
 
 test("Webhook監査logはdigest参照と固定結果だけを記録し秘密・生ID・payloadを含めない", () => {
