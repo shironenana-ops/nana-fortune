@@ -10,6 +10,7 @@ export type FincodeWebhookAuditInput = {
   eventType?: FincodeSubscriptionEventType;
   environment: FincodeEnvironment;
   verificationOutcome: "accepted" | "denied" | "error";
+  responseClassification?: "acknowledged" | "retry" | "permanent_reject";
   replayOutcome?: "new" | "duplicate" | "conflict";
   transitionDecision?: FincodeTransitionDecision;
   durationMs?: number;
@@ -25,6 +26,12 @@ export const FINCODE_WEBHOOK_AUDIT_RESULT_CODES = [
   "WEBHOOK_ENVIRONMENT_DENIED",
   "WEBHOOK_DISABLED",
   "WEBHOOK_INTERNAL_ERROR",
+  "WEBHOOK_TRANSPORT_DENIED",
+  "WEBHOOK_LEDGER_UNAVAILABLE",
+  "WEBHOOK_DUPLICATE_IN_PROGRESS",
+  "WEBHOOK_CUSTOMER_NOT_FOUND",
+  "WEBHOOK_CUSTOMER_LOOKUP_UNAVAILABLE",
+  "WEBHOOK_MUTATION_NOT_AVAILABLE",
 ] as const;
 
 export type FincodeWebhookAuditResultCode = typeof FINCODE_WEBHOOK_AUDIT_RESULT_CODES[number];
@@ -47,6 +54,7 @@ export function createFincodeWebhookAuditRecord(input: FincodeWebhookAuditInput)
     event_ref: /^[0-9a-f]{64}$/u.test(input.eventReference) ? input.eventReference : "invalid",
     environment: input.environment,
     verification_outcome: input.verificationOutcome,
+    ...(input.responseClassification ? { response_classification: input.responseClassification } : {}),
     ...(input.eventType ? { event_type: input.eventType } : {}),
     ...(input.replayOutcome ? { replay_outcome: input.replayOutcome } : {}),
     ...(input.transitionDecision ? { transition_decision: input.transitionDecision } : {}),

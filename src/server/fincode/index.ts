@@ -6,3 +6,6 @@ export * from "./webhookNormalizer";
 export * from "./webhookTransition";
 export * from "./webhookAudit";
 export * from "./webhookFoundation";
+export * from "./webhookHttpAdapter";
+export * from "./webhookPorts";
+export * from "./webhookOrchestrator";
