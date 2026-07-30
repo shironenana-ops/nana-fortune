@@ -1,6 +1,6 @@
 # fincode Webhook AWS Adapter design
 
-Status: design only / AWS disconnected / implementation not authorized
+Status: local adapter implemented / AWS disconnected / Lambda and IaC integration not authorized
 Recorded: 2026-07-30
 Canonical for: AWS adapter, storage, transaction, IAM, and staging rollout design
 
@@ -11,9 +11,11 @@ white-label staging architecture without connecting to AWS or fincode. It fixes
 the v1 business policy, storage boundaries, atomic transaction contract,
 least-privilege IAM, safe observability, and explicit rollout gates.
 
-This phase does **not** implement a Lambda handler, AWS SDK repository, DynamoDB
-table, IAM role, CloudFormation resource, Secret reference, Webhook endpoint,
-entitlement mutation, fincode registration, or production configuration.
+The local phase implements AWS SDK command adapters with injected clients and
+fake-client tests. It does **not** implement a Lambda handler, DynamoDB table,
+IAM role, CloudFormation resource, Webhook endpoint, fincode registration, or
+production configuration. No adapter is authorized to connect to AWS in this
+phase.
 
 The existing contract and HTTP behavior remain canonical in:
 
@@ -368,7 +370,7 @@ identifier/dynamic reference, never the plaintext in CloudFormation or env.
 
 | Action | Resource | Reason | Phase | Decision |
 | --- | --- | --- | --- | --- |
-| `dynamodb:GetItem` | exact ledger and customer mapping table ARNs | reserve/duplicate and mapping read | runtime | allow |
+| `dynamodb:GetItem` | exact ledger, customer mapping, and users table ARNs | reserve/duplicate, mapping, and membership snapshot read | runtime | allow |
 | `dynamodb:PutItem` | exact ledger table ARN | conditional initial reserve | runtime | allow |
 | `dynamodb:UpdateItem` | exact ledger table ARN | retryable/manual state outside completion transaction | runtime | allow |
 | `dynamodb:TransactWriteItems` | exact ledger, users, and membership quota table ARNs | atomic entitlement + quota + completion | runtime | allow |
@@ -503,7 +505,8 @@ Retained tables are not automatically deleted.
 
 ## 19. Open risks and blockers
 
-1. Monthly light allowance 5/20 has no implemented durable quota or consumption path.
+1. Monthly light allowance 5/20 now has a local command adapter schema, but no
+   deployed durable table or reading-side consumption path.
 2. A trusted subscription period key/end is not established by the reviewed
    Webhook payload. Automatic rollover/period-end cancellation remains blocked.
 3. Proposed users membership-version/billing fields are not yet implemented.
@@ -523,13 +526,15 @@ Recommended PRs:
 4. Staging-only IaC, validator, IAM matrix regression tests, flag false.
 5. Staging evidence tooling and runbook; still no production resources.
 
-Port-contract judgment for the next implementation phase:
+Local AWS-adapter judgment for the next implementation phase:
 
 ```text
-READY FOR AWS ADAPTER IMPLEMENTATION
+READY FOR LOCAL LAMBDA/IAC INTEGRATION
 ```
 
-This authorizes only a separately reviewed local AWS adapter implementation. It
-does not authorize AWS access, deployment, mutation, or Webhook enablement. The
-missing light quota and unverified period source must still be resolved before
-paid Webhook enablement.
+This authorizes only separately reviewed local Lambda/IaC integration. It does
+not authorize AWS access, deployment, mutation, or Webhook enablement. Runtime
+composition keeps atomic mutation unavailable unless the reviewed users schema
+version and dedicated light-quota table are both configured. ACTIVE/RUNNING
+events still return no completion plan because no trusted contract period source
+exists. Those gates must be resolved before paid Webhook enablement.
