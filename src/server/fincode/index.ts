@@ -9,3 +9,4 @@ export * from "./webhookFoundation";
 export * from "./webhookHttpAdapter";
 export * from "./webhookPorts";
 export * from "./webhookOrchestrator";
+export * from "./aws";
