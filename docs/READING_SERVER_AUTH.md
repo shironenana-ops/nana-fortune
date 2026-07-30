@@ -2,7 +2,7 @@
 
 ## 既存形式
 
-白音七のtokenはJWTではありません。`lambda/login.py`の`create_session_token()`が発行する独自2セグメント形式です。
+白音七のtokenはJWTではありません。`lambda/login.py`が共通の`lambda/session_token.py::create_session_token()`を使用して発行する独自2セグメント形式です。
 
 ```text
 Base64URL(UTF-8 JSON payload).Base64URL(HMAC-SHA256 signature)

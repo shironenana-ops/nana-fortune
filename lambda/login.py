@@ -1,9 +1,5 @@
-import base64
-import hashlib
-import hmac
 import json
 import os
-import time
 from datetime import datetime, timezone
 
 import boto3
@@ -22,12 +18,11 @@ from auth_security import (
     source_ip_from_event,
     validate_password,
 )
+from session_token import create_session_token
 
 dynamodb = boto3.resource("dynamodb")
 
 TABLE_NAME = os.environ.get("TABLE_NAME", "shirone7_users")
-SESSION_TTL_SECONDS = 60 * 60 * 24
-
 table = dynamodb.Table(TABLE_NAME)
 
 
@@ -72,47 +67,6 @@ def get_method(event):
         or event.get("httpMethod")
         or ""
     ).upper()
-
-
-def get_session_secret():
-    secret = os.environ.get("SESSION_TOKEN_SECRET")
-    if not secret:
-        raise RuntimeError("SESSION_TOKEN_SECRET is not configured")
-    return secret
-
-
-def b64url_encode(raw):
-    return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
-
-
-def create_session_token(user_id):
-    if not isinstance(user_id, str) or not user_id:
-        raise ValueError("user_id is required")
-
-    secret = get_session_secret()
-    now = int(time.time())
-
-    payload = {
-        "user_id": user_id,
-        "iat": now,
-        "exp": now + SESSION_TTL_SECONDS,
-    }
-
-    payload_json = json.dumps(
-        payload,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    ).encode("utf-8")
-    payload_part = b64url_encode(payload_json)
-
-    signature = hmac.new(
-        secret.encode("utf-8"),
-        payload_part.encode("utf-8"),
-        hashlib.sha256,
-    ).digest()
-    signature_part = b64url_encode(signature)
-
-    return f"{payload_part}.{signature_part}"
 
 
 def is_valid_email(email):
