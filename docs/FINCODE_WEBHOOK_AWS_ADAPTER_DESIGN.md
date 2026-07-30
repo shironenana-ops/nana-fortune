@@ -268,15 +268,18 @@ domain, never from raw provider identifiers.
 
 ### 8.2 Current Port judgment
 
-**PORT_CONTRACT_CHANGE_REQUIRED**
+**PORT_CONTRACT_REVISED**
 
-Current Ports expose independent `entitlementWriter.applyDecision()` and
-`ledger.complete()`. They cannot prove that entitlement/quota mutation and
-ledger completion are one DynamoDB transaction. The current orchestrator also
-deliberately never invokes the writer because every transition has
-`mutationAllowed:false`.
+The local contract now exposes `FincodeWebhookAtomicCompletionPort` as the only
+success-completion path. Independent `entitlementWriter.applyDecision()` and
+`ledger.complete()` contracts have been removed. Ledger reserve and retryable
+failure recording remain separate pre-/failure-path operations; neither can
+produce a successful acknowledgement for a newly reserved event.
 
-Minimum change for the implementation PR:
+The implemented request expands the minimum sketch below with a raw-ID-free
+normalized event summary, reviewed plan/period/entitlement/quota/billing
+mutations, fixed result code, digest-only correlation, validated retention, and
+completion time:
 
 ```ts
 interface FincodeWebhookAtomicCompletionPort {
@@ -285,22 +288,23 @@ interface FincodeWebhookAtomicCompletionPort {
     payloadFingerprint: string;
     expectedLedgerState: "RESERVED";
     userReference: string;
-    decision: ReviewedFincodeMutationDecision;
-    period?: TrustedMembershipPeriod;
+    completionPlan: ReviewedFincodeAtomicCompletionPlan;
   }): Promise<
     | "COMPLETED"
-    | "DUPLICATE_COMPLETED"
-    | "CONFLICT"
+    | "ALREADY_COMPLETED"
+    | "CONDITIONAL_CONFLICT"
+    | "UNAVAILABLE"
     | "RETRYABLE_FAILURE"
   >;
 }
 ```
 
-Replace the orchestrator's separate writer/complete success path with this one
-Port. Keep ledger `reserve` and retryable `fail` operations separate. The atomic
-adapter owns `TransactWriteItems`; no caller can acknowledge between its writes.
-Customer-missing classification must also change from the current permanent
-400 behavior to retryable 503 per the reviewed v1 rule.
+The orchestrator calls this Port exactly once after reserve, mapping, transition,
+and reviewed-plan availability. It returns 200 only after `COMPLETED` or
+`ALREADY_COMPLETED`; unavailable, retryable, thrown, unknown, or missing
+completion behavior fails closed. Customer-missing is retryable 503. The future
+atomic adapter owns `TransactWriteItems`; no caller can acknowledge between its
+writes.
 
 ## 9. Lambda adapter
 
@@ -499,18 +503,15 @@ Retained tables are not automatically deleted.
 
 ## 19. Open risks and blockers
 
-1. Current Port contract cannot express atomic writer + ledger completion.
-2. Current orchestrator returns permanent 400 for missing customer mapping, but
-   v1 now requires retryable 503.
-3. Monthly light allowance 5/20 has no implemented durable quota or consumption path.
-4. A trusted subscription period key/end is not established by the reviewed
+1. Monthly light allowance 5/20 has no implemented durable quota or consumption path.
+2. A trusted subscription period key/end is not established by the reviewed
    Webhook payload. Automatic rollover/period-end cancellation remains blocked.
-5. Proposed users membership-version/billing fields are not yet implemented.
-6. Voice usage has a broader dedicated design; blindly resetting
+3. Proposed users membership-version/billing fields are not yet implemented.
+4. Voice usage has a broader dedicated design; blindly resetting
    `monthly_voice_used` would conflict with it.
-7. Three-second end-to-end provider budget must be confirmed in staging, not
+5. Three-second end-to-end provider budget must be confirmed in staging, not
    inferred from local timings.
-8. TTL-expired provider delivery policy needs an accepted-age bound.
+6. TTL-expired provider delivery policy needs an accepted-age bound.
 
 ## 20. Implementation PR split and readiness
 
@@ -522,13 +523,13 @@ Recommended PRs:
 4. Staging-only IaC, validator, IAM matrix regression tests, flag false.
 5. Staging evidence tooling and runbook; still no production resources.
 
-Final design judgment:
+Port-contract judgment for the next implementation phase:
 
 ```text
-PORT_CONTRACT_CHANGE_REQUIRED
+READY FOR AWS ADAPTER IMPLEMENTATION
 ```
 
-The AWS adapter implementation is not ready to begin against the current Ports.
-The minimum atomic-completion Port change in section 8 must be reviewed first.
-The missing light quota and unverified period source must be resolved before
-paid Webhook enablement, even after the Port change.
+This authorizes only a separately reviewed local AWS adapter implementation. It
+does not authorize AWS access, deployment, mutation, or Webhook enablement. The
+missing light quota and unverified period source must still be resolved before
+paid Webhook enablement.

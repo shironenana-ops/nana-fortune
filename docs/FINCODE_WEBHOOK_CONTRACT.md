@@ -31,7 +31,7 @@ types and is not a deployed Lambda handler.
 
 The local adapter fixes these responses:
 
-- completed event, completed duplicate, or safe `NO_OP`: `200 {"receive":"0"}`
+- atomically completed event, completed duplicate, or atomically committed safe manual review: `200 {"receive":"0"}`
 - retryable failure: `503 {"receive":"1"}`
 - permanent validation rejection: `400` with the fixed rejection body
 - missing, ambiguous, or mismatched signature: `401` with the fixed rejection body
@@ -140,10 +140,13 @@ normalized classification, status, and decision, never the raw payload.
 - same semantic digest + same fingerprint: duplicate success; no second mutation
 - same semantic digest + different fingerprint: conflict; no mutation; fail closed
 
-The local ledger Port supports atomic `reserve`, `complete`, and `fail`
-operations. It accepts only the two digests, an explicit validated TTL, and
-fixed result codes. The customer lookup and entitlement writer are also Ports
-only; no repository or writer adapter exists in this phase.
+The local ledger Port supports `reserve` and retryable `fail` operations. It
+accepts only the two digests, an explicit validated TTL, and fixed result codes.
+Successful entitlement/quota/billing changes and ledger completion are exposed
+only through `FincodeWebhookAtomicCompletionPort.applyAndComplete()`. This makes
+it impossible for the orchestrator to acknowledge between a writer call and a
+separate ledger-completion call. No repository or AWS adapter exists in this
+phase.
 
 ## Transition boundary
 
@@ -156,12 +159,14 @@ The pure decision function can return:
 - `NO_OP`
 - `REJECT`
 
-Every current result carries `mutationAllowed: false`. The orchestrator returns
-a retry response, marks no ledger record completed, and never invokes the
-writer for a new event. Only a previously completed duplicate can currently be
-acknowledged successfully.
+The pure transition classifier does not grant persistence authority. A separate
+reviewed completion-plan factory must produce a strict raw-ID-free mutation
+plan, and the atomic completion Port must confirm durable completion before the
+orchestrator acknowledges a new event. Missing mapping, missing plan/Port, and
+retryable completion failure return 503. A completed duplicate remains
+side-effect free and may be acknowledged.
 
-These business rules remain `UNKNOWN` and block the writer:
+These business rules remain deployment gates for the future AWS adapter:
 
 - light and premium entitlement values
 - immediate versus period-end cancellation

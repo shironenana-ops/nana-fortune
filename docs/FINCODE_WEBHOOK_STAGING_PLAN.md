@@ -36,13 +36,15 @@ covered by local tests. These business decisions remain prerequisites:
 - customer-reference generation and storage lifecycle
 - concrete ledger and audit retention values
 
-Then add, in a separate reviewed change:
+The local Port contract now requires a single atomic completion operation and
+has no independent entitlement-writer/ledger-complete success path. Before any
+staging deployment, add in separate reviewed changes:
 
 - Lambda handler with a three-second budget
 - Secrets Manager/dynamic-reference configuration
 - conditional/transactional ledger repository
 - customer-reference lookup adapter
-- entitlement writer adapter
+- reviewed completion-plan resolver and atomic DynamoDB completion adapter
 
 ## Gate 2: AWS Change Set approval
 
