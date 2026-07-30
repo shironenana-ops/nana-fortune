@@ -267,7 +267,7 @@ test("customer mapping未作成とrepository障害は503、mapping conflictは40
   assert.equal(conflict.calls.atomic.length, 0);
 
   const repositoryError = fakeDependencies({
-    customers: { async findByOpaqueCustomerReference() { throw new Error("arn:aws:dynamodb:region:000000000000:table/private customer@example.invalid"); } },
+    customers: { async findByOpaqueCustomerReference() { throw new Error("private repository marker customer@example.invalid"); } },
   });
   const repositoryResponse = await fincode.orchestrateFincodeWebhook(event(), repositoryError.dependencies);
   assert.equal(repositoryResponse.statusCode, 503);
@@ -307,7 +307,7 @@ test("customer mapping未作成とrepository障害は503、mapping conflictは40
     ledgerError.calls.audit,
     repositoryResponse,
   ]);
-  for (const forbidden of ["customer@example.invalid", "000000000000", "RequestId", "secret-provider-reference", SHOP, PLAN, CUSTOMER, SUBSCRIPTION, SIGNATURE]) {
+  for (const forbidden of ["customer@example.invalid", "private repository marker", "RequestId", "secret-provider-reference", SHOP, PLAN, CUSTOMER, SUBSCRIPTION, SIGNATURE]) {
     assert.doesNotMatch(serialized, new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 });
