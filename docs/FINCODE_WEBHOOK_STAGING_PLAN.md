@@ -5,10 +5,11 @@ Recorded: 2026-07-30
 
 ## Current boundary
 
-The repository contains a pure local foundation only. It has no Lambda handler,
-API Gateway route, DynamoDB writer, AWS SDK adapter, Webhook secret, deployed
-endpoint, or fincode Webhook registration. Production use is prohibited until
-all gates below pass.
+The repository contains a pure local foundation, a structural API Gateway HTTP
+API v2 adapter, a local orchestrator, and Port contracts. It still has no Lambda
+handler, API Gateway route, DynamoDB adapter/writer, AWS SDK adapter, Webhook
+secret, deployed endpoint, or fincode Webhook registration. Production use is
+prohibited until all gates below pass.
 
 Existing `/join`, terms, commercial-transactions, and MOSH operations copy still
 describe the current MOSH manual flow. They are deliberately unchanged in this
@@ -22,27 +23,26 @@ phase. Before direct fincode sales are opened, review at least:
 - `docs/MOSH_FINCODE_OPERATIONS.md`
 - `docs/MOSH_FINCODE_RELEASE_CHECKLIST.md`
 
-## Gate 1: local adapter design approval
+## Gate 1: local adapter design approval (implemented, mutation closed)
 
-Before implementation, confirm:
+The HTTP response mapping, strict body handling, signature-first order,
+digest-only ledger contract, and fixed audit classification are implemented and
+covered by local tests. These business decisions remain prerequisites:
 
-- fixed HTTP response mapping for denied versus retryable results
 - exact entitlement values for each staging plan
 - cancellation timing
 - `INCOMPLETE` handling
 - plan-update behavior
 - customer-reference generation and storage lifecycle
-- ledger retention and audit retention
+- concrete ledger and audit retention values
 
 Then add, in a separate reviewed change:
 
-- API Gateway v2 event adapter
 - Lambda handler with a three-second budget
 - Secrets Manager/dynamic-reference configuration
 - conditional/transactional ledger repository
-- customer-reference lookup repository
-- entitlement writer
-- fixed safe error responses
+- customer-reference lookup adapter
+- entitlement writer adapter
 
 ## Gate 2: AWS Change Set approval
 

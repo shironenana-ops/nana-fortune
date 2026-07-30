@@ -1,6 +1,6 @@
 # fincode Webhook contract
 
-Status: local foundation only / no AWS adapter / no entitlement writer / production prohibited
+Status: local foundation + HTTP/orchestrator only / no AWS adapter / no entitlement writer / production prohibited
 Recorded: 2026-07-30
 
 ## Sources and scope
@@ -14,8 +14,9 @@ provider documentation was checked on 2026-07-30:
 - <https://docs.fincode.jp/payment/subscription/attention>
 
 No fincode API, dashboard, Webhook endpoint, AWS account, or secret was accessed.
-The code under `src/server/fincode/` is transport-independent and performs no
-network or database operations.
+The code under `src/server/fincode/` performs no network or database operations.
+It includes a structural API Gateway HTTP API v2 adapter but imports no AWS SDK
+types and is not a deployed Lambda handler.
 
 ## HTTP and response contract
 
@@ -28,14 +29,18 @@ network or database operations.
 - Retry: at most five retries, six total deliveries, approximately twenty
   minutes between retries
 
-The local foundation does not choose HTTP status codes. The future adapter must
-map fixed internal result codes to responses only after the following policy is
-reviewed:
+The local adapter fixes these responses:
 
-- accepted new event and exact duplicate: `200 {"receive":"0"}`
-- ledger conflict, transaction failure, or temporary internal failure: retryable
-- invalid signature, malformed payload, unsupported event, environment mismatch:
-  fail closed; final retry/non-retry response mapping requires adapter review
+- completed event, completed duplicate, or safe `NO_OP`: `200 {"receive":"0"}`
+- retryable failure: `503 {"receive":"1"}`
+- permanent validation rejection: `400` with the fixed rejection body
+- missing, ambiguous, or mismatched signature: `401` with the fixed rejection body
+- semantic-key/fingerprint conflict: `409` with the fixed rejection body
+
+The rejection body is
+`{"receive":"1","code":"FINCODE_WEBHOOK_REJECTED"}`. It contains no internal
+classification. A 4xx can still be redelivered by the provider; every repeat
+must remain side-effect free.
 
 Unsupported events are not registered in fincode. Receiving one is a
 configuration or security signal, not an entitlement update.
@@ -135,7 +140,10 @@ normalized classification, status, and decision, never the raw payload.
 - same semantic digest + same fingerprint: duplicate success; no second mutation
 - same semantic digest + different fingerprint: conflict; no mutation; fail closed
 
-The repository interfaces have no implementation in this phase.
+The local ledger Port supports atomic `reserve`, `complete`, and `fail`
+operations. It accepts only the two digests, an explicit validated TTL, and
+fixed result codes. The customer lookup and entitlement writer are also Ports
+only; no repository or writer adapter exists in this phase.
 
 ## Transition boundary
 
@@ -148,8 +156,10 @@ The pure decision function can return:
 - `NO_OP`
 - `REJECT`
 
-Every result carries `mutationAllowed: false`. No plan entitlement value or
-users-table update is produced.
+Every current result carries `mutationAllowed: false`. The orchestrator returns
+a retry response, marks no ledger record completed, and never invokes the
+writer for a new event. Only a previously completed duplicate can currently be
+acknowledged successfully.
 
 These business rules remain `UNKNOWN` and block the writer:
 
