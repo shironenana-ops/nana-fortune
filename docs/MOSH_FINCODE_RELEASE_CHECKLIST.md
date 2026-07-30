@@ -1,5 +1,9 @@
 # MOSH＋fincode リリースチェックリスト
 
+> **Scope note (2026-07-30):** This checklist applies to the existing MOSH
+> flow. Direct fincode release requires the separate staging gates in
+> `FINCODE_WEBHOOK_STAGING_PLAN.md` and is not authorized by this checklist.
+
 ## MOSH
 
 - [ ] 3サービスの公開状態、URL、価格を確認

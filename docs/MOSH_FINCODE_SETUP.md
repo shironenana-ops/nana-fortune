@@ -1,5 +1,9 @@
 # MOSH＋fincode 初期設定
 
+> **Scope note (2026-07-30):** The steps below describe the existing MOSH flow.
+> Direct fincode migration is a separate future path documented in
+> `FINCODE_WEBHOOK_CONTRACT.md`; it is not deployed or production-ready.
+
 ## 役割
 
 - 白音七：商品説明、会員アカウント、利用権、履歴、音声枠
