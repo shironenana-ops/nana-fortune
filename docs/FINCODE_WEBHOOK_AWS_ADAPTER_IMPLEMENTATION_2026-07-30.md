@@ -1,6 +1,6 @@
 # fincode Webhook AWS Adapter local implementation
 
-Status: local implementation complete / AWS disconnected / success path fail closed
+Status: local adapter and membership/quota contracts complete / AWS disconnected / runtime success path fail closed
 Recorded: 2026-07-30
 
 ## Scope
@@ -27,9 +27,9 @@ or production configuration was created or changed.
 ## Atomicity and quota invariants
 
 The transaction requires the expected ledger fingerprint/state/environment and
-the expected users membership schema/version/plan/status/period. The light quota
-update uses a digest key and `if_not_exists(used, 0)`, so an existing same-period
-usage count is never reset. A new period initializes only an absent counter.
+the expected users membership schema/version/plan/status/period. A same-period
+delivery condition-checks the existing quota without changing its usage or
+limit. A new trusted period uses an absent-only Put and initializes `used=0`.
 Deep quota is neither granted nor reset by the Webhook transaction.
 
 The deterministic transaction token is derived only from semantic digests and a
@@ -46,15 +46,18 @@ Atomic mutation is unavailable unless all of the following are explicit:
 - matching Webhook and Secret environments
 
 The reviewed fincode event does not contain a trustworthy contract period.
-Therefore the default local completion-plan factory returns no plan for
-ACTIVE/RUNNING events. It does not infer a period from process/start/stop dates
+`FincodeSubscriptionPeriodSource` and its strict local fake now define the
+required boundary, but no live provider adapter is implemented. ACTIVE/RUNNING
+returns 503 before ledger reservation unless that Source resolves a canonical
+period. It does not infer a period from process/start/stop dates, receive time,
 or the local calendar. INCOMPLETE and CANCELED can only produce bounded
 manual-review billing records without granting/revoking entitlement or quota.
 
-Consequently, this implementation does not open an entitlement success path.
-Providing a trusted contract period source, deploying the reviewed users/light
-quota schemas, and reviewing the reading-side light consumption path are later
-gates.
+The users membership v1 schema, deterministic light quota schema, and local
+reserve/complete/release command builders are recorded in
+`FINCODE_MEMBERSHIP_LIGHT_QUOTA_PERIOD_DESIGN_2026-07-30.md`. Consequently, the
+local contracts are ready for a separate Lambda/IaC integration, but no runtime
+entitlement success path is open.
 
 ## Configuration keys
 
@@ -78,11 +81,11 @@ No plaintext signature is accepted from configuration.
 ## Remaining integration work
 
 1. Review and deploy dedicated ledger, customer-mapping, and light-quota schemas.
-2. Add the reviewed membership schema/version fields to staging users records.
-3. Establish a separately trusted contract-period source.
-4. Integrate a local Lambda handler with `maxAttempts: 1` clients and deadline handling.
-5. Add staging-only IaC/IAM and validate it through a separate Change Set workflow.
-6. Implement and review reading-side light quota consumption before enablement.
+2. Migrate eligible staging users to the reviewed membership schema.
+3. Implement and review the live trusted contract-period source adapter.
+4. Wire light reserve/complete/release into existing reading transactions.
+5. Integrate a local Lambda handler with `maxAttempts: 1` clients and deadline handling.
+6. Add staging-only IaC/IAM and validate it through a separate Change Set workflow.
 
 Final local judgment:
 

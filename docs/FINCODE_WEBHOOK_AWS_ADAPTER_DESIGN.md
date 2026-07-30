@@ -1,6 +1,6 @@
 # fincode Webhook AWS Adapter design
 
-Status: local adapter implemented / AWS disconnected / Lambda and IaC integration not authorized
+Status: local adapter and membership/quota contracts implemented / AWS disconnected / Lambda and IaC integration not authorized
 Recorded: 2026-07-30
 Canonical for: AWS adapter, storage, transaction, IAM, and staging rollout design
 
@@ -214,30 +214,31 @@ Webhook may update only reviewed membership authority fields in `ReadingUsersTab
 
 - `plan`, `subscription_status`, `deep_enabled`
 - `monthly_voice_limit`
-- `cancel_at_period_end`, `current_period_end` only from a trusted period source
-- proposed `membership_contract_ref_digest`, `membership_period_key`,
-  `membership_version`, `last_membership_event_digest`, and safe billing state
+- `cancel_at_period_end`, `current_period_start`, and `current_period_end` only
+  from a trusted period source
+- `membership_schema_version`, `membership_version`, `membership_source`,
+  `membership_updated_at`, `last_membership_event_digest`, and safe billing state
 
 It must not change password/authentication fields, `extra_voice_remaining`,
 history, prior generated assets, Stripe legacy fields, or arbitrary user data.
 
-The proposed fields do not yet exist as an implemented contract and require a
-separate schema/reader review before coding.
+The local schema/reader contract is implemented and recorded in
+`FINCODE_MEMBERSHIP_LIGHT_QUOTA_PERIOD_DESIGN_2026-07-30.md`. Existing users are
+not migrated by this change; legacy records fail closed until reviewed.
 
 `ReadingDeepQuotaTable` remains the canonical deep-use store and already limits
 premium deep to three per JST month. Webhook must not reset its `used` value.
 Deactivation is enforced by the existing users ConditionCheck.
 
-The monthly light allowance has no current durable schema. Add a dedicated
-membership usage table (provisional logical name
-`FincodeMembershipQuotaTable`) keyed by a digest of user + authoritative period
-+ usage type. Minimum item fields are `quota_ref`, `period_key`, `usage_type`,
-`plan`, `limit`, `used`, `version`, timestamps, and TTL. Webhook may create a new
-period item with `used=0` only under `attribute_not_exists(quota_ref)`; it must
-never overwrite an existing counter. The reading acceptance path must later
-consume this quota atomically. Until that implementation exists, the stated
-monthly light limits are policy only and paid-light production release is not
-ready.
+The local monthly light schema is a dedicated usage item keyed by a digest of
+internal user + authoritative period. It stores canonical period identity,
+plan, fixed limit, used count, bounded reservations, completed request digests,
+membership/version conditions, timestamps, and TTL. Webhook creates a new
+period item with `used=0` only under `attribute_not_exists(quota_ref)` and
+condition-checks same-period items without changing usage. Local reading
+reserve/complete/release builders are implemented; final transaction wiring and
+the durable table remain later integration work. Paid-light runtime release is
+not ready.
 
 ## 8. Atomic transaction and Port contract
 
@@ -505,11 +506,11 @@ Retained tables are not automatically deleted.
 
 ## 19. Open risks and blockers
 
-1. Monthly light allowance 5/20 now has a local command adapter schema, but no
-   deployed durable table or reading-side consumption path.
-2. A trusted subscription period key/end is not established by the reviewed
-   Webhook payload. Automatic rollover/period-end cancellation remains blocked.
-3. Proposed users membership-version/billing fields are not yet implemented.
+1. Monthly light allowance 5/20 has local schema and lifecycle builders, but no
+   deployed durable table or final reading transaction wiring.
+2. The trusted subscription-period Port is implemented, but no live provider
+   adapter exists. Automatic rollover/period-end cancellation remains blocked.
+3. Users membership v1 is locally defined, but existing records are not migrated.
 4. Voice usage has a broader dedicated design; blindly resetting
    `monthly_voice_used` would conflict with it.
 5. Three-second end-to-end provider budget must be confirmed in staging, not
@@ -536,5 +537,6 @@ This authorizes only separately reviewed local Lambda/IaC integration. It does
 not authorize AWS access, deployment, mutation, or Webhook enablement. Runtime
 composition keeps atomic mutation unavailable unless the reviewed users schema
 version and dedicated light-quota table are both configured. ACTIVE/RUNNING
-events still return no completion plan because no trusted contract period source
-exists. Those gates must be resolved before paid Webhook enablement.
+events return retryable 503 before ledger reservation unless an injected
+trusted period Source resolves a validated canonical period. Those gates must
+be resolved before paid Webhook enablement.
