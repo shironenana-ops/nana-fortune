@@ -1,5 +1,9 @@
 # MOSH＋fincode 運用手順
 
+> **Scope note (2026-07-30):** This is the current MOSH manual-operations
+> record, not the design for direct fincode automation. The migration target is
+> documented in `FINCODE_WEBHOOK_CONTRACT.md` and remains local-only.
+
 ## 現在の方式
 
 公式公開情報で白音七向けAPI・Webhookの具体的利用仕様を確認できていないため、初期運用は手動照合です。

@@ -11,6 +11,7 @@
     "build:reading-status-handler": "node scripts/build-reading-status-handler.mjs",
     "build:reading-light-worker": "node scripts/build-reading-light-worker.mjs",
     "build:reading-deep-worker": "node scripts/build-reading-deep-worker.mjs",
+    "build:fincode-webhook-handler": "node scripts/build-fincode-webhook-handler.mjs",
     "validate:reading-staging-iac": "node scripts/validate-reading-staging-iac.mjs",
     "test:reading-async": "node --test tests/readingAsync*.test.mjs",
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
@@ -31,6 +32,7 @@
     "@astrojs/vercel": "^10.0.8",
     "@aws-sdk/client-bedrock-runtime": "3.1089.0",
     "@aws-sdk/client-dynamodb": "3.1089.0",
+    "@aws-sdk/client-secrets-manager": "3.1089.0",
     "@aws-sdk/client-sqs": "3.1089.0",
     "astro": "^6.4.8",
     "sharp": "^0.34.3"

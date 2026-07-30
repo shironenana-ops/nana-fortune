@@ -8,9 +8,11 @@ import {
   type TransactWriteItem,
 } from "@aws-sdk/client-dynamodb";
 import { ServerFoundationError } from "../http/errors";
+import { createFincodePeriodId } from "../fincode/subscriptionPeriodSource";
 import type { PublicReadingResponse } from "../readingApi/readingApiTypes";
 import { calculateDeepRemaining, createDeepQuotaRef, DEEP_QUOTA_SCHEMA_VERSION, getJstPeriodKey, PREMIUM_DEEP_MONTHLY_LIMIT } from "../readingPersistence/deepQuota";
 import type { ReadingPersistenceConfig } from "../readingPersistence/persistenceConfig";
+import { completeLightQuota, createLightQuotaRef, LIGHT_QUOTA_SCHEMA_VERSION, releaseLightQuota, reserveLightQuota, validateLightQuotaRecord, type LightQuotaRecord } from "../readingPersistence/lightQuota";
 import { fingerprintsEqual } from "../readingPersistence/requestFingerprint";
 import { DynamoReadingRateLimiter, type RateControlReservation } from "../readingRateLimit/dynamoReadingRateLimiter";
 import type { ReadingAsyncConfig } from "./readingAsyncConfig";
@@ -78,6 +80,11 @@ function parseJob(item: Item | undefined): ReadingJob | undefined {
   const failure = optionalText("safe_failure_category"); if (failure) job.safeFailureCategory = failure as ReadingJobFailureCategory;
   const deepId = optionalText("deep_reservation_id");
   if (deepId) job.deepReservation = { quotaRef: optionalText("deep_quota_ref")!, periodKey: optionalText("deep_period_key")!, reservationId: deepId, reservationExpiresAt: optionalNumber("deep_reservation_expires_at")! };
+  const lightId = optionalText("light_reservation_id");
+  if (lightId) job.lightReservation = {
+    quotaRef: optionalText("light_quota_ref")!, periodId: optionalText("light_period_id")!, periodStart: optionalText("light_period_start")!, periodEnd: optionalText("light_period_end")!,
+    membershipVersion: optionalNumber("light_membership_version")!, plan: optionalText("light_plan") as "light" | "premium", reservationId: lightId,
+  };
   if (!job.jobRef || !job.historyId || !/^[0-9a-f]{64}$/u.test(job.requestRef) || !/^[0-9a-f]{64}$/u.test(job.fingerprint) || !job.ownerUserId || !/^[0-9a-f]{64}$/u.test(job.ownerRef)) {
     throw new ServerFoundationError("READING_JOB_INCONSISTENT");
   }
@@ -90,6 +97,23 @@ function quotaItem(tableName: string, previous: Quota | undefined, next: Quota, 
     used: N(next.used), reservations: { L: next.reservations.map((value) => ({ M: { reservation_id: S(value.reservationId), request_ref: S(value.requestRef), history_id: S(value.historyId), reserved_at: S(value.reservedAt), expires_at: N(value.expiresAt) } })) },
     version: N(next.version), created_at: S(next.createdAt), updated_at: S(now.toISOString()), expires_at: N(Math.floor(now.getTime() / 1000) + 370 * 24 * 60 * 60),
   }, ConditionExpression: previous ? "#version=:version" : "attribute_not_exists(quota_ref)", ...(previous ? { ExpressionAttributeNames: { "#version": "version" }, ExpressionAttributeValues: { ":version": N(previous.version) } } : {}) } };
+}
+
+function parseLightQuota(item: Item | undefined): LightQuotaRecord | null {
+  if (!item) return null;
+  const reservations = item.reservations && "L" in item.reservations ? (item.reservations.L ?? []).map((entry) => {
+    if (!("M" in entry) || !entry.M) throw new ServerFoundationError("READING_LIGHT_QUOTA_INCONSISTENT");
+    return { requestRef: text(entry.M, "request_ref"), historyId: text(entry.M, "history_id"), reservationId: text(entry.M, "reservation_id"), reservedAt: text(entry.M, "reserved_at"), expiresAt: number(entry.M, "expires_at") };
+  }) : [];
+  const completed = item.completed_request_refs && "SS" in item.completed_request_refs ? item.completed_request_refs.SS ?? [] : [];
+  const record: LightQuotaRecord = {
+    quotaRef: text(item, "quota_ref"), periodId: text(item, "period_id"), periodStart: text(item, "period_start"), periodEnd: text(item, "period_end"),
+    plan: text(item, "plan") as LightQuotaRecord["plan"], limit: number(item, "limit") as 5 | 20, used: number(item, "used"), reservations,
+    completedRequestRefs: [...completed], version: number(item, "version"), membershipVersion: number(item, "membership_version"),
+    createdAt: text(item, "created_at"), updatedAt: text(item, "updated_at"), expiresAt: number(item, "expires_at"),
+  };
+  if (text(item, "schema_version") !== LIGHT_QUOTA_SCHEMA_VERSION || !validateLightQuotaRecord(record)) throw new ServerFoundationError("READING_LIGHT_QUOTA_INCONSISTENT");
+  return record;
 }
 
 export class DynamoAsyncReadingPersistence implements AsyncReadingPersistence {
@@ -148,6 +172,20 @@ export class DynamoAsyncReadingPersistence implements AsyncReadingPersistence {
     const nowEpoch = Math.floor(params.now.getTime() / 1000);
     const actions: TransactWriteItem[] = [...rate.actions];
     let deepReservation: ReadingJob["deepReservation"];
+    let lightReservation: ReadingJob["lightReservation"];
+    if (params.mode === "light" && this.config.lightQuota?.enabled) {
+      const light = this.config.lightQuota;
+      if (!params.membership || params.membership.subscriptionStatus !== "active") throw new ServerFoundationError("READING_LIGHT_QUOTA_CONFIG_ERROR");
+      const periodId = createFincodePeriodId(params.membership.currentPeriodStart, params.membership.currentPeriodEnd);
+      const quotaRef = createLightQuotaRef({ userId: params.userId, periodId });
+      const previous = parseLightQuota(await this.get(light.tableName, { quota_ref: S(quotaRef) }));
+      const reservationId = this.uuid();
+      const result = reserveLightQuota({ tableName: light.tableName, item: previous, userId: params.userId, periodId, membership: params.membership, mode: "light", requestRef: params.requestRef, historyId: params.historyId, reservationId, reservationSeconds: light.reservationSeconds, now: params.now });
+      if (result.status === "LIMIT_REACHED") throw new ServerFoundationError("READING_LIGHT_MONTHLY_LIMIT_REACHED");
+      if (result.status !== "RESERVED") throw new ServerFoundationError("READING_LIGHT_QUOTA_INCONSISTENT");
+      actions.push(result.action);
+      lightReservation = { quotaRef, periodId, periodStart: params.membership.currentPeriodStart, periodEnd: params.membership.currentPeriodEnd, membershipVersion: params.membership.version, plan: params.membership.plan, reservationId };
+    }
     if (params.mode === "deep") {
       const deep = this.config.deepQuota;
       if (!deep) throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
@@ -162,6 +200,7 @@ export class DynamoAsyncReadingPersistence implements AsyncReadingPersistence {
     const job: Item = {
       job_ref: S(params.jobRef), schema_version: S(READING_JOB_SCHEMA_VERSION), history_id: S(params.historyId), request_ref: S(params.requestRef), fingerprint: S(params.fingerprint), mode: S(params.mode), state: S("QUEUED"), version: N(1), owner_user_id: S(params.userId), owner_ref: S(params.ownerRef), canonical_input: canonicalMap(params.canonicalInput), created_at: S(params.now.toISOString()), updated_at: S(params.now.toISOString()), attempt_count: N(0), expires_at: N(nowEpoch + this.config.jobTtlSeconds),
       ...(deepReservation ? { deep_quota_ref: S(deepReservation.quotaRef), deep_period_key: S(deepReservation.periodKey), deep_reservation_id: S(deepReservation.reservationId), deep_reservation_expires_at: N(deepReservation.reservationExpiresAt) } : {}),
+      ...(lightReservation ? { light_quota_ref: S(lightReservation.quotaRef), light_period_id: S(lightReservation.periodId), light_period_start: S(lightReservation.periodStart), light_period_end: S(lightReservation.periodEnd), light_membership_version: N(lightReservation.membershipVersion), light_plan: S(lightReservation.plan), light_reservation_id: S(lightReservation.reservationId) } : {}),
     };
     actions.push(
       { Put: { TableName: this.config.jobsTable, Item: job, ConditionExpression: "attribute_not_exists(job_ref)" } },
@@ -224,6 +263,7 @@ export class DynamoAsyncReadingPersistence implements AsyncReadingPersistence {
       ...(release ? [release] : []),
     ];
     if (params.job.deepReservation) await this.addDeepTerminalActions(actions, params.job, params.now, true);
+    if (params.job.lightReservation) await this.addLightTerminalAction(actions, params.job, params.now, true);
     try { await this.sender.send(new TransactWriteItemsCommand({ TransactItems: actions })); }
     catch (error) { throw new ServerFoundationError("READING_JOB_UNAVAILABLE", { cause: error }); }
   }
@@ -239,6 +279,22 @@ export class DynamoAsyncReadingPersistence implements AsyncReadingPersistence {
     actions.push(quotaItem(deep.tableName, previous, next, now));
   }
 
+  private async addLightTerminalAction(actions: TransactWriteItem[], job: ReadingJob, now: Date, consume: boolean) {
+    const config = this.config.lightQuota; const reservation = job.lightReservation;
+    if (!config?.enabled || !reservation) throw new ServerFoundationError("READING_LIGHT_QUOTA_INCONSISTENT");
+    const item = parseLightQuota(await this.get(config.tableName, { quota_ref: S(reservation.quotaRef) }));
+    const common = {
+      tableName: config.tableName, item, userId: job.ownerUserId, periodId: reservation.periodId,
+      membership: { plan: reservation.plan, subscriptionStatus: "active" as const, currentPeriodStart: reservation.periodStart, currentPeriodEnd: reservation.periodEnd, version: reservation.membershipVersion },
+      mode: "light" as const, requestRef: job.requestRef, now, reservationId: reservation.reservationId,
+    };
+    const result = consume ? completeLightQuota(common) : releaseLightQuota(common);
+    if (consume && result.status === "DUPLICATE_COMPLETED") return;
+    if (!consume && result.status === "ALREADY_RELEASED") return;
+    if (!("action" in result)) throw new ServerFoundationError("READING_LIGHT_QUOTA_INCONSISTENT");
+    actions.push(result.action);
+  }
+
   async fail(params: { job: ReadingJob; category: ReadingJobFailureCategory; now: Date }): Promise<void> {
     const release = await this.rateLimiter.prepareConcurrencyRelease(this.concurrencyReservation(params.job), params.job.requestRef, params.now);
     const actions: TransactWriteItem[] = [
@@ -248,6 +304,7 @@ export class DynamoAsyncReadingPersistence implements AsyncReadingPersistence {
       ...(release ? [release] : []),
     ];
     if (params.job.deepReservation) await this.addDeepTerminalActions(actions, params.job, params.now, false);
+    if (params.job.lightReservation) await this.addLightTerminalAction(actions, params.job, params.now, false);
     try { await this.sender.send(new TransactWriteItemsCommand({ TransactItems: actions })); }
     catch (error) { throw new ServerFoundationError("READING_JOB_UNAVAILABLE", { cause: error }); }
   }

@@ -68,6 +68,13 @@ export async function executeReadingApi(
         resolvedMode: command.resolvedMode,
       },
       now,
+      ...(command.resolvedMode === "light" ? { membership: {
+        plan: membershipContext.entitlements.tier as "light" | "premium",
+        subscriptionStatus: membershipContext.entitlements.subscriptionStatus as "active",
+        currentPeriodStart: String(membershipContext.membership.current_period_start ?? ""),
+        currentPeriodEnd: String(membershipContext.membership.current_period_end ?? ""),
+        version: Number(membershipContext.membership.membership_version),
+      } } : {}),
     });
     auditEvent(result.status === "queued" ? "reading_job_queued" : "reading_job_replayed_completed", "success");
     return result;

@@ -1,5 +1,10 @@
 # MOSH＋fincode 課金基盤監査
 
+> **Scope note (2026-07-30):** This document records the existing MOSH manual
+> reconciliation flow. The migration target is a direct fincode connection;
+> its local Webhook foundation is documented in `FINCODE_WEBHOOK_CONTRACT.md`.
+> Production use remains prohibited until review and staging approval complete.
+
 ## 既存構成
 
 - 会員ランク：`free` / `light` / `premium`
