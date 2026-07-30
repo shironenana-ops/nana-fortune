@@ -1,8 +1,8 @@
 import type { FincodeEnvironment } from "../webhookTypes";
+import { FINCODE_MEMBERSHIP_SCHEMA_VERSION } from "../membershipSchema";
 import { FincodeWebhookAwsError } from "./webhookAwsErrors";
 
-export const FINCODE_MEMBERSHIP_SCHEMA_VERSION = "shirone-membership-v1";
-export const FINCODE_MEMBERSHIP_QUOTA_SCHEMA_VERSION = "fincode-membership-quota-v1";
+export { FINCODE_MEMBERSHIP_SCHEMA_VERSION };
 
 export type FincodeWebhookAwsConfig = {
   enabled: boolean;

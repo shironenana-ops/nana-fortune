@@ -9,6 +9,9 @@ const api = await import(`${new URL(`../${output}`, import.meta.url).href}?v=${D
 
 const DIGEST_A = "a".repeat(64);
 const DIGEST_B = "b".repeat(64);
+const PERIOD_START = "2026-08-01T00:00:00.000Z";
+const PERIOD_END = "2026-09-01T00:00:00.000Z";
+const PERIOD_ID = api.createFincodePeriodId(PERIOD_START, PERIOD_END);
 const baseEnv = {
   FINCODE_WEBHOOK_ENVIRONMENT: "staging",
   FINCODE_WEBHOOK_SIGNATURE_SECRET_ENVIRONMENT: "staging",
@@ -85,8 +88,10 @@ test("customer mapping hashes the opaque reference and uses two consistent GetIt
       customer_ref_digest: { S: DIGEST_A }, internal_user_id: { S: "staging_fixture_user" }, environment: { S: "staging" },
       mapping_status: { S: "ACTIVE" }, version: { N: "1" },
     } } : { Item: {
-      user_id: { S: "staging_fixture_user" }, membership_version: { N: "2" }, plan: { S: "light" },
-      subscription_status: { S: "active" }, membership_period_key: { S: "2026-08" },
+      user_id: { S: "staging_fixture_user" }, membership_schema_version: { S: "shirone-membership-v1" }, membership_version: { N: "2" }, plan: { S: "light" },
+      subscription_status: { S: "active" }, current_period_start: { S: PERIOD_START }, current_period_end: { S: PERIOD_END },
+      deep_enabled: { BOOL: false }, monthly_voice_limit: { N: "3" }, monthly_voice_used: { N: "1" }, extra_voice_remaining: { N: "2" },
+      cancel_at_period_end: { BOOL: false }, membership_source: { S: "fincode_direct" }, membership_updated_at: { S: "2026-07-30T00:00:00.000Z" },
     } };
   } };
   const mapping = new api.DynamoFincodeCustomerMapping(client, "mapping-staging", "users-staging", "staging");
@@ -106,6 +111,20 @@ test("customer mapping distinguishes missing mapping and rejects environment mis
     internal_user_id: { S: "fixture_user" }, environment: { S: "production" }, mapping_status: { S: "ACTIVE" }, version: { N: "1" },
   } }) }, "mapping-staging", "users-staging", "staging");
   assert.deepEqual(await mismatch.findByOpaqueCustomerReference("opaque"), { status: "CONFLICT" });
+});
+
+test("customer mapping fails closed for legacy paid membership without a trusted period", async () => {
+  let call = 0;
+  const client = { send: async () => call++ === 0 ? { Item: {
+    internal_user_id: { S: "fixture_user" }, environment: { S: "staging" }, mapping_status: { S: "ACTIVE" }, version: { N: "1" },
+  } } : { Item: {
+    user_id: { S: "fixture_user" }, membership_schema_version: { S: "shirone-membership-v1" }, membership_version: { N: "1" },
+    plan: { S: "light" }, subscription_status: { S: "active" }, deep_enabled: { BOOL: false }, monthly_voice_limit: { N: "3" },
+    monthly_voice_used: { N: "0" }, extra_voice_remaining: { N: "0" }, cancel_at_period_end: { BOOL: false },
+    membership_source: { S: "legacy_migration" }, membership_updated_at: { S: "2026-07-30T00:00:00.000Z" },
+  } } };
+  const mapping = new api.DynamoFincodeCustomerMapping(client, "mapping-staging", "users-staging", "staging");
+  assert.deepEqual(await mapping.findByOpaqueCustomerReference("opaque"), { status: "CONFLICT" });
 });
 
 test("signature adapter caches one secret and never exposes provider failures", async () => {
@@ -135,10 +154,10 @@ function completionRequest() {
     normalizedEvent: { environment: "staging", eventType: "subscription.card.regist", status: "ACTIVE" },
     correlationDigest: "c".repeat(64), retentionTtlSeconds: 7_776_000, completedAt: "2026-07-30T00:00:00.000Z",
     completionPlan: {
-      decision: "ACTIVATE_SUBSCRIPTION", expectedMembership: { version: 1, plan: "free", subscriptionStatus: "inactive", periodKey: null },
-      plan: "light", finalLedgerState: "COMPLETED", period: { source: "TRUSTED_MEMBERSHIP_SOURCE", periodKey: "2026-08", periodEnd: "2026-09-01T00:00:00.000Z" },
+      decision: "ACTIVATE_SUBSCRIPTION", expectedMembership: { version: 1, plan: "free", subscriptionStatus: "inactive", currentPeriodStart: null, currentPeriodEnd: null },
+      plan: "light", finalLedgerState: "COMPLETED", period: { source: "TRUSTED_MEMBERSHIP_SOURCE", sourceVersion: "fixture-v1", periodId: PERIOD_ID, periodStart: PERIOD_START, periodEnd: PERIOD_END },
       entitlementMutation: { kind: "SET_MEMBERSHIP", plan: "light", subscriptionStatus: "active", deepEnabled: false, monthlyVoiceLimit: 3, cancelAtPeriodEnd: false },
-      quotaMutation: { kind: "CREATE_PERIOD_ALLOWANCE", periodKey: "2026-08", lightLimit: 5, preserveExistingUsage: true },
+      quotaMutation: { kind: "CREATE_PERIOD_ALLOWANCE", periodId: PERIOD_ID, lightLimit: 5, preserveExistingUsage: true },
       billingMutation: { kind: "NONE" }, resultCode: "ENTITLEMENT_APPLIED", ledgerOnly: false,
     },
   };
@@ -152,15 +171,39 @@ test("atomic completion emits exactly one bounded transaction with all three con
   assert.equal(command.constructor.name, "TransactWriteItemsCommand");
   assert.equal(command.input.TransactItems.length, 3);
   assert.equal(command.input.TransactItems.filter((item) => item.Update?.TableName === "users-staging").length, 1);
-  assert.equal(command.input.TransactItems.filter((item) => item.Update?.TableName === "light-quota-staging").length, 1);
+  assert.equal(command.input.TransactItems.filter((item) => item.Put?.TableName === "light-quota-staging").length, 1);
   assert.equal(command.input.TransactItems.filter((item) => item.Update?.TableName === "ledger-staging").length, 1);
   const serialized = JSON.stringify(command.input);
   assert.equal(serialized.includes("deep-quota-staging"), false);
   assert.equal(serialized.includes("monthly_voice_used"), false);
   assert.equal(serialized.includes("extra_voice_remaining"), false);
-  assert.match(serialized, /if_not_exists\(used/);
   assert.match(serialized, /attribute_not_exists\(quota_ref\)/);
   assert.equal(command.input.ClientRequestToken.length, 36);
+});
+
+test("same-period atomic completion condition-checks membership and quota without resetting usage or limit", async () => {
+  let command;
+  const config = api.readFincodeWebhookAwsConfig(baseEnv);
+  const request = completionRequest();
+  request.completionPlan = {
+    decision: "UPDATE_SUBSCRIPTION",
+    expectedMembership: { version: 2, plan: "light", subscriptionStatus: "active", currentPeriodStart: PERIOD_START, currentPeriodEnd: PERIOD_END },
+    plan: "light", finalLedgerState: "COMPLETED", period: request.completionPlan.period,
+    entitlementMutation: { kind: "VERIFY_MEMBERSHIP" },
+    quotaMutation: { kind: "VERIFY_PERIOD_ALLOWANCE", periodId: PERIOD_ID, expectedLimit: 5, preserveExistingUsage: true },
+    billingMutation: { kind: "NONE" }, resultCode: "WEBHOOK_COMPLETED", ledgerOnly: false,
+  };
+  const adapter = new api.DynamoFincodeAtomicCompletion({ send: async (value) => { command = value; return {}; } }, config);
+  assert.equal(await adapter.applyAndComplete(request), "COMPLETED");
+  assert.equal(command.input.TransactItems.length, 3);
+  assert.equal(command.input.TransactItems.filter((item) => item.ConditionCheck?.TableName === "users-staging").length, 1);
+  assert.equal(command.input.TransactItems.filter((item) => item.ConditionCheck?.TableName === "light-quota-staging").length, 1);
+  assert.equal(command.input.TransactItems.filter((item) => item.Update?.TableName === "ledger-staging").length, 1);
+  const serialized = JSON.stringify(command.input);
+  assert.equal(serialized.includes("used"), false);
+  assert.equal(serialized.includes("reservations"), false);
+  assert.equal(serialized.includes("monthly_voice_used"), false);
+  assert.equal(serialized.includes("extra_voice_remaining"), false);
 });
 
 test("atomic completion and composition fail closed without reviewed schema or trusted period", async () => {
@@ -173,7 +216,7 @@ test("atomic completion and composition fail closed without reviewed schema or t
   assert.equal(composed.atomicCompletion, undefined);
   assert.equal(composed.completionPlanFactory, undefined);
   const factory = api.createFailClosedWebhookCompletionPlanFactory();
-  const active = factory({ event: { status: "ACTIVE" }, membershipSnapshot: { version: 1, plan: "free", subscriptionStatus: "inactive", periodKey: null }, decision: "ACTIVATE_SUBSCRIPTION" });
+  const active = factory({ event: { status: "ACTIVE" }, membershipSnapshot: { version: 1, plan: "free", subscriptionStatus: "inactive", currentPeriodStart: null, currentPeriodEnd: null }, decision: "ACTIVATE_SUBSCRIPTION" });
   assert.equal(active, null);
 });
 

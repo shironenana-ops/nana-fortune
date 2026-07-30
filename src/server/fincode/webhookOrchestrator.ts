@@ -19,9 +19,15 @@ import {
   type FincodeWebhookCustomerPort,
   type FincodeWebhookLedgerPort,
   type FincodeWebhookRetentionPolicy,
+  type FincodeWebhookTrustedMembershipPeriod,
 } from "./webhookPorts";
 import { parseFincodeSubscriptionPayload } from "./webhookSchema";
 import { verifyFincodeWebhookSignature } from "./webhookSignature";
+import {
+  validateFincodeSubscriptionPeriodInput,
+  validateFincodeSubscriptionPeriodResult,
+  type FincodeSubscriptionPeriodSource,
+} from "./subscriptionPeriodSource";
 import { decideFincodeSubscriptionTransition } from "./webhookTransition";
 import {
   FincodeWebhookError,
@@ -38,6 +44,8 @@ export type FincodeWebhookOrchestratorDependencies = {
   customers: FincodeWebhookCustomerPort;
   atomicCompletion?: FincodeWebhookAtomicCompletionPort;
   completionPlanFactory?: FincodeWebhookAtomicCompletionPlanFactory;
+  periodSource?: FincodeSubscriptionPeriodSource;
+  planResolver?: (planRef: string) => "light" | "premium" | null;
   auditSink?: (line: string) => void;
   now?: () => number;
 };
@@ -153,6 +161,41 @@ export async function orchestrateFincodeWebhook(
     return fincodeWebhookRetryResponse();
   }
 
+  let trustedPeriod: FincodeWebhookTrustedMembershipPeriod | undefined;
+  if (normalized.status === "ACTIVE" || normalized.status === "RUNNING") {
+    const plan = dependencies.planResolver?.(normalized.planRef) ?? null;
+    const periodInput = {
+      environment: normalized.environment,
+      subscriptionDigest: createHash("sha256").update(`fincode-subscription-v1\0${normalized.subscriptionRef}`, "utf8").digest("hex"),
+      customerDigest: createHash("sha256").update(`fincode-customer-v1\0${normalized.customerRef}`, "utf8").digest("hex"),
+      plan,
+      eventType: normalized.eventType,
+      processDate: normalized.processDate,
+    };
+    if (!plan || !dependencies.periodSource || !validateFincodeSubscriptionPeriodInput(periodInput)) {
+      audit({ dependencies, correlationId, event: normalized, verificationOutcome: "error", responseClassification: "retry", resultCode: "WEBHOOK_MUTATION_NOT_AVAILABLE", startedAt });
+      return fincodeWebhookRetryResponse();
+    }
+    let result;
+    try { result = validateFincodeSubscriptionPeriodResult(await dependencies.periodSource.resolve(periodInput)); }
+    catch { result = null; }
+    if (!result || result.status === "NOT_AVAILABLE" || result.status === "UNAVAILABLE") {
+      audit({ dependencies, correlationId, event: normalized, verificationOutcome: "error", responseClassification: "retry", resultCode: "WEBHOOK_MUTATION_NOT_AVAILABLE", startedAt });
+      return fincodeWebhookRetryResponse();
+    }
+    if (result.status === "CONFLICT") {
+      audit({ dependencies, correlationId, event: normalized, verificationOutcome: "denied", responseClassification: "permanent_reject", resultCode: "WEBHOOK_CONFLICT", startedAt });
+      return fincodeWebhookRejectedResponse(409);
+    }
+    trustedPeriod = {
+      periodId: result.periodId,
+      periodStart: result.periodStart,
+      periodEnd: result.periodEnd,
+      source: result.source,
+      sourceVersion: result.sourceVersion,
+    };
+  }
+
   const digestIdentity = {
     semanticEventKey: normalized.semanticEventKey,
     payloadFingerprint: normalized.payloadFingerprint,
@@ -228,6 +271,7 @@ export async function orchestrateFincodeWebhook(
       userReference: customer.userReference,
       membershipSnapshot: customer.membershipSnapshot,
       decision: transition.decision,
+      ...(trustedPeriod ? { trustedPeriod } : {}),
     });
   } catch {
     completionPlan = null;

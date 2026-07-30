@@ -12,10 +12,10 @@ import {
   type FincodeWebhookAtomicCompletionResult,
 } from "../webhookPorts";
 import {
-  FINCODE_MEMBERSHIP_QUOTA_SCHEMA_VERSION,
   FINCODE_MEMBERSHIP_SCHEMA_VERSION,
   type FincodeWebhookAwsConfig,
 } from "./webhookAwsConfig";
+import { createLightQuotaRef, LIGHT_QUOTA_SCHEMA_VERSION } from "../../readingPersistence/lightQuota";
 
 type Sender = { send(command: unknown): Promise<unknown> };
 type Item = Record<string, AttributeValue>;
@@ -44,30 +44,41 @@ export class DynamoFincodeAtomicCompletion implements FincodeWebhookAtomicComple
     if (plan.ledgerOnly) return null;
     const names: Record<string, string> = {
       "#plan": "plan", "#status": "subscription_status", "#version": "membership_version",
-      "#schema": "membership_schema_version", "#period": "membership_period_key",
+      "#schema": "membership_schema_version", "#periodStart": "current_period_start", "#periodEnd": "current_period_end",
+      "#deep": "deep_enabled", "#voiceLimit": "monthly_voice_limit",
     };
     const values: Record<string, AttributeValue> = {
       ":expectedVersion": n(plan.expectedMembership.version), ":nextVersion": n(plan.expectedMembership.version + 1),
       ":expectedPlan": s(plan.expectedMembership.plan), ":expectedStatus": s(plan.expectedMembership.subscriptionStatus),
+      ":expectedDeep": b(plan.expectedMembership.plan === "premium"),
+      ":expectedVoiceLimit": n(plan.expectedMembership.plan === "premium" ? 10 : plan.expectedMembership.plan === "light" ? 3 : 0),
       ":schema": s(FINCODE_MEMBERSHIP_SCHEMA_VERSION), ":event": s(input.semanticEventKey), ":now": s(input.completedAt),
     };
     const sets = ["#version = :nextVersion", "last_membership_event_digest = :event", "membership_updated_at = :now"];
-    let condition = "attribute_exists(user_id) AND #schema = :schema AND #version = :expectedVersion AND #plan = :expectedPlan AND #status = :expectedStatus";
-    if (plan.expectedMembership.periodKey === null) condition += " AND attribute_not_exists(#period)";
-    else { condition += " AND #period = :expectedPeriod"; values[":expectedPeriod"] = s(plan.expectedMembership.periodKey); }
+    let condition = "attribute_exists(user_id) AND #schema = :schema AND #version = :expectedVersion AND #plan = :expectedPlan AND #status = :expectedStatus AND #deep = :expectedDeep AND #voiceLimit = :expectedVoiceLimit";
+    if (plan.expectedMembership.currentPeriodStart === null) condition += " AND attribute_not_exists(#periodStart) AND attribute_not_exists(#periodEnd)";
+    else {
+      condition += " AND #periodStart = :expectedPeriodStart AND #periodEnd = :expectedPeriodEnd";
+      values[":expectedPeriodStart"] = s(plan.expectedMembership.currentPeriodStart);
+      values[":expectedPeriodEnd"] = s(plan.expectedMembership.currentPeriodEnd!);
+    }
+
+    if (plan.entitlementMutation.kind === "VERIFY_MEMBERSHIP") {
+      return { ConditionCheck: {
+        TableName: this.config.usersTableName, Key: { user_id: s(input.userReference) },
+        ConditionExpression: condition, ExpressionAttributeNames: names, ExpressionAttributeValues: values,
+      } };
+    }
 
     if (plan.entitlementMutation.kind === "SET_MEMBERSHIP") {
       if (!plan.period) return null;
-      Object.assign(names, {
-        "#deep": "deep_enabled", "#voiceLimit": "monthly_voice_limit", "#cancel": "cancel_at_period_end",
-        "#periodEnd": "membership_period_end",
-      });
+      names["#cancel"] = "cancel_at_period_end";
       Object.assign(values, {
         ":plan": s(plan.entitlementMutation.plan), ":status": s(plan.entitlementMutation.subscriptionStatus),
         ":deep": b(plan.entitlementMutation.deepEnabled), ":voiceLimit": n(plan.entitlementMutation.monthlyVoiceLimit),
-        ":cancel": b(plan.entitlementMutation.cancelAtPeriodEnd), ":period": s(plan.period.periodKey), ":periodEnd": s(plan.period.periodEnd),
+        ":cancel": b(plan.entitlementMutation.cancelAtPeriodEnd), ":periodStart": s(plan.period.periodStart), ":periodEnd": s(plan.period.periodEnd),
       });
-      sets.push("#plan = :plan", "#status = :status", "#deep = :deep", "#voiceLimit = :voiceLimit", "#cancel = :cancel", "#period = :period", "#periodEnd = :periodEnd");
+      sets.push("#plan = :plan", "#status = :status", "#deep = :deep", "#voiceLimit = :voiceLimit", "#cancel = :cancel", "#periodStart = :periodStart", "#periodEnd = :periodEnd");
     } else if (plan.entitlementMutation.kind === "SET_CANCEL_AT_PERIOD_END") {
       names["#cancel"] = "cancel_at_period_end"; values[":cancel"] = b(true); sets.push("#cancel = :cancel");
     }
@@ -86,22 +97,32 @@ export class DynamoFincodeAtomicCompletion implements FincodeWebhookAtomicComple
   private quotaMutation(input: FincodeWebhookAtomicCompletionRequest): TransactWriteItem | null {
     const mutation = input.completionPlan.quotaMutation;
     const period = input.completionPlan.period;
-    if (mutation.kind !== "CREATE_PERIOD_ALLOWANCE") return null;
+    if (mutation.kind === "NONE") return null;
     if (!period || !this.config.lightQuotaTableName || mutation.preserveExistingUsage !== true) return null;
     const end = Date.parse(period.periodEnd);
     if (!Number.isFinite(end) || end <= Date.parse(input.completedAt)) return null;
-    const quotaRef = digest(`fincode-light-quota-v1\0${input.userReference}\0${period.periodKey}\0light`);
-    return { Update: {
+    const quotaRef = createLightQuotaRef({ userId: input.userReference, periodId: period.periodId });
+    if (mutation.kind === "VERIFY_PERIOD_ALLOWANCE") {
+      return { ConditionCheck: {
+        TableName: this.config.lightQuotaTableName, Key: { quota_ref: s(quotaRef) },
+        ConditionExpression: "schema_version = :schema AND period_id = :period AND #plan = :plan AND #limit = :limit AND membership_version = :membershipVersion",
+        ExpressionAttributeNames: { "#plan": "plan", "#limit": "limit" },
+        ExpressionAttributeValues: {
+          ":schema": s(LIGHT_QUOTA_SCHEMA_VERSION), ":period": s(period.periodId), ":plan": s(input.completionPlan.plan),
+          ":limit": n(mutation.expectedLimit), ":membershipVersion": n(input.completionPlan.expectedMembership.version),
+        },
+      } };
+    }
+    return { Put: {
       TableName: this.config.lightQuotaTableName,
-      Key: { quota_ref: s(quotaRef) },
-      UpdateExpression: "SET schema_version = :schema, period_key = :period, usage_type = :usage, #plan = :plan, #limit = :limit, used = if_not_exists(used, :zero), #version = if_not_exists(#version, :zero) + :one, created_at = if_not_exists(created_at, :now), updated_at = :now, expires_at = :expires",
-      ConditionExpression: "attribute_not_exists(quota_ref) OR (schema_version = :schema AND period_key = :period AND usage_type = :usage)",
-      ExpressionAttributeNames: { "#plan": "plan", "#limit": "limit", "#version": "version" },
-      ExpressionAttributeValues: {
-        ":schema": s(FINCODE_MEMBERSHIP_QUOTA_SCHEMA_VERSION), ":period": s(period.periodKey), ":usage": s("light"),
-        ":plan": s(input.completionPlan.plan), ":limit": n(mutation.lightLimit), ":zero": n(0), ":one": n(1),
-        ":now": s(input.completedAt), ":expires": n(Math.floor(end / 1000) + input.retentionTtlSeconds),
+      Item: {
+        quota_ref: s(quotaRef), schema_version: s(LIGHT_QUOTA_SCHEMA_VERSION), period_id: s(period.periodId),
+        period_start: s(period.periodStart), period_end: s(period.periodEnd), plan: s(input.completionPlan.plan),
+        limit: n(mutation.lightLimit), used: n(0), reservations: { L: [] }, version: n(1),
+        membership_version: n(input.completionPlan.expectedMembership.version + 1), created_at: s(input.completedAt),
+        updated_at: s(input.completedAt), expires_at: n(Math.floor(end / 1000) + input.retentionTtlSeconds),
       },
+      ConditionExpression: "attribute_not_exists(quota_ref)",
     } };
   }
 
@@ -138,7 +159,7 @@ export class DynamoFincodeAtomicCompletion implements FincodeWebhookAtomicComple
         this.config.usersMembershipSchemaVersion !== FINCODE_MEMBERSHIP_SCHEMA_VERSION ||
         !isFincodeWebhookAtomicCompletionRequest(input) || input.normalizedEvent.environment !== this.config.environment) return "UNAVAILABLE";
     const requiresPeriod = input.completionPlan.entitlementMutation.kind === "SET_MEMBERSHIP" ||
-      input.completionPlan.quotaMutation.kind === "CREATE_PERIOD_ALLOWANCE";
+      input.completionPlan.entitlementMutation.kind === "VERIFY_MEMBERSHIP" || input.completionPlan.quotaMutation.kind !== "NONE";
     if (requiresPeriod && !input.completionPlan.period) return "UNAVAILABLE";
     const user = this.userMutation(input);
     const quota = this.quotaMutation(input);

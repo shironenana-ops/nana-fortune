@@ -21,6 +21,9 @@ const SHOP = "s_abcdefghijk";
 const PLAN = "pl_fixture_light";
 const CUSTOMER = `stg_${"a".repeat(24)}`;
 const SUBSCRIPTION = "su_fixture_subscription";
+const PERIOD_START = "2026-08-01T00:00:00.000Z";
+const PERIOD_END = "2026-09-01T00:00:00.000Z";
+const PERIOD_ID = fincode.createFincodePeriodId(PERIOD_START, PERIOD_END);
 
 function payload(overrides = {}) {
   return {
@@ -68,14 +71,17 @@ function activeLightCompletionPlan(overrides = {}) {
       version: 0,
       plan: "free",
       subscriptionStatus: "inactive",
-      periodKey: null,
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
     },
     plan: "light",
     finalLedgerState: "COMPLETED",
     period: {
       source: "TRUSTED_MEMBERSHIP_SOURCE",
-      periodKey: "2026-08",
-      periodEnd: "2026-09-01T00:00:00.000Z",
+      sourceVersion: "fixture-v1",
+      periodId: PERIOD_ID,
+      periodStart: PERIOD_START,
+      periodEnd: PERIOD_END,
     },
     entitlementMutation: {
       kind: "SET_MEMBERSHIP",
@@ -87,7 +93,7 @@ function activeLightCompletionPlan(overrides = {}) {
     },
     quotaMutation: {
       kind: "CREATE_PERIOD_ALLOWANCE",
-      periodKey: "2026-08",
+      periodId: PERIOD_ID,
       lightLimit: 5,
       preserveExistingUsage: true,
     },
@@ -114,7 +120,7 @@ function fakeDependencies(overrides = {}) {
         return {
           status: "FOUND",
           userReference: "opaque-user-fixture",
-          membershipSnapshot: { version: 0, plan: "free", subscriptionStatus: "inactive", periodKey: null },
+          membershipSnapshot: { version: 0, plan: "free", subscriptionStatus: "inactive", currentPeriodStart: null, currentPeriodEnd: null },
         };
       },
     },
@@ -122,6 +128,8 @@ function fakeDependencies(overrides = {}) {
       calls.plan.push(input);
       return activeLightCompletionPlan({ decision: input.decision, expectedMembership: input.membershipSnapshot });
     },
+    planResolver(planRef) { return planRef === PLAN ? "light" : null; },
+    periodSource: { async resolve() { return { status: "RESOLVED", periodId: PERIOD_ID, periodStart: PERIOD_START, periodEnd: PERIOD_END, source: "TRUSTED_MEMBERSHIP_SOURCE", sourceVersion: "fixture-v1" }; } },
     atomicCompletion: {
       async applyAndComplete(input) { calls.atomic.push(input); return "COMPLETED"; },
     },
@@ -195,6 +203,32 @@ test("kill switchはtransportより先、署名はJSONより先、schema/environ
   );
   assert.equal(environmentResponse.statusCode, 400);
   assert.equal(badEnvironment.calls.reserve.length, 0);
+});
+
+test("ACTIVE/RUNNINGはtrusted period未解決ならledger前に503へfail closedする", async () => {
+  for (const periodSource of [
+    undefined,
+    { async resolve() { return { status: "NOT_AVAILABLE" }; } },
+    { async resolve() { return { status: "UNAVAILABLE" }; } },
+    { async resolve() { return { status: "RESOLVED", periodId: "bad", periodStart: PERIOD_START, periodEnd: PERIOD_END, source: "TRUSTED_MEMBERSHIP_SOURCE", sourceVersion: "fixture-v1" }; } },
+  ]) {
+    const fixture = fakeDependencies({ periodSource });
+    const response = await fincode.orchestrateFincodeWebhook(event(), fixture.dependencies);
+    assert.equal(response.statusCode, 503);
+    assert.equal(fixture.calls.reserve.length, 0);
+  }
+});
+
+test("period conflictは409、period sourceへはdigestと明示planだけを渡す", async () => {
+  let sourceInput;
+  const conflict = fakeDependencies({ periodSource: { async resolve(input) { sourceInput = input; return { status: "CONFLICT" }; } } });
+  assert.equal((await fincode.orchestrateFincodeWebhook(event(), conflict.dependencies)).statusCode, 409);
+  assert.equal(conflict.calls.reserve.length, 0);
+  assert.match(sourceInput.subscriptionDigest, /^[0-9a-f]{64}$/u);
+  assert.match(sourceInput.customerDigest, /^[0-9a-f]{64}$/u);
+  assert.equal(sourceInput.plan, "light");
+  assert.equal(sourceInput.processDate, "2026/07/30 09:10:11.123");
+  assert.doesNotMatch(JSON.stringify(sourceInput), new RegExp(`${CUSTOMER}|${SUBSCRIPTION}`));
 });
 
 test("completed duplicateだけ200、in-progress/unavailableは503、fingerprint conflictは409", async () => {
@@ -375,7 +409,7 @@ test("ledger/原子的完了Portへraw provider識別子・payload・signature�
 test("plan変更とINCOMPLETEは権利・quotaを変更せず原子的にMANUAL_REVIEWを確定できる", async () => {
   const manualReviewPlan = (decision, resultCode, billingKind) => ({
     decision,
-    expectedMembership: { version: 2, plan: "light", subscriptionStatus: "active", periodKey: "2026-07" },
+    expectedMembership: { version: 2, plan: "light", subscriptionStatus: "active", currentPeriodStart: "2026-07-01T00:00:00.000Z", currentPeriodEnd: "2026-08-01T00:00:00.000Z" },
     plan: "UNCHANGED",
     finalLedgerState: "MANUAL_REVIEW",
     entitlementMutation: { kind: "NONE" },
@@ -402,8 +436,8 @@ test("plan変更とINCOMPLETEは権利・quotaを変更せず原子的にMANUAL_
           status: "FOUND",
           userReference,
           membershipSnapshot: userReference === "existing-active-user"
-            ? { version: 4, plan: "light", subscriptionStatus: "active", periodKey: "2026-07" }
-            : { version: 0, plan: "free", subscriptionStatus: "inactive", periodKey: null },
+            ? { version: 4, plan: "light", subscriptionStatus: "active", currentPeriodStart: "2026-07-01T00:00:00.000Z", currentPeriodEnd: "2026-08-01T00:00:00.000Z" }
+            : { version: 0, plan: "free", subscriptionStatus: "inactive", currentPeriodStart: null, currentPeriodEnd: null },
         };
       } },
       completionPlanFactory(input) {
@@ -425,7 +459,9 @@ test("原子的完了planはtransactionに必要な安全な値を表現し不�
   const fixturePlan = activeLightCompletionPlan();
   assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan(fixturePlan), true);
   assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, ledgerOnly: true }), false);
-  assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, quotaMutation: { kind: "CREATE_PERIOD_ALLOWANCE", periodKey: "2099-01", lightLimit: 5, preserveExistingUsage: true } }), false);
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, quotaMutation: { kind: "CREATE_PERIOD_ALLOWANCE", periodId: "f".repeat(64), lightLimit: 5, preserveExistingUsage: true } }), false);
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, period: { ...fixturePlan.period, periodId: "f".repeat(64) } }), false);
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, expectedMembership: { version: 2, plan: "light", subscriptionStatus: "active", currentPeriodStart: null, currentPeriodEnd: null } }), false);
   assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, resultCode: "UNKNOWN" }), false);
   assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, rawPlanId: PLAN }), false);
 });

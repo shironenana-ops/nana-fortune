@@ -5,6 +5,7 @@ import type {
   FincodeTransitionDecision,
   NormalizedFincodeSubscriptionEvent,
 } from "./webhookTypes";
+import { createFincodePeriodId, type FincodeResolvedSubscriptionPeriod } from "./subscriptionPeriodSource";
 
 export const FINCODE_WEBHOOK_LEDGER_RESERVE_RESULTS = [
   "RESERVED",
@@ -51,14 +52,11 @@ export type FincodeWebhookMembershipSnapshot = {
   version: number;
   plan: "free" | "light" | "premium";
   subscriptionStatus: "active" | "inactive";
-  periodKey: string | null;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
 };
 
-export type FincodeWebhookTrustedMembershipPeriod = {
-  source: "TRUSTED_MEMBERSHIP_SOURCE";
-  periodKey: string;
-  periodEnd: string;
-};
+export type FincodeWebhookTrustedMembershipPeriod = Omit<FincodeResolvedSubscriptionPeriod, "status">;
 
 export type FincodeWebhookEntitlementMutation =
   | { kind: "NONE" }
@@ -70,14 +68,21 @@ export type FincodeWebhookEntitlementMutation =
       monthlyVoiceLimit: 0 | 3 | 10;
       cancelAtPeriodEnd: boolean;
     }
+  | { kind: "VERIFY_MEMBERSHIP" }
   | { kind: "SET_CANCEL_AT_PERIOD_END" };
 
 export type FincodeWebhookQuotaMutation =
   | { kind: "NONE" }
   | {
       kind: "CREATE_PERIOD_ALLOWANCE";
-      periodKey: string;
+      periodId: string;
       lightLimit: 5 | 20;
+      preserveExistingUsage: true;
+    }
+  | {
+      kind: "VERIFY_PERIOD_ALLOWANCE";
+      periodId: string;
+      expectedLimit: 5 | 20;
       preserveExistingUsage: true;
     };
 
@@ -142,10 +147,12 @@ export type FincodeWebhookAtomicCompletionPlanFactory = (input: {
   userReference: string;
   membershipSnapshot: FincodeWebhookMembershipSnapshot;
   decision: FincodeTransitionDecision;
+  trustedPeriod?: FincodeWebhookTrustedMembershipPeriod;
 }) => FincodeWebhookAtomicCompletionPlan | null;
 
 const HEX_DIGEST = /^[0-9a-f]{64}$/u;
-const PERIOD_KEY = /^\d{4}-(?:0[1-9]|1[0-2])$/u;
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
+const SOURCE_VERSION = /^[A-Za-z0-9_.-]{1,64}$/u;
 const TRANSITION_DECISIONS: readonly FincodeTransitionDecision[] = [
   "NO_OP",
   "ACTIVATE_SUBSCRIPTION",
@@ -161,6 +168,18 @@ function hasExactKeys(value: object, expected: readonly string[]): boolean {
   const actual = Object.keys(value).sort();
   const sortedExpected = [...expected].sort();
   return actual.length === sortedExpected.length && actual.every((key, index) => key === sortedExpected[index]);
+}
+
+function hasValidTrustedPeriod(value: FincodeWebhookTrustedMembershipPeriod): boolean {
+  try {
+    return value.source === "TRUSTED_MEMBERSHIP_SOURCE" &&
+      hasExactKeys(value, ["periodEnd", "periodId", "periodStart", "source", "sourceVersion"]) &&
+      HEX_DIGEST.test(value.periodId) && ISO_TIMESTAMP.test(value.periodStart) && ISO_TIMESTAMP.test(value.periodEnd) &&
+      Date.parse(value.periodStart) < Date.parse(value.periodEnd) &&
+      createFincodePeriodId(value.periodStart, value.periodEnd) === value.periodId && SOURCE_VERSION.test(value.sourceVersion);
+  } catch {
+    return false;
+  }
 }
 
 export function isFincodeWebhookAtomicCompletionPlan(
@@ -184,28 +203,37 @@ export function isFincodeWebhookAtomicCompletionPlan(
   if (!["free", "light", "premium", "UNCHANGED"].includes(plan.plan ?? "")) return false;
   if (!entitlement || !quota || !billing) return false;
   if (!plan.expectedMembership ||
-      !hasExactKeys(plan.expectedMembership, ["periodKey", "plan", "subscriptionStatus", "version"]) ||
+      !hasExactKeys(plan.expectedMembership, ["currentPeriodEnd", "currentPeriodStart", "plan", "subscriptionStatus", "version"]) ||
       !Number.isSafeInteger(plan.expectedMembership.version) || plan.expectedMembership.version < 0 ||
       !["free", "light", "premium"].includes(plan.expectedMembership.plan) ||
       !["active", "inactive"].includes(plan.expectedMembership.subscriptionStatus) ||
-      !(plan.expectedMembership.periodKey === null || PERIOD_KEY.test(plan.expectedMembership.periodKey))) return false;
+      (plan.expectedMembership.currentPeriodStart === null) !== (plan.expectedMembership.currentPeriodEnd === null) ||
+      !(plan.expectedMembership.currentPeriodStart === null ||
+        (ISO_TIMESTAMP.test(plan.expectedMembership.currentPeriodStart) && ISO_TIMESTAMP.test(plan.expectedMembership.currentPeriodEnd ?? "") &&
+         Date.parse(plan.expectedMembership.currentPeriodStart) < Date.parse(plan.expectedMembership.currentPeriodEnd ?? ""))) ||
+      !((plan.expectedMembership.plan === "free" && plan.expectedMembership.subscriptionStatus === "inactive" && plan.expectedMembership.currentPeriodStart === null) ||
+        ((plan.expectedMembership.plan === "light" || plan.expectedMembership.plan === "premium") &&
+         plan.expectedMembership.subscriptionStatus === "active" && plan.expectedMembership.currentPeriodStart !== null))) return false;
   if (!hasExactKeys(entitlement, entitlement.kind === "SET_MEMBERSHIP"
     ? ["cancelAtPeriodEnd", "deepEnabled", "kind", "monthlyVoiceLimit", "plan", "subscriptionStatus"]
     : ["kind"])) return false;
   if (!hasExactKeys(quota, quota.kind === "CREATE_PERIOD_ALLOWANCE"
-    ? ["kind", "lightLimit", "periodKey", "preserveExistingUsage"]
-    : ["kind"])) return false;
+    ? ["kind", "lightLimit", "periodId", "preserveExistingUsage"]
+    : quota.kind === "VERIFY_PERIOD_ALLOWANCE"
+      ? ["expectedLimit", "kind", "periodId", "preserveExistingUsage"]
+      : ["kind"])) return false;
   if (!hasExactKeys(billing, ["kind"])) return false;
-  if (!["NONE", "SET_MEMBERSHIP", "SET_CANCEL_AT_PERIOD_END"].includes(entitlement.kind)) return false;
-  if (!["NONE", "CREATE_PERIOD_ALLOWANCE"].includes(quota.kind)) return false;
+  if (!["NONE", "SET_MEMBERSHIP", "VERIFY_MEMBERSHIP", "SET_CANCEL_AT_PERIOD_END"].includes(entitlement.kind)) return false;
+  if (!["NONE", "CREATE_PERIOD_ALLOWANCE", "VERIFY_PERIOD_ALLOWANCE"].includes(quota.kind)) return false;
   if (!["NONE", "RECORD_INCOMPLETE", "RECORD_MANUAL_REVIEW"].includes(billing.kind)) return false;
   if (quota.kind === "CREATE_PERIOD_ALLOWANCE") {
-    if (!plan.period || quota.periodKey !== plan.period.periodKey || !PERIOD_KEY.test(quota.periodKey) ||
+    if (!plan.period || quota.periodId !== plan.period.periodId || !HEX_DIGEST.test(quota.periodId) ||
         ![5, 20].includes(quota.lightLimit) || quota.preserveExistingUsage !== true) return false;
   }
-  if (plan.period && (plan.period.source !== "TRUSTED_MEMBERSHIP_SOURCE" ||
-      !hasExactKeys(plan.period, ["periodEnd", "periodKey", "source"]) ||
-      !PERIOD_KEY.test(plan.period.periodKey) || !Number.isFinite(Date.parse(plan.period.periodEnd)))) return false;
+  if (quota.kind === "VERIFY_PERIOD_ALLOWANCE" &&
+      (!plan.period || quota.periodId !== plan.period.periodId || !HEX_DIGEST.test(quota.periodId) ||
+       ![5, 20].includes(quota.expectedLimit) || quota.preserveExistingUsage !== true)) return false;
+  if (plan.period && !hasValidTrustedPeriod(plan.period)) return false;
   if (entitlement.kind === "SET_MEMBERSHIP" &&
       (!["free", "light", "premium"].includes(entitlement.plan) ||
        !["active", "inactive"].includes(entitlement.subscriptionStatus) ||
