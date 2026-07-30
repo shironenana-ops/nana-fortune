@@ -20,6 +20,9 @@ export type FincodeWebhookAwsConfig = {
   planMapping: ReadonlyMap<string, "light" | "premium">;
   usersMembershipSchemaVersion?: typeof FINCODE_MEMBERSHIP_SCHEMA_VERSION;
   mutationAvailable: boolean;
+  periodSourceEnabled: boolean;
+  customerReferencePrefix: string;
+  internalDeadlineMs: number;
 };
 
 const fail = (): never => { throw new FincodeWebhookAwsError("FINCODE_WEBHOOK_AWS_CONFIG_INVALID"); };
@@ -83,10 +86,13 @@ export function readFincodeWebhookAwsConfig(
   const resolvedEnvironment = environment(env.FINCODE_WEBHOOK_ENVIRONMENT);
   const secretEnvironment = environment(env.FINCODE_WEBHOOK_SIGNATURE_SECRET_ENVIRONMENT);
   if (secretEnvironment !== resolvedEnvironment) return fail();
-  const lightQuotaTableName = optionalTable(env, "FINCODE_MEMBERSHIP_QUOTA_TABLE");
+  const lightQuotaTableName = optionalTable(env, "FINCODE_LIGHT_QUOTA_TABLE") ?? optionalTable(env, "FINCODE_MEMBERSHIP_QUOTA_TABLE");
+  const legacyLightQuotaTableName = optionalTable(env, "FINCODE_MEMBERSHIP_QUOTA_TABLE");
+  if (lightQuotaTableName && legacyLightQuotaTableName && lightQuotaTableName !== legacyLightQuotaTableName) return fail();
   const usersMembershipSchemaVersion = env.FINCODE_USERS_MEMBERSHIP_SCHEMA_VERSION;
   if (usersMembershipSchemaVersion !== undefined && usersMembershipSchemaVersion !== FINCODE_MEMBERSHIP_SCHEMA_VERSION) return fail();
   const enabled = exactBoolean(env.FINCODE_WEBHOOK_ENABLED);
+  const periodSourceEnabled = exactBoolean(env.FINCODE_PERIOD_SOURCE_ENABLED);
   return {
     enabled,
     environment: resolvedEnvironment,
@@ -103,5 +109,8 @@ export function readFincodeWebhookAwsConfig(
     planMapping: planMapping(required(env, "FINCODE_WEBHOOK_ALLOWED_PLAN_MAPPING")),
     ...(usersMembershipSchemaVersion ? { usersMembershipSchemaVersion } : {}),
     mutationAvailable: enabled && !!lightQuotaTableName && usersMembershipSchemaVersion === FINCODE_MEMBERSHIP_SCHEMA_VERSION,
+    periodSourceEnabled,
+    customerReferencePrefix: required(env, "FINCODE_CUSTOMER_REFERENCE_PREFIX"),
+    internalDeadlineMs: integer(env, "FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS", 500, 2900),
   };
 }

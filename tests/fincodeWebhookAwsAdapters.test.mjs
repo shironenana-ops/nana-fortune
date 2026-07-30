@@ -16,6 +16,7 @@ const baseEnv = {
   FINCODE_WEBHOOK_ENVIRONMENT: "staging",
   FINCODE_WEBHOOK_SIGNATURE_SECRET_ENVIRONMENT: "staging",
   FINCODE_WEBHOOK_ENABLED: "true",
+  FINCODE_PERIOD_SOURCE_ENABLED: "false",
   FINCODE_WEBHOOK_LEDGER_TABLE: "ledger-staging",
   FINCODE_CUSTOMER_MAPPING_TABLE: "mapping-staging",
   USERS_TABLE_NAME: "users-staging",
@@ -27,6 +28,8 @@ const baseEnv = {
   FINCODE_WEBHOOK_ALLOWED_SHOP_DIGESTS: DIGEST_A,
   FINCODE_WEBHOOK_ALLOWED_PLAN_MAPPING: '{"plan_light":"light","plan_premium":"premium"}',
   FINCODE_USERS_MEMBERSHIP_SCHEMA_VERSION: "shirone-membership-v1",
+  FINCODE_CUSTOMER_REFERENCE_PREFIX: "stg_customer_",
+  FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS: "2500",
 };
 
 test("AWS config is explicit and mutation stays closed without both reviewed schemas", () => {

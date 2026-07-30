@@ -36,12 +36,12 @@ export function validateReadingStagingTemplate(template) {
   }
 
   const expectedTypes = {
-    "AWS::DynamoDB::Table": 6,
+    "AWS::DynamoDB::Table": 9,
     "AWS::SQS::Queue": 4,
-    "AWS::Lambda::Function": 4,
+    "AWS::Lambda::Function": 5,
     "AWS::Lambda::EventSourceMapping": 2,
-    "AWS::ApiGatewayV2::Route": 2,
-    "AWS::Logs::LogGroup": 4,
+    "AWS::ApiGatewayV2::Route": 3,
+    "AWS::Logs::LogGroup": 5,
   };
   const resourceValues = Object.values(template.Resources ?? {});
   for (const [type, count] of Object.entries(expectedTypes)) {
@@ -69,6 +69,14 @@ export function validateReadingStagingTemplate(template) {
   const request = statements(template, "ReadingRequestRole");
   if (request.some((statement) => actions(statement).some((action) => String(action).startsWith("bedrock:")))) fail("request role can invoke Bedrock");
   if (!request.some((statement) => actions(statement).includes("sqs:SendMessage"))) fail("request role cannot enqueue");
+
+  const webhook = statements(template, "FincodeWebhookRole");
+  const webhookActions = webhook.flatMap(actions);
+  for (const forbidden of ["dynamodb:Scan", "dynamodb:BatchWriteItem", "sqs:SendMessage", "bedrock:InvokeModel", "iam:PassRole"]) {
+    if (webhookActions.includes(forbidden)) fail(`webhook role forbidden action: ${forbidden}`);
+  }
+  if (webhookActions.filter((action) => action === "secretsmanager:GetSecretValue").length !== 1) fail("webhook secret scope");
+  if (text(webhook.find((statement) => actions(statement).includes("secretsmanager:GetSecretValue"))?.Resource) !== text({ Ref: "FincodeWebhookSignatureSecretArn" })) fail("webhook secret resource scope");
 
   const status = statements(template, "ReadingStatusRole");
   const statusActions = status.flatMap(actions);
@@ -102,18 +110,21 @@ export function validateReadingStagingTemplate(template) {
   if (requestIntegration.RequestParameters?.["overwrite:path"] !== undefined) fail("public /reading path must not be rewritten");
   if (template.Resources.ReadingRequestRoute.Properties.RouteKey !== "POST /reading") fail("request route");
   if (template.Resources.ReadingStatusRoute.Properties.RouteKey !== "GET /reading/status") fail("status route");
+  if (template.Resources.FincodeWebhookRoute.Properties.RouteKey !== "POST /webhooks/fincode" || template.Resources.FincodeWebhookRoute.Properties.AuthorizationType !== "NONE") fail("webhook route");
+  if (template.Resources.FincodeWebhookHttpApi.Properties.CorsConfiguration !== undefined || template.Resources.FincodeWebhookRoute.Properties.ApiId?.Ref !== "FincodeWebhookHttpApi") fail("webhook API must be dedicated and CORS-free");
+  if (template.Resources.FincodeWebhookIntegration.Properties.TimeoutInMillis !== 3000) fail("webhook integration timeout");
   const requestSourceArn = template.Resources.ReadingRequestInvokePermission.Properties.SourceArn?.["Fn::Sub"];
   const statusSourceArn = template.Resources.ReadingStatusInvokePermission.Properties.SourceArn?.["Fn::Sub"];
   if (!requestSourceArn?.endsWith("/${Environment}/POST/reading")) fail("request invoke stage scope");
   if (!statusSourceArn?.endsWith("/${Environment}/GET/reading/status")) fail("status invoke stage scope");
 
-  const functionNames = ["ReadingRequestFunction", "ReadingStatusFunction", "LightWorkerFunction", "DeepWorkerFunction"];
+  const functionNames = ["ReadingRequestFunction", "ReadingStatusFunction", "LightWorkerFunction", "DeepWorkerFunction", "FincodeWebhookFunction"];
   for (const name of functionNames) {
     const properties = template.Resources[name].Properties;
     if (properties.Runtime !== "nodejs22.x" || properties.Handler !== "index.handler") fail(`${name} runtime`);
     if (!properties.FunctionName?.["Fn::Sub"]?.startsWith("${AWS::StackName}-")) fail(`${name} must be stack scoped`);
   }
-  for (const parameter of ["ReadingGenerateApiEnabled", "ReadingAsyncPaidEnabled", "ReadingStatusApiEnabled", "ReadingBedrockEnabled", "WorkerEventSourceMappingsEnabled"]) {
+  for (const parameter of ["ReadingGenerateApiEnabled", "ReadingAsyncPaidEnabled", "ReadingStatusApiEnabled", "ReadingBedrockEnabled", "WorkerEventSourceMappingsEnabled", "FincodeWebhookEnabled", "FincodePeriodSourceEnabled", "ReadingLightQuotaEnabled"]) {
     if (template.Parameters[parameter].Default !== "false") fail(`${parameter} must fail closed`);
   }
   for (const mode of ["Light", "Deep"]) {

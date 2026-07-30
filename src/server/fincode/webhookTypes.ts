@@ -52,6 +52,7 @@ export type FincodeWebhookBoundary = {
   environment: FincodeEnvironment;
   customerReferencePrefix: string;
   allowedShopRefs: ReadonlySet<string>;
+  allowedShopDigests?: ReadonlySet<string>;
   allowedPlanRefs: ReadonlySet<string>;
   productionIdentifiers?: ReadonlySet<string>;
 };

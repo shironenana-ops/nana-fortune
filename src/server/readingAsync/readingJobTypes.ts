@@ -48,6 +48,15 @@ export type ReadingJob = {
     reservationId: string;
     reservationExpiresAt: number;
   };
+  lightReservation?: {
+    quotaRef: string;
+    periodId: string;
+    periodStart: string;
+    periodEnd: string;
+    membershipVersion: number;
+    plan: "light" | "premium";
+    reservationId: string;
+  };
   stagedResult?: Omit<PublicReadingResponse, "request_id">;
   safeFailureCategory?: ReadingJobFailureCategory;
 };
@@ -74,6 +83,13 @@ export type AsyncAcceptanceInput = {
   mode: PaidReadingMode;
   canonicalInput: CanonicalJobInput;
   now: Date;
+  membership?: {
+    plan: "light" | "premium";
+    subscriptionStatus: "active";
+    currentPeriodStart: string;
+    currentPeriodEnd: string;
+    version: number;
+  };
 };
 
 export interface AsyncReadingPersistence {

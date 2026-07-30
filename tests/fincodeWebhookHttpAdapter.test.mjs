@@ -44,6 +44,7 @@ function payload(overrides = {}) {
 function event(overrides = {}) {
   return {
     version: "2.0",
+    routeKey: "POST /webhooks/fincode",
     headers: { "content-type": "application/json", "fincode-signature": SIGNATURE },
     body: JSON.stringify(payload()),
     isBase64Encoded: false,

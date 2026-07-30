@@ -13,6 +13,9 @@ const FIELD_NAMES = {
   "#extraVoice": "extra_voice_remaining",
   "#cancel": "cancel_at_period_end",
   "#periodEnd": "current_period_end",
+  "#periodStart": "current_period_start",
+  "#membershipVersion": "membership_version",
+  "#membershipSchema": "membership_schema_version",
 };
 
 function fromAttribute(value?: AttributeValue): unknown {
@@ -33,6 +36,9 @@ function whitelist(item: Record<string, AttributeValue>): TrustedMembershipRecor
     extra_voice_remaining: fromAttribute(item.extra_voice_remaining),
     cancel_at_period_end: fromAttribute(item.cancel_at_period_end),
     current_period_end: fromAttribute(item.current_period_end),
+    current_period_start: fromAttribute(item.current_period_start),
+    membership_version: fromAttribute(item.membership_version),
+    membership_schema_version: fromAttribute(item.membership_schema_version),
   };
 }
 

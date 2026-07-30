@@ -2,13 +2,22 @@ import { ServerFoundationError } from "../http/errors";
 import type { DeepQuotaConfig } from "./deepQuota";
 import type { ReadingRateLimitConfig } from "../readingRateLimit/rateLimitPolicy";
 
-export type ReadingPersistenceConfig = { idempotencyTable: string; historyTable: string; hashSecret: string; leaseSeconds: number; ttlSeconds: number; deepQuota?: DeepQuotaConfig; rateLimit?: ReadingRateLimitConfig };
+export type LightQuotaConfig = { enabled: boolean; tableName: string; reservationSeconds: number };
+export type ReadingPersistenceConfig = { idempotencyTable: string; historyTable: string; hashSecret: string; leaseSeconds: number; ttlSeconds: number; deepQuota?: DeepQuotaConfig; lightQuota?: LightQuotaConfig; rateLimit?: ReadingRateLimitConfig };
 function integer(value: string | undefined, fallback: number, min: number, max: number): number {
   if (value === undefined) return fallback;
   if (!/^\d+$/u.test(value)) throw new ServerFoundationError("PERSISTENCE_NOT_CONFIGURED");
   const number = Number(value);
   if (!Number.isSafeInteger(number) || number < min || number > max) throw new ServerFoundationError("PERSISTENCE_NOT_CONFIGURED");
   return number;
+}
+
+export function readLightQuotaConfig(env: NodeJS.ProcessEnv): LightQuotaConfig {
+  const enabled = env.READING_LIGHT_QUOTA_ENABLED === "true";
+  if (env.READING_LIGHT_QUOTA_ENABLED !== undefined && env.READING_LIGHT_QUOTA_ENABLED !== "true" && env.READING_LIGHT_QUOTA_ENABLED !== "false") throw new ServerFoundationError("READING_LIGHT_QUOTA_CONFIG_ERROR");
+  const tableName = env.FINCODE_MEMBERSHIP_QUOTA_TABLE ?? "";
+  if ((enabled && !tableName) || tableName.length > 255 || /[\r\n\0]/u.test(tableName)) throw new ServerFoundationError("READING_LIGHT_QUOTA_CONFIG_ERROR");
+  return { enabled, tableName, reservationSeconds: 600 };
 }
 export function readReadingPersistenceConfig(env: Record<string, string | undefined> = process.env): ReadingPersistenceConfig {
   const idempotencyTable = env.READING_IDEMPOTENCY_TABLE_NAME ?? "";

@@ -11,4 +11,6 @@ export * from "./webhookPorts";
 export * from "./webhookOrchestrator";
 export * from "./membershipSchema";
 export * from "./subscriptionPeriodSource";
+export * from "./fincodeWebhookLambda";
+export * from "./membershipMigration";
 export * from "./aws";

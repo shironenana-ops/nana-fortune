@@ -71,6 +71,30 @@ test("deep acceptance reserves the monthly quota atomically without taking concu
   assert.equal(actions.filter((value) => value.Put?.TableName === "deep-quota").length, 1);
 });
 
+test("light acceptance reserves trusted-period quota in the same transaction when kill switch is enabled", async () => {
+  const start = "2026-07-01T00:00:00.000Z"; const end = "2026-08-01T00:00:00.000Z";
+  const periodId = api.createFincodePeriodId(start, end);
+  const quotaRef = api.createLightQuotaRef({ userId: input.userId, periodId });
+  const sender = new Sender();
+  sender.send = async function(command) {
+    if (command.constructor.name === "GetItemCommand" && command.input.TableName === "light-quota") return { Item: {
+      quota_ref: { S: quotaRef }, schema_version: { S: "fincode-membership-quota-v1" }, period_id: { S: periodId }, period_start: { S: start }, period_end: { S: end },
+      plan: { S: "light" }, limit: { N: "5" }, used: { N: "1" }, reservations: { L: [] }, completed_request_refs: { SS: ["d".repeat(64)] },
+      version: { N: "2" }, membership_version: { N: "3" }, created_at: { S: start }, updated_at: { S: start }, expires_at: { N: "2000000000" },
+    } };
+    if (command.constructor.name === "GetItemCommand") return {};
+    if (command.constructor.name === "TransactWriteItemsCommand") { this.transactions.push(command.input.TransactItems); return {}; }
+    throw new Error(`unexpected ${command.constructor.name}`);
+  };
+  const store = new api.DynamoAsyncReadingPersistence(sender, { ...config, lightQuota: { enabled: true, tableName: "light-quota", reservationSeconds: 600 } }, () => "light-reservation-fixture");
+  assert.equal(await store.accept({ ...input, membership: { plan: "light", subscriptionStatus: "active", currentPeriodStart: start, currentPeriodEnd: end, version: 3 } }), "accepted");
+  const serialized = JSON.stringify(sender.transactions[0]);
+  assert.match(serialized, /light-quota/);
+  assert.match(serialized, /light-reservation-fixture/);
+  assert.match(serialized, /light_membership_version/);
+  assert.match(serialized, /"used":{"N":"1"}/);
+});
+
 test("expired IN_PROGRESS claim uses a conditional takeover and a new owned concurrency lease", async () => {
   const sender = new Sender();
   const store = new api.DynamoAsyncReadingPersistence(sender, config);

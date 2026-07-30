@@ -49,8 +49,22 @@ EXPECTED_PARAMETERS = {
     "ReadingAsyncPaidEnabled": "false",
     "ReadingBedrockEnabled": "false",
     "WorkerEventSourceMappingsEnabled": "false",
+    "FincodeWebhookEnabled": "false",
+    "FincodePeriodSourceEnabled": "false",
+    "ReadingLightQuotaEnabled": "false",
 }
 EXPECTED_RESOURCE_TYPES = {
+    "FincodeCustomerMappingTable": "AWS::DynamoDB::Table",
+    "FincodeLightQuotaTable": "AWS::DynamoDB::Table",
+    "FincodeWebhookFunction": "AWS::Lambda::Function",
+    "FincodeWebhookHttpApi": "AWS::ApiGatewayV2::Api",
+    "FincodeWebhookApiStage": "AWS::ApiGatewayV2::Stage",
+    "FincodeWebhookIntegration": "AWS::ApiGatewayV2::Integration",
+    "FincodeWebhookInvokePermission": "AWS::Lambda::Permission",
+    "FincodeWebhookLedgerTable": "AWS::DynamoDB::Table",
+    "FincodeWebhookLogGroup": "AWS::Logs::LogGroup",
+    "FincodeWebhookRole": "AWS::IAM::Role",
+    "FincodeWebhookRoute": "AWS::ApiGatewayV2::Route",
     "DeepDeadLetterQueue": "AWS::SQS::Queue",
     "DeepEventSourceMapping": "AWS::Lambda::EventSourceMapping",
     "DeepQueue": "AWS::SQS::Queue",
@@ -91,6 +105,9 @@ TABLE_LOGICAL_IDS = (
     "ReadingRateLimitTable",
     "ReadingDeepQuotaTable",
     "ReadingJobsTable",
+    "FincodeWebhookLedgerTable",
+    "FincodeCustomerMappingTable",
+    "FincodeLightQuotaTable",
 )
 QUEUE_LOGICAL_IDS = ("LightQueue", "DeepQueue", "LightDeadLetterQueue", "DeepDeadLetterQueue")
 ESM_LOGICAL_IDS = ("LightEventSourceMapping", "DeepEventSourceMapping")

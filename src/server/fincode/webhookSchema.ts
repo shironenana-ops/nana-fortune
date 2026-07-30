@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   FINCODE_SUBSCRIPTION_EVENTS,
   FINCODE_SUBSCRIPTION_STATUSES,
@@ -98,7 +99,7 @@ export function parseFincodeSubscriptionPayload(
   if (boundary.environment !== "staging" && boundary.environment !== "production") {
     throw new FincodeWebhookError("WEBHOOK_SCHEMA_INVALID");
   }
-  if (!boundary.customerReferencePrefix || boundary.allowedShopRefs.size === 0 || boundary.allowedPlanRefs.size === 0) {
+  if (!boundary.customerReferencePrefix || (boundary.allowedShopRefs.size === 0 && !boundary.allowedShopDigests?.size) || boundary.allowedPlanRefs.size === 0) {
     throw new FincodeWebhookError("WEBHOOK_SCHEMA_INVALID");
   }
 
@@ -126,7 +127,8 @@ export function parseFincodeSubscriptionPayload(
   }
 
   assertNotProductionIdentifier([shopId, planId, subscriptionId, customerId], boundary);
-  if (!boundary.allowedShopRefs.has(shopId)) throw new FincodeWebhookError("WEBHOOK_SHOP_NOT_ALLOWED");
+  const shopDigest = createHash("sha256").update(shopId, "utf8").digest("hex");
+  if (!boundary.allowedShopRefs.has(shopId) && !boundary.allowedShopDigests?.has(shopDigest)) throw new FincodeWebhookError("WEBHOOK_SHOP_NOT_ALLOWED");
   if (!boundary.allowedPlanRefs.has(planId)) throw new FincodeWebhookError("WEBHOOK_PLAN_NOT_ALLOWED");
   validateCustomerReference(customerId, boundary);
 

@@ -77,7 +77,7 @@ test("Dynamo repositoryはtoken由来キーとProjectionだけを使いwhitelist
   const result = await repository.findMembershipByUserId("fixture-user-001");
   assert.equal(command.input.Key.user_id.S, "fixture-user-001");
   assert.match(command.input.ProjectionExpression, /#plan/);
-  assert.deepEqual(Object.keys(result).sort(), ["cancel_at_period_end","current_period_end","deep_enabled","extra_voice_remaining","monthly_voice_limit","monthly_voice_used","plan","subscription_status"].sort());
+  assert.deepEqual(Object.keys(result).sort(), ["cancel_at_period_end","current_period_end","current_period_start","deep_enabled","extra_voice_remaining","membership_schema_version","membership_version","monthly_voice_limit","monthly_voice_used","plan","subscription_status"].sort());
   assert.equal("password" in result, false);
   assert.equal("stripe_customer_email" in result, false);
   assert.throws(() => new foundation.DynamoUserRepository(client, ""));

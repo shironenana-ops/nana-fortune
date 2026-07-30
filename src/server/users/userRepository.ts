@@ -7,6 +7,9 @@ export type TrustedMembershipRecord = {
   extra_voice_remaining?: unknown;
   cancel_at_period_end?: unknown;
   current_period_end?: unknown;
+  current_period_start?: unknown;
+  membership_version?: unknown;
+  membership_schema_version?: unknown;
 };
 
 export interface UserRepository {

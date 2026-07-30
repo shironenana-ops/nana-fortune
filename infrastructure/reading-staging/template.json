@@ -8,6 +8,7 @@
     "ReadingStatusArtifactKey": { "Type": "String", "MinLength": 1, "MaxLength": 1024 },
     "LightWorkerArtifactKey": { "Type": "String", "MinLength": 1, "MaxLength": 1024 },
     "DeepWorkerArtifactKey": { "Type": "String", "MinLength": 1, "MaxLength": 1024 },
+    "FincodeWebhookArtifactKey": { "Type": "String", "MinLength": 1, "MaxLength": 1024 },
     "AllowedOrigins": { "Type": "CommaDelimitedList", "Description": "Exact staging origins; wildcard is not allowed" },
     "RuntimeSecretsArn": { "Type": "String", "AllowedPattern": "^arn:aws:secretsmanager:ap-northeast-1:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$", "NoEcho": true },
     "Owner": { "Type": "String", "MinLength": 1, "MaxLength": 64 },
@@ -17,6 +18,13 @@
     "ReadingStatusApiEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
     "ReadingBedrockEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
     "WorkerEventSourceMappingsEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "FincodeWebhookEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "FincodePeriodSourceEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "ReadingLightQuotaEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "FincodeWebhookSignatureSecretArn": { "Type": "String", "AllowedPattern": "^arn:aws:secretsmanager:ap-northeast-1:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$", "NoEcho": true },
+    "FincodeCustomerReferencePrefix": { "Type": "String", "AllowedPattern": "^stg_[A-Za-z0-9_-]{1,20}$", "NoEcho": true },
+    "FincodeAllowedShopDigests": { "Type": "String", "AllowedPattern": "^[0-9a-f]{64}(,[0-9a-f]{64})*$", "NoEcho": true },
+    "FincodeAllowedPlanMapping": { "Type": "String", "MinLength": 1, "MaxLength": 512, "NoEcho": true },
     "LightModelId": { "Type": "String", "AllowedPattern": "^jp\\.[A-Za-z0-9._:-]+$" },
     "LightModelAlias": { "Type": "String", "MinLength": 1, "MaxLength": 128 },
     "DeepModelId": { "Type": "String", "AllowedPattern": "^jp\\.[A-Za-z0-9._:-]+$" },
@@ -150,6 +158,33 @@
         ]
       }
     },
+    "FincodeWebhookLedgerTable": {
+      "Type": "AWS::DynamoDB::Table", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST", "AttributeDefinitions": [{ "AttributeName": "event_digest", "AttributeType": "S" }],
+        "KeySchema": [{ "AttributeName": "event_digest", "KeyType": "HASH" }], "TimeToLiveSpecification": { "AttributeName": "expires_at", "Enabled": true },
+        "DeletionProtectionEnabled": true, "PointInTimeRecoverySpecification": { "PointInTimeRecoveryEnabled": true }, "SSESpecification": { "SSEEnabled": true },
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-webhook-ledger" }, { "Key": "DataClassification", "Value": "internal" }, { "Key": "Owner", "Value": { "Ref": "Owner" } }, { "Key": "CostCenter", "Value": { "Ref": "CostCenter" } }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
+    "FincodeCustomerMappingTable": {
+      "Type": "AWS::DynamoDB::Table", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST", "AttributeDefinitions": [{ "AttributeName": "customer_ref_digest", "AttributeType": "S" }],
+        "KeySchema": [{ "AttributeName": "customer_ref_digest", "KeyType": "HASH" }], "DeletionProtectionEnabled": true,
+        "PointInTimeRecoverySpecification": { "PointInTimeRecoveryEnabled": true }, "SSESpecification": { "SSEEnabled": true },
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-customer-mapping" }, { "Key": "DataClassification", "Value": "confidential" }, { "Key": "Owner", "Value": { "Ref": "Owner" } }, { "Key": "CostCenter", "Value": { "Ref": "CostCenter" } }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
+    "FincodeLightQuotaTable": {
+      "Type": "AWS::DynamoDB::Table", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST", "AttributeDefinitions": [{ "AttributeName": "quota_ref", "AttributeType": "S" }],
+        "KeySchema": [{ "AttributeName": "quota_ref", "KeyType": "HASH" }], "TimeToLiveSpecification": { "AttributeName": "expires_at", "Enabled": true },
+        "DeletionProtectionEnabled": true, "PointInTimeRecoverySpecification": { "PointInTimeRecoveryEnabled": true }, "SSESpecification": { "SSEEnabled": true },
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-light-quota" }, { "Key": "DataClassification", "Value": "internal" }, { "Key": "Owner", "Value": { "Ref": "Owner" } }, { "Key": "CostCenter", "Value": { "Ref": "CostCenter" } }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
     "LightDeadLetterQueue": {
       "Type": "AWS::SQS::Queue",
       "Properties": {
@@ -190,6 +225,7 @@
     "ReadingStatusLogGroup": { "Type": "AWS::Logs::LogGroup", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-reading-status" }, "RetentionInDays": 30 } },
     "LightWorkerLogGroup": { "Type": "AWS::Logs::LogGroup", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-reading-light-worker" }, "RetentionInDays": 30 } },
     "DeepWorkerLogGroup": { "Type": "AWS::Logs::LogGroup", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-reading-deep-worker" }, "RetentionInDays": 30 } },
+    "FincodeWebhookLogGroup": { "Type": "AWS::Logs::LogGroup", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-fincode-webhook" }, "RetentionInDays": 30 } },
     "ReadingRequestRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
@@ -200,7 +236,7 @@
             { "Sid": "OwnLogs", "Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": { "Fn::GetAtt": ["ReadingRequestLogGroup", "Arn"] } },
             { "Sid": "ReadState", "Effect": "Allow", "Action": "dynamodb:GetItem", "Resource": [
               { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }, { "Fn::GetAtt": ["ReadingHistoryTable", "Arn"] }, { "Fn::GetAtt": ["ReadingIdempotencyTable", "Arn"] },
-              { "Fn::GetAtt": ["ReadingRateLimitTable", "Arn"] }, { "Fn::GetAtt": ["ReadingDeepQuotaTable", "Arn"] }, { "Fn::GetAtt": ["ReadingJobsTable", "Arn"] }
+              { "Fn::GetAtt": ["ReadingRateLimitTable", "Arn"] }, { "Fn::GetAtt": ["ReadingDeepQuotaTable", "Arn"] }, { "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] }, { "Fn::GetAtt": ["ReadingJobsTable", "Arn"] }
             ] },
             { "Sid": "WriteStateItems", "Effect": "Allow", "Action": ["dynamodb:PutItem", "dynamodb:UpdateItem"], "Resource": [
               { "Fn::GetAtt": ["ReadingHistoryTable", "Arn"] }, { "Fn::GetAtt": ["ReadingIdempotencyTable", "Arn"] }, { "Fn::GetAtt": ["ReadingRateLimitTable", "Arn"] },
@@ -208,7 +244,7 @@
             ] },
             { "Sid": "WriteStateTransactions", "Effect": "Allow", "Action": "dynamodb:TransactWriteItems", "Resource": [
               { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }, { "Fn::GetAtt": ["ReadingHistoryTable", "Arn"] }, { "Fn::GetAtt": ["ReadingIdempotencyTable", "Arn"] },
-              { "Fn::GetAtt": ["ReadingRateLimitTable", "Arn"] }, { "Fn::GetAtt": ["ReadingDeepQuotaTable", "Arn"] }, { "Fn::GetAtt": ["ReadingJobsTable", "Arn"] }
+              { "Fn::GetAtt": ["ReadingRateLimitTable", "Arn"] }, { "Fn::GetAtt": ["ReadingDeepQuotaTable", "Arn"] }, { "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] }, { "Fn::GetAtt": ["ReadingJobsTable", "Arn"] }
             ] },
             { "Sid": "EnqueuePaidJobs", "Effect": "Allow", "Action": "sqs:SendMessage", "Resource": [{ "Fn::GetAtt": ["LightQueue", "Arn"] }, { "Fn::GetAtt": ["DeepQueue", "Arn"] }] }
           ] }
@@ -240,11 +276,11 @@
             { "Sid": "OwnLogs", "Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": { "Fn::GetAtt": ["LightWorkerLogGroup", "Arn"] } },
             { "Sid": "ConsumeLightOnly", "Effect": "Allow", "Action": ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility", "sqs:GetQueueAttributes"], "Resource": { "Fn::GetAtt": ["LightQueue", "Arn"] } },
             { "Sid": "ReadLightState", "Effect": "Allow", "Action": "dynamodb:GetItem", "Resource": [
-              { "Fn::GetAtt": ["ReadingJobsTable", "Arn"] }, { "Fn::GetAtt": ["ReadingHistoryTable", "Arn"] }, { "Fn::GetAtt": ["ReadingIdempotencyTable", "Arn"] }, { "Fn::GetAtt": ["ReadingRateLimitTable", "Arn"] }
+              { "Fn::GetAtt": ["ReadingJobsTable", "Arn"] }, { "Fn::GetAtt": ["ReadingHistoryTable", "Arn"] }, { "Fn::GetAtt": ["ReadingIdempotencyTable", "Arn"] }, { "Fn::GetAtt": ["ReadingRateLimitTable", "Arn"] }, { "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] }
             ] },
             { "Sid": "UpdateLightJob", "Effect": "Allow", "Action": "dynamodb:UpdateItem", "Resource": { "Fn::GetAtt": ["ReadingJobsTable", "Arn"] } },
             { "Sid": "WriteLightTransactions", "Effect": "Allow", "Action": "dynamodb:TransactWriteItems", "Resource": [
-              { "Fn::GetAtt": ["ReadingJobsTable", "Arn"] }, { "Fn::GetAtt": ["ReadingHistoryTable", "Arn"] }, { "Fn::GetAtt": ["ReadingIdempotencyTable", "Arn"] }, { "Fn::GetAtt": ["ReadingRateLimitTable", "Arn"] }
+              { "Fn::GetAtt": ["ReadingJobsTable", "Arn"] }, { "Fn::GetAtt": ["ReadingHistoryTable", "Arn"] }, { "Fn::GetAtt": ["ReadingIdempotencyTable", "Arn"] }, { "Fn::GetAtt": ["ReadingRateLimitTable", "Arn"] }, { "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] }
             ] },
             { "Sid": "InvokeLightProfile", "Effect": "Allow", "Action": "bedrock:InvokeModel", "Resource": { "Ref": "LightInferenceProfileArn" } },
             { "Sid": "InvokeLightModelsThroughProfile", "Effect": "Allow", "Action": "bedrock:InvokeModel", "Resource": [{ "Ref": "LightTokyoFoundationModelArn" }, { "Ref": "LightOsakaFoundationModelArn" }], "Condition": { "StringEquals": { "bedrock:InferenceProfileArn": { "Ref": "LightInferenceProfileArn" } } } }
@@ -278,6 +314,23 @@
         "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "reading-deep-worker-role" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
       }
     },
+    "FincodeWebhookRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": { "Version": "2012-10-17", "Statement": [{ "Effect": "Allow", "Principal": { "Service": "lambda.amazonaws.com" }, "Action": "sts:AssumeRole" }] },
+        "Policies": [{
+          "PolicyName": "fincode-webhook-staging-minimum",
+          "PolicyDocument": { "Version": "2012-10-17", "Statement": [
+            { "Sid": "OwnLogs", "Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": { "Fn::GetAtt": ["FincodeWebhookLogGroup", "Arn"] } },
+            { "Sid": "ReadWebhookState", "Effect": "Allow", "Action": "dynamodb:GetItem", "Resource": [{ "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] }, { "Fn::GetAtt": ["FincodeCustomerMappingTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }] },
+            { "Sid": "ReserveWebhookEvent", "Effect": "Allow", "Action": ["dynamodb:PutItem", "dynamodb:UpdateItem"], "Resource": { "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] } },
+            { "Sid": "CompleteWebhookAtomically", "Effect": "Allow", "Action": "dynamodb:TransactWriteItems", "Resource": [{ "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }, { "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] }] },
+            { "Sid": "ReadSignatureOnly", "Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": { "Ref": "FincodeWebhookSignatureSecretArn" } }
+          ] }
+        }],
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-webhook-role" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
     "ReadingRequestFunction": {
       "Type": "AWS::Lambda::Function",
       "DependsOn": ["ReadingRequestLogGroup"],
@@ -287,10 +340,10 @@
         "Role": { "Fn::GetAtt": ["ReadingRequestRole", "Arn"] },
         "Code": { "S3Bucket": { "Ref": "ArtifactBucketName" }, "S3Key": { "Ref": "ReadingRequestArtifactKey" } },
         "Environment": { "Variables": {
-          "READING_GENERATE_API_ENABLED": { "Ref": "ReadingGenerateApiEnabled" }, "READING_ASYNC_PAID_ENABLED": { "Ref": "ReadingAsyncPaidEnabled" },
+          "READING_GENERATE_API_ENABLED": { "Ref": "ReadingGenerateApiEnabled" }, "READING_ASYNC_PAID_ENABLED": { "Ref": "ReadingAsyncPaidEnabled" }, "READING_LIGHT_QUOTA_ENABLED": { "Ref": "ReadingLightQuotaEnabled" },
           "ALLOWED_ORIGINS": { "Fn::Join": [",", { "Ref": "AllowedOrigins" }] }, "USERS_TABLE_NAME": { "Ref": "ReadingUsersTable" },
           "READING_HISTORY_TABLE_NAME": { "Ref": "ReadingHistoryTable" }, "READING_IDEMPOTENCY_TABLE_NAME": { "Ref": "ReadingIdempotencyTable" },
-          "READING_RATE_LIMIT_TABLE_NAME": { "Ref": "ReadingRateLimitTable" }, "READING_DEEP_QUOTA_TABLE_NAME": { "Ref": "ReadingDeepQuotaTable" }, "READING_JOBS_TABLE_NAME": { "Ref": "ReadingJobsTable" },
+          "READING_RATE_LIMIT_TABLE_NAME": { "Ref": "ReadingRateLimitTable" }, "READING_DEEP_QUOTA_TABLE_NAME": { "Ref": "ReadingDeepQuotaTable" }, "FINCODE_MEMBERSHIP_QUOTA_TABLE": { "Ref": "FincodeLightQuotaTable" }, "READING_JOBS_TABLE_NAME": { "Ref": "ReadingJobsTable" },
           "READING_LIGHT_QUEUE_URL": { "Ref": "LightQueue" }, "READING_DEEP_QUEUE_URL": { "Ref": "DeepQueue" },
           "SESSION_TOKEN_SECRET": { "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:session_token_secret}}" },
           "AUDIT_HASH_SECRET": { "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:audit_hash_secret}}" },
@@ -332,11 +385,11 @@
         "Role": { "Fn::GetAtt": ["LightWorkerRole", "Arn"] },
         "Code": { "S3Bucket": { "Ref": "ArtifactBucketName" }, "S3Key": { "Ref": "LightWorkerArtifactKey" } },
         "Environment": { "Variables": {
-          "READING_BEDROCK_ENABLED": { "Ref": "ReadingBedrockEnabled" }, "READING_BEDROCK_TIMEOUT_MS": "90000",
+          "READING_BEDROCK_ENABLED": { "Ref": "ReadingBedrockEnabled" }, "READING_LIGHT_QUOTA_ENABLED": { "Ref": "ReadingLightQuotaEnabled" }, "READING_BEDROCK_TIMEOUT_MS": "90000",
           "BEDROCK_LIGHT_MODEL_ID": { "Ref": "LightModelId" }, "BEDROCK_LIGHT_MODEL_ALIAS": { "Ref": "LightModelAlias" },
           "BEDROCK_DEEP_MODEL_ID": { "Ref": "DeepModelId" }, "BEDROCK_DEEP_MODEL_ALIAS": { "Ref": "DeepModelAlias" },
           "READING_HISTORY_TABLE_NAME": { "Ref": "ReadingHistoryTable" }, "READING_IDEMPOTENCY_TABLE_NAME": { "Ref": "ReadingIdempotencyTable" },
-          "READING_RATE_LIMIT_TABLE_NAME": { "Ref": "ReadingRateLimitTable" }, "READING_JOBS_TABLE_NAME": { "Ref": "ReadingJobsTable" },
+          "READING_RATE_LIMIT_TABLE_NAME": { "Ref": "ReadingRateLimitTable" }, "FINCODE_MEMBERSHIP_QUOTA_TABLE": { "Ref": "FincodeLightQuotaTable" }, "READING_JOBS_TABLE_NAME": { "Ref": "ReadingJobsTable" },
           "AUDIT_HASH_SECRET": { "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:audit_hash_secret}}" },
           "READING_IDEMPOTENCY_HASH_SECRET": { "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:reading_idempotency_hash_secret}}" },
           "READING_IDEMPOTENCY_LEASE_SECONDS": "120", "READING_IDEMPOTENCY_TTL_SECONDS": "604800", "READING_JOB_TTL_SECONDS": "604800",
@@ -376,6 +429,24 @@
         "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "reading-deep-worker" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
       }
     },
+    "FincodeWebhookFunction": {
+      "Type": "AWS::Lambda::Function", "DependsOn": ["FincodeWebhookLogGroup"],
+      "Properties": {
+        "FunctionName": { "Fn::Sub": "${AWS::StackName}-fincode-webhook" }, "Runtime": "nodejs22.x", "Handler": "index.handler",
+        "Timeout": 3, "MemorySize": 256, "ReservedConcurrentExecutions": 2, "Role": { "Fn::GetAtt": ["FincodeWebhookRole", "Arn"] },
+        "Code": { "S3Bucket": { "Ref": "ArtifactBucketName" }, "S3Key": { "Ref": "FincodeWebhookArtifactKey" } },
+        "Environment": { "Variables": {
+          "FINCODE_WEBHOOK_ENABLED": { "Ref": "FincodeWebhookEnabled" }, "FINCODE_PERIOD_SOURCE_ENABLED": { "Ref": "FincodePeriodSourceEnabled" },
+          "FINCODE_WEBHOOK_ENVIRONMENT": { "Ref": "Environment" }, "FINCODE_WEBHOOK_SIGNATURE_SECRET_ENVIRONMENT": { "Ref": "Environment" },
+          "FINCODE_WEBHOOK_LEDGER_TABLE": { "Ref": "FincodeWebhookLedgerTable" }, "FINCODE_CUSTOMER_MAPPING_TABLE": { "Ref": "FincodeCustomerMappingTable" },
+          "FINCODE_LIGHT_QUOTA_TABLE": { "Ref": "FincodeLightQuotaTable" }, "USERS_TABLE_NAME": { "Ref": "ReadingUsersTable" }, "READING_DEEP_QUOTA_TABLE_NAME": { "Ref": "ReadingDeepQuotaTable" },
+          "FINCODE_WEBHOOK_SIGNATURE_SECRET_ID": { "Ref": "FincodeWebhookSignatureSecretArn" }, "FINCODE_WEBHOOK_LEDGER_RETENTION_DAYS": "180", "FINCODE_WEBHOOK_SECRET_CACHE_TTL_SECONDS": "300",
+          "FINCODE_WEBHOOK_ALLOWED_SHOP_DIGESTS": { "Ref": "FincodeAllowedShopDigests" }, "FINCODE_WEBHOOK_ALLOWED_PLAN_MAPPING": { "Ref": "FincodeAllowedPlanMapping" },
+          "FINCODE_CUSTOMER_REFERENCE_PREFIX": { "Ref": "FincodeCustomerReferencePrefix" }, "FINCODE_USERS_MEMBERSHIP_SCHEMA_VERSION": "shirone-membership-v1", "FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS": "2500"
+        } },
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-webhook" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
     "LightEventSourceMapping": {
       "Type": "AWS::Lambda::EventSourceMapping",
       "Properties": { "EventSourceArn": { "Fn::GetAtt": ["LightQueue", "Arn"] }, "FunctionName": { "Ref": "LightWorkerFunction" }, "Enabled": { "Fn::If": ["WorkersEnabled", true, false] }, "BatchSize": 1, "FunctionResponseTypes": ["ReportBatchItemFailures"], "ScalingConfig": { "MaximumConcurrency": 5 } }
@@ -393,6 +464,13 @@
         "Tags": { "Project": "nana-fortune", "Environment": { "Ref": "Environment" }, "Component": "reading-http-api", "ManagedBy": "cloudformation" }
       }
     },
+    "FincodeWebhookHttpApi": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": {
+        "Name": { "Fn::Sub": "${AWS::StackName}-fincode-webhook-http-api" }, "ProtocolType": "HTTP",
+        "Tags": { "Project": "nana-fortune", "Environment": { "Ref": "Environment" }, "Component": "fincode-webhook-http-api", "ManagedBy": "cloudformation" }
+      }
+    },
     "ReadingRequestIntegration": {
       "Type": "AWS::ApiGatewayV2::Integration",
       "Properties": {
@@ -404,11 +482,15 @@
       "Type": "AWS::ApiGatewayV2::Integration",
       "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 10000, "IntegrationUri": { "Fn::GetAtt": ["ReadingStatusFunction", "Arn"] } }
     },
+    "FincodeWebhookIntegration": { "Type": "AWS::ApiGatewayV2::Integration", "Properties": { "ApiId": { "Ref": "FincodeWebhookHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 3000, "IntegrationUri": { "Fn::GetAtt": ["FincodeWebhookFunction", "Arn"] } } },
     "ReadingRequestRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "RouteKey": "POST /reading", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "ReadingRequestIntegration" }]] } } },
     "ReadingStatusRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "RouteKey": "GET /reading/status", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "ReadingStatusIntegration" }]] } } },
+    "FincodeWebhookRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "FincodeWebhookHttpApi" }, "RouteKey": "POST /webhooks/fincode", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "FincodeWebhookIntegration" }]] } } },
     "ReadingApiStage": { "Type": "AWS::ApiGatewayV2::Stage", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "StageName": { "Ref": "Environment" }, "AutoDeploy": true, "Tags": { "Project": "nana-fortune", "Environment": { "Ref": "Environment" }, "Component": "reading-http-api-stage", "ManagedBy": "cloudformation" } } },
+    "FincodeWebhookApiStage": { "Type": "AWS::ApiGatewayV2::Stage", "Properties": { "ApiId": { "Ref": "FincodeWebhookHttpApi" }, "StageName": { "Ref": "Environment" }, "AutoDeploy": true, "Tags": { "Project": "nana-fortune", "Environment": { "Ref": "Environment" }, "Component": "fincode-webhook-http-api-stage", "ManagedBy": "cloudformation" } } },
     "ReadingRequestInvokePermission": { "Type": "AWS::Lambda::Permission", "Properties": { "Action": "lambda:InvokeFunction", "FunctionName": { "Ref": "ReadingRequestFunction" }, "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/POST/reading" } } },
-    "ReadingStatusInvokePermission": { "Type": "AWS::Lambda::Permission", "Properties": { "Action": "lambda:InvokeFunction", "FunctionName": { "Ref": "ReadingStatusFunction" }, "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/GET/reading/status" } } }
+    "ReadingStatusInvokePermission": { "Type": "AWS::Lambda::Permission", "Properties": { "Action": "lambda:InvokeFunction", "FunctionName": { "Ref": "ReadingStatusFunction" }, "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/GET/reading/status" } } },
+    "FincodeWebhookInvokePermission": { "Type": "AWS::Lambda::Permission", "Properties": { "Action": "lambda:InvokeFunction", "FunctionName": { "Ref": "FincodeWebhookFunction" }, "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${FincodeWebhookHttpApi}/${Environment}/POST/webhooks/fincode" } } }
   },
   "Outputs": {
     "ReadingApiId": { "Value": { "Ref": "ReadingHttpApi" } },

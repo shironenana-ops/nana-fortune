@@ -7,7 +7,7 @@ import { runShironeEngineOnServer } from "../shironeEngineServer";
 import { systemClock } from "../reading/serverReadingDate";
 import type { ApiGatewayV2Event } from "./readingApiTypes";
 import { createDynamoReadingPersistence } from "../readingPersistence/dynamoReadingPersistence";
-import { readReadingPersistenceConfig } from "../readingPersistence/persistenceConfig";
+import { readLightQuotaConfig, readReadingPersistenceConfig } from "../readingPersistence/persistenceConfig";
 import { readDeepQuotaConfig } from "../readingPersistence/deepQuota";
 import { readReadingRateLimitConfig } from "../readingRateLimit/rateLimitPolicy";
 import { readingAsyncPaidEnabled, readReadingAsyncConfig } from "../readingAsync/readingAsyncConfig";
@@ -34,6 +34,7 @@ export async function handler(event: ApiGatewayV2Event) {
           ...readReadingAsyncConfig(env),
           rateLimit: rateLimit!,
           deepQuota: readDeepQuotaConfig(env),
+          lightQuota: readLightQuotaConfig(env),
         }
       : undefined;
     const asyncAcceptance = asyncPaidEnabled

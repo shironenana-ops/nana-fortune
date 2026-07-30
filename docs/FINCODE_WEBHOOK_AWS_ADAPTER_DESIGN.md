@@ -1,6 +1,6 @@
 # fincode Webhook AWS Adapter design
 
-Status: local adapter and membership/quota contracts implemented / AWS disconnected / Lambda and IaC integration not authorized
+Status: local Lambda/IaC/reading integration implemented / AWS disconnected / all new switches default off / period API unverified
 Recorded: 2026-07-30
 Canonical for: AWS adapter, storage, transaction, IAM, and staging rollout design
 

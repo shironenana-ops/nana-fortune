@@ -59,3 +59,19 @@ test("機能flagのdefault true化を拒否する", async () => {
   template.Parameters.ReadingStatusApiEnabled.Default = "true";
   assert.throws(() => validateReadingStagingTemplate(template), /must fail closed/u);
 });
+
+test("fincode Webhookはstaging限定・既定OFF・最小権限である", async () => {
+  const template = await loadReadingStagingTemplate();
+  assert.equal(template.Parameters.FincodeWebhookEnabled.Default, "false");
+  assert.equal(template.Parameters.FincodePeriodSourceEnabled.Default, "false");
+  assert.equal(template.Parameters.ReadingLightQuotaEnabled.Default, "false");
+  assert.equal(template.Resources.FincodeWebhookFunction.Properties.Runtime, "nodejs22.x");
+  assert.equal(template.Resources.FincodeWebhookRoute.Properties.RouteKey, "POST /webhooks/fincode");
+  assert.equal(template.Resources.FincodeWebhookRoute.Properties.AuthorizationType, "NONE");
+  assert.equal(template.Resources.FincodeWebhookRoute.Properties.ApiId.Ref, "FincodeWebhookHttpApi");
+  assert.equal(template.Resources.FincodeWebhookHttpApi.Properties.CorsConfiguration, undefined);
+  assert.equal(template.Resources.FincodeWebhookIntegration.Properties.TimeoutInMillis, 3000);
+  const serialized = JSON.stringify(template.Resources.FincodeWebhookRole);
+  assert.doesNotMatch(serialized, /dynamodb:Scan|dynamodb:BatchWriteItem|sqs:|bedrock:|iam:/u);
+  assert.match(serialized, /secretsmanager:GetSecretValue/u);
+});

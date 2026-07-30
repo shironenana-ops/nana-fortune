@@ -10,6 +10,7 @@ import {
 
 export type ApiGatewayV2WebhookEvent = {
   version?: unknown;
+  routeKey?: unknown;
   headers?: unknown;
   body?: unknown;
   isBase64Encoded?: unknown;
@@ -87,6 +88,7 @@ export function adaptFincodeWebhookHttpEvent(event: unknown): AdaptedFincodeWebh
     throw new FincodeWebhookError("WEBHOOK_HTTP_EVENT_INVALID");
   }
   const typed = event as ApiGatewayV2WebhookEvent;
+  if (typed.routeKey !== "POST /webhooks/fincode") throw new FincodeWebhookError("WEBHOOK_HTTP_EVENT_INVALID");
   const headers = normalizeHeaders(typed.headers);
   const method = typed.requestContext?.http?.method;
   const contentType = singleHeader(headers, "content-type");
