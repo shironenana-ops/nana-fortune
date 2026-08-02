@@ -1,11 +1,15 @@
 ---
 import "../styles/global.css";
 import SeoHead from "../components/SeoHead.astro";
+import { BILLING_PLANS } from "../lib/billingPlans";
 
 const siteTitle = "白音七";
 const pageTitle = "白音七｜名前と生年月日から今日を読み解く静かな占い";
 const pageDescription =
   "白音七は、名前と生年月日から今日の流れや心の向きを静かに読み解くWeb鑑定サービスです。無料鑑定、属性診断、相性占いをお試しいただけます。";
+const lightPlan = BILLING_PLANS.light;
+const premiumPlan = BILLING_PLANS.premium;
+const voicePlan = BILLING_PLANS.voice_single;
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -281,7 +285,7 @@ const jsonLd = {
               </div>
               <p class="fortune-section-sub">
                 読まなくても、何をする場所なのか分かるように。<br />
-                今日の占い、属性、相性、履歴、会員登録を入口として用意しています。
+                今日の占い、属性、相性、履歴、料金・プランを入口として用意しています。
               </p>
             </div>
 
@@ -331,8 +335,8 @@ const jsonLd = {
                   <img src="/images/door.png" alt="" loading="lazy" />
                 </div>
                 <div>
-                  <h3>会員登録</h3>
-                  <p>結果を記録してあとから読み返す</p>
+                  <h3>料金・プラン</h3>
+                  <p>有料プランの料金と申込条件を見る</p>
                 </div>
               </a>
             </div>
@@ -376,20 +380,20 @@ const jsonLd = {
               </article>
 
               <article class="status-card preparing">
-                <div class="status-label">これから整えること</div>
-                <h3>正式公開に向けて少しずつ整えています</h3>
+                <div class="status-label">有料プラン</div>
+                <h3>プラン内容・料金を公開中</h3>
                 <ul>
-                  <li>音声鑑定</li>
-                  <li>深掘り鑑定</li>
-                  <li>有料プラン</li>
+                  <li>ライト会員 {lightPlan.priceLabel}</li>
+                  <li>プレミアム会員 {premiumPlan.priceLabel}</li>
+                  <li>音声鑑定1回分 {voicePlan.priceLabel}</li>
                 </ul>
+                <a class="fortune-btn secondary" href="/join">料金・プランを見る</a>
               </article>
             </div>
 
             <p class="top-safe-note">
-              一部の深い鑑定は<br />
-              今後段階的に整えていきます<br />
-              必要なところから 少しずつお使いいただけます
+              本番カード決済は現在利用開始準備中です<br />
+              料金・利用枠・申込条件は先にご確認いただけます
             </p>
           </div>
         </div>

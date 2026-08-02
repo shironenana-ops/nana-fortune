@@ -1,10 +1,12 @@
 ---
 import "../../styles/global.css";
 import SeoHead from "../../components/SeoHead.astro";
+import { BILLING_PLANS } from "../../lib/billingPlans";
 
 const pageTitle = "深掘り鑑定 | 白音七";
 const pageDescription =
-  "白音七の深掘り鑑定案内ページです。現在は正式公開に向けて準備中です。";
+  "白音七の深掘り鑑定と、対象となるプレミアム会員の利用枠をご案内します。";
+const premiumPlan = BILLING_PLANS.premium;
 ---
 
 <!DOCTYPE html>
@@ -54,8 +56,7 @@ const pageDescription =
 
           <p class="reading-door-lead">
             今の状況や、心の奥にあるテーマを、<br />
-            時間をかけて丁寧に見つめるための鑑定です。<br /><br />
-            正式なご案内まで、今しばらくお待ちください。
+            時間をかけて丁寧に見つめるための鑑定です。
           </p>
 
           <div class="reading-door-grid" aria-label="深掘り鑑定の案内">
@@ -67,35 +68,34 @@ const pageDescription =
             </section>
 
             <section class="reading-door-panel">
-              <h2>現在の状態</h2>
+              <h2>対象プラン</h2>
               <p>
-                現在は正式公開に向けて、安心して受け取れる流れを静かに整えています。
+                プレミアム会員<br />
+                {premiumPlan.priceLabel}・自動更新
               </p>
             </section>
 
             <section class="reading-door-panel">
-              <h2>これからのご案内</h2>
+              <h2>利用枠</h2>
               <p>
-                準備が整いましたら、内容と価格を確認できる形でご案内します。
+                深掘り鑑定 月{premiumPlan.deepMonthlyLimit}回<br />
+                ライト鑑定 月{premiumPlan.lightMonthlyLimit}回、音声 月{premiumPlan.voiceMonthlyLimit}枠も含まれます。
               </p>
             </section>
           </div>
 
-          <section class="reading-input-shell" aria-label="深掘り鑑定の準備中案内">
+          <section class="reading-input-shell" aria-label="深掘り鑑定の利用開始準備案内">
             <div class="reading-input-head">
-              <span>準備中</span>
+              <span>本番決済審査中</span>
               <strong>deep</strong>
             </div>
 
             <p class="reading-input-message">
-              深掘り鑑定への扉は、現在静かに準備中です。<br />
-              この画面で入力を求めたり、料金が発生したりすることはありません。
+              プラン内容と料金は公開していますが、本番カード決済はまだ開始していません。
             </p>
 
             <div class="reading-preparing-actions">
-              <button class="fortune-btn violet" type="button" aria-disabled="true">
-                深掘り鑑定（準備中）
-              </button>
+              <a class="fortune-btn violet" href="/join#premium">料金・申込条件を見る</a>
               <a href="/premium" class="fortune-btn secondary">会員限定鑑定へ戻る</a>
               <a href="/members" class="fortune-btn secondary">会員ページへ</a>
             </div>

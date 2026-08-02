@@ -1606,9 +1606,10 @@ body.members-page-body {
     function buildBillingOffGuideCard() {
       return `
         <article class="plan-card" data-plan-card="billing-off-guide">
-          <span class="plan-card__tag">準備中</span>
-          <h3>これから整える鑑定</h3>
-          <p>深い鑑定や音声での受け取りは、現在準備中です。今は今日の占いと履歴確認を中心にお使いいただけます。</p>
+          <span class="plan-card__tag">本番決済審査中</span>
+          <h3>料金・プランを公開しています</h3>
+          <p>ライト会員、プレミアム会員、音声鑑定1回分の料金と申込条件をご確認いただけます。本番カード決済はまだ開始していません。</p>
+          <a class="plan-card__button" href="/join">料金・申込条件を見る</a>
         </article>
       `;
     }
@@ -1618,7 +1619,7 @@ body.members-page-body {
         <article class="plan-card" data-plan-card="extra">
           <span class="plan-card__tag">準備中</span>
           <h3>単発音声占い</h3>
-          <p>音声で受け取る鑑定は、現在準備中です。正式なご案内まで、今しばらくお待ちください。</p>
+          <p>音声鑑定1回分の料金と申込条件は、料金ページで公開しています。</p>
           <button class="plan-card__button" data-plan="extra" data-source-path="${sourcePath}">
             単発音声（準備中）
           </button>
@@ -1631,8 +1632,8 @@ body.members-page-body {
         <article class="plan-card" data-plan-card="normal">
           <span class="plan-card__tag">月額ライト会員</span>
           <h3>ライト会員</h3>
-          <p>ライト会員は、日々の鑑定と履歴確認を少し深く受け取りたい方向けに準備しています。</p>
-          <div class="plan-card__price">料金は準備中</div>
+          <p>ライト会員の料金と利用枠は、料金ページで公開しています。</p>
+          <div class="plan-card__price">料金・利用枠を公開中</div>
           <button class="plan-card__button" data-plan="normal" data-source-path="${sourcePath}">
             ライト会員（準備中）
           </button>
@@ -1645,8 +1646,8 @@ body.members-page-body {
         <article class="plan-card plan-card--premium" data-plan-card="premium">
           <span class="plan-card__tag">プレミアム</span>
           <h3>プレミアム会員</h3>
-          <p>プレミアム会員は、より深い鑑定や受け取り方を選びたい方向けに準備しています。</p>
-          <div class="plan-card__price">料金は準備中</div>
+          <p>プレミアム会員の料金と利用枠は、料金ページで公開しています。</p>
+          <div class="plan-card__price">料金・利用枠を公開中</div>
           <button class="plan-card__button" data-plan="premium" data-source-path="${sourcePath}">
             Premium（準備中）
           </button>
@@ -1660,7 +1661,7 @@ body.members-page-body {
           <span class="plan-card__tag">次回更新から変更</span>
           <h3>ライト会員へ変更</h3>
           <p>プラン変更のご案内は現在準備中です。正式なご案内時に、内容を確認できる形でお知らせします。</p>
-          <div class="plan-card__price">料金は準備中</div>
+          <div class="plan-card__price">プラン変更は個別確認</div>
           <button class="plan-card__button" data-plan="normal">
             プラン変更（準備中）
           </button>

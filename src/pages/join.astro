@@ -2,25 +2,23 @@
 import "../styles/global.css";
 import SeoHead from "../components/SeoHead.astro";
 import {
-  MOSH_PLANS,
-  canApplyForMoshPlan,
-  getSafeMoshUrl,
-  isMoshBillingEnabled,
-  type MoshPlan,
-} from "../lib/moshPlans";
+  BILLING_PLANS,
+  getCheckoutHref,
+  isPaidBillingPlanId,
+  type BillingPlan,
+} from "../lib/billingPlans";
 
 export const prerender = false;
 
-const pageTitle = "白音七のプラン｜無料・ライト・プレミアム・音声単体";
-const pageDescription = "白音七の無料機能と、MOSHで申し込める会員プラン・音声単体商品の案内です。";
-const billingEnabled = isMoshBillingEnabled(import.meta.env.PUBLIC_MOSH_BILLING_ENABLED);
-const plans = Object.values(MOSH_PLANS);
+const pageTitle = "白音七の料金・プラン";
+const pageDescription = "白音七の無料機能と、ライト会員・プレミアム会員・音声鑑定1回分の料金、利用枠、申込条件をご案内します。";
+const plans = Object.values(BILLING_PLANS);
 
-const ctaLabels: Record<MoshPlan["id"], string> = {
+const ctaLabels: Record<BillingPlan["id"], string> = {
   free: "無料で白音七を使う",
-  light: "MOSHでライト会員に申し込む",
-  premium: "MOSHでプレミアム会員に申し込む",
-  voice_single: "MOSHで音声鑑定を購入する",
+  light: "申込内容を確認する",
+  premium: "申込内容を確認する",
+  voice_single: "申込内容を確認する",
 };
 ---
 
@@ -40,39 +38,42 @@ const ctaLabels: Record<MoshPlan["id"], string> = {
       </div>
     </header>
 
-    <main class="mosh-join-page">
-      <section class="fortune-container mosh-hero">
-        <div class="mosh-frame">
-          <div class="fortune-kicker">SHIRONE7 PLANS</div>
-          <h1>白音七のプラン</h1>
-          <p>無料機能はそのまま利用できます。有料プランと音声単体商品の申込み・決済は、外部サービスのMOSHで行います。</p>
-          <div class="mosh-safety-note">
+    <main class="billing-join-page">
+      <section class="fortune-container billing-hero">
+        <div class="billing-frame">
+          <div class="fortune-kicker">SHIRONE7 PRICING</div>
+          <h1>白音七の料金・プラン</h1>
+          <p>無料で使える機能と、ライト会員・プレミアム会員・音声鑑定1回分の内容をご案内します。</p>
+          <div class="billing-safety-note">
             <strong>白音七はカード番号を取得・保存しません</strong>
-            <span>MOSHではfincode決済を利用します。白音七アカウントと同じメールアドレスでお申し込みください。</span>
+            <span>有料サービスのカード決済にはfincode byGMOを利用します。</span>
+          </div>
+          <div class="billing-review-note" role="status">
+            現在、fincode本番環境の利用開始に向けた審査・準備を行っています。<br />
+            プラン内容と申込条件はご確認いただけますが、本番カード決済はまだ開始していません。
           </div>
         </div>
       </section>
 
       <section class="fortune-container" id="plans">
-        <div class="mosh-plan-grid">
+        <div class="billing-plan-grid">
           {plans.map((plan) => {
-            const safeUrl = getSafeMoshUrl(plan);
-            const canApply = canApplyForMoshPlan(plan, billingEnabled);
+            const checkoutHref = isPaidBillingPlanId(plan.id) ? getCheckoutHref(plan.id) : null;
             return (
-              <article class:list={["mosh-plan-card", `mosh-plan-card--${plan.id}`]}>
-                <div class="mosh-plan-type">
+              <article id={plan.id} class:list={["billing-plan-card", `billing-plan-card--${plan.id}`]}>
+                <div class="billing-plan-type">
                   {plan.billingType === "subscription" ? "月額・自動更新" : plan.billingType === "one_time" ? "買い切り" : "無料"}
                 </div>
                 <h2>{plan.displayName}</h2>
-                <div class="mosh-plan-price">{plan.priceLabel}</div>
+                <div class="billing-plan-price">{plan.priceLabel}</div>
                 <p>{plan.description}</p>
                 <ul>{plan.features.map((feature) => <li>{feature}</li>)}</ul>
                 {plan.id === "free" ? (
-                  <a class="fortune-btn secondary" href="/">{ctaLabels.free}</a>
-                ) : canApply && safeUrl ? (
-                  <a class="fortune-btn gold" href={safeUrl} target="_blank" rel="noopener noreferrer">{ctaLabels[plan.id]}</a>
+                  <a class="fortune-btn secondary" href="/diagnosis">{ctaLabels.free}</a>
+                ) : checkoutHref ? (
+                  <a class="fortune-btn gold" href={checkoutHref}>{ctaLabels[plan.id]}</a>
                 ) : (
-                  <div class="mosh-preparing" role="status">現在準備中</div>
+                  <span class="billing-plan-unavailable">申込内容を確認できません</span>
                 )}
               </article>
             );
@@ -80,17 +81,17 @@ const ctaLabels: Record<MoshPlan["id"], string> = {
         </div>
       </section>
 
-      <section class="fortune-container mosh-guide">
-        <div class="mosh-frame">
+      <section class="fortune-container billing-guide">
+        <div class="billing-frame">
           <h2>お申し込み前にご確認ください</h2>
           <ol>
-            <li>先に白音七へ会員登録またはログインしてください。</li>
-            <li>白音七と同じメールアドレスでMOSHへお申し込みください。</li>
-            <li>お申し込み内容を確認後、白音七の会員状態または音声1回分へ反映します。</li>
+            <li>有料商品のボタンから、商品・価格・利用枠・契約条件をご確認ください。</li>
+            <li>本番カード決済の開始後は、決済完了と白音七での確認を経て利用権へ反映します。</li>
+            <li>月額プランは自動更新です。いつでも解約手続きができ、現在の契約期間末まで利用できます。</li>
           </ol>
-          <p>現時点では自動反映ではありません。利用者の自己申告だけでは権限を付与せず、MOSHの販売者側記録と照合します。</p>
-          <p>月額プランは解約しない限り自動更新されます。解約や支払方法の変更はMOSH側で行ってください。一度お届けした鑑定履歴はランク変更後も残りますが、新しい有料鑑定や未生成音声は現在の利用権で制御されます。</p>
-          <div class="mosh-guide-actions"><a class="fortune-btn primary" href="/signup?redirect=/join">白音七へ会員登録</a><a class="fortune-btn secondary" href="/login?redirect=/join">ログイン</a></div>
+          <p>一度お届けした鑑定本文と生成済み音声は、会員ランクの変更や解約後も本人の履歴として保持します。新しい有料鑑定と未生成音声は、現在の会員権利と利用枠で制御します。</p>
+          <p>現在は本番決済審査中です。申込内容確認ページから先のカード入力や決済は行えません。</p>
+          <div class="billing-guide-actions"><a class="fortune-btn primary" href="/signup?redirect=/join">白音七へ会員登録</a><a class="fortune-btn secondary" href="/login?redirect=/join">ログイン</a></div>
         </div>
       </section>
     </main>
@@ -98,27 +99,27 @@ const ctaLabels: Record<MoshPlan["id"], string> = {
     <footer class="fortune-footer"><div class="fortune-container fortune-footer-inner"><div>© {new Date().getFullYear()} 白音七</div><nav class="fortune-footer-links"><a href="/terms">利用規約</a><a href="/privacy">プライバシーポリシー</a><a href="/commercial-transactions">特定商取引法に基づく表記</a><a href="/contact">お問い合わせ</a></nav></div></footer>
 
     <style>
-      .mosh-join-page { min-height: 100vh; padding: 4rem 0 5rem; }
-      .mosh-hero { margin-bottom: 1.4rem; }
-      .mosh-frame, .mosh-plan-card { border: 1px solid rgba(224,184,72,.3); border-radius: 24px; background: linear-gradient(145deg,rgba(15,19,42,.96),rgba(16,14,34,.94)); box-shadow: 0 24px 70px rgba(0,0,0,.28); }
-      .mosh-frame { padding: clamp(1.4rem,4vw,2.5rem); }
-      .mosh-frame h1, .mosh-frame h2, .mosh-plan-card h2 { color: #fff0b8; }
-      .mosh-frame h1 { margin: .8rem 0; font-size: clamp(2rem,5vw,3.7rem); }
-      .mosh-frame p, .mosh-plan-card p, .mosh-plan-card li { color: rgba(255,240,190,.82); line-height: 1.8; }
-      .mosh-safety-note { display: grid; gap: .45rem; margin-top: 1.2rem; border-left: 2px solid #e5be4a; padding: .4rem 0 .4rem 1rem; color: rgba(255,240,190,.82); }
-      .mosh-safety-note strong { color: #fff0b8; }
-      .mosh-plan-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
-      .mosh-plan-card { display: flex; flex-direction: column; padding: 1.4rem; }
-      .mosh-plan-type { width: fit-content; border: 1px solid rgba(224,184,72,.35); border-radius: 999px; padding: .3rem .7rem; color: #ffe58f; font-size: .76rem; font-weight: 800; }
-      .mosh-plan-card h2 { margin: 1rem 0 .35rem; }
-      .mosh-plan-price { color: #ffe58f; font-size: 1.35rem; font-weight: 800; }
-      .mosh-plan-card ul { flex: 1; padding-left: 1.2rem; }
-      .mosh-plan-card .fortune-btn { width: 100%; box-sizing: border-box; text-align: center; }
-      .mosh-preparing { margin-top: auto; border: 1px solid rgba(255,240,190,.25); border-radius: 999px; padding: .7rem; color: rgba(255,240,190,.75); text-align: center; }
-      .mosh-guide { margin-top: 1.4rem; }
-      .mosh-guide li { margin-bottom: .55rem; color: rgba(255,240,190,.85); line-height: 1.7; }
-      .mosh-guide-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.3rem; }
-      @media (max-width: 700px) { .mosh-join-page { padding: 1.4rem 0 3rem; } .mosh-plan-grid { grid-template-columns: 1fr; } .mosh-frame,.mosh-plan-card { border-radius: 18px; } .mosh-guide-actions .fortune-btn { width: 100%; } }
+      .billing-join-page { min-height: 100vh; padding: 4rem 0 5rem; }
+      .billing-hero { margin-bottom: 1.4rem; }
+      .billing-frame, .billing-plan-card { border: 1px solid rgba(224,184,72,.3); border-radius: 24px; background: linear-gradient(145deg,rgba(15,19,42,.96),rgba(16,14,34,.94)); box-shadow: 0 24px 70px rgba(0,0,0,.28); }
+      .billing-frame { padding: clamp(1.4rem,4vw,2.5rem); }
+      .billing-frame h1, .billing-frame h2, .billing-plan-card h2 { color: #fff0b8; }
+      .billing-frame h1 { margin: .8rem 0; font-size: clamp(2rem,5vw,3.7rem); }
+      .billing-frame p, .billing-plan-card p, .billing-plan-card li { color: rgba(255,240,190,.82); line-height: 1.8; }
+      .billing-safety-note { display: grid; gap: .45rem; margin-top: 1.2rem; border-left: 2px solid #e5be4a; padding: .4rem 0 .4rem 1rem; color: rgba(255,240,190,.82); }
+      .billing-safety-note strong { color: #fff0b8; }
+      .billing-review-note { margin-top: 1.25rem; border: 1px solid rgba(224,184,72,.28); border-radius: 16px; padding: 1rem; color: #fff0b8; line-height: 1.8; background: rgba(224,184,72,.07); }
+      .billing-plan-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
+      .billing-plan-card { display: flex; flex-direction: column; padding: 1.4rem; scroll-margin-top: 2rem; }
+      .billing-plan-type { width: fit-content; border: 1px solid rgba(224,184,72,.35); border-radius: 999px; padding: .3rem .7rem; color: #ffe58f; font-size: .76rem; font-weight: 800; }
+      .billing-plan-card h2 { margin: 1rem 0 .35rem; }
+      .billing-plan-price { color: #ffe58f; font-size: 1.35rem; font-weight: 800; }
+      .billing-plan-card ul { flex: 1; padding-left: 1.2rem; }
+      .billing-plan-card .fortune-btn { width: 100%; box-sizing: border-box; text-align: center; }
+      .billing-guide { margin-top: 1.4rem; }
+      .billing-guide li { margin-bottom: .55rem; color: rgba(255,240,190,.85); line-height: 1.7; }
+      .billing-guide-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.3rem; }
+      @media (max-width: 700px) { .billing-join-page { padding: 1.4rem 0 3rem; } .billing-plan-grid { grid-template-columns: 1fr; } .billing-frame,.billing-plan-card { border-radius: 18px; } .billing-guide-actions .fortune-btn { width: 100%; } }
     </style>
   </body>
 </html>
