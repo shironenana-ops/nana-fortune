@@ -47,7 +47,7 @@ function safeError(error: unknown): Response {
   if (code === "FINCODE_TEST_PAYMENT_REJECTED") {
     return json({ ok: false, code: "FINCODE_TEST_PAYMENT_REJECTED", message: "TEST決済を完了できませんでした。" }, 502);
   }
-  return json({ ok: false, code: "FINCODE_TEST_UNAVAILABLE", message: "TEST決済を現在利用できません。" }, 503);
+  return json({ ok: false, code, message: "TEST決済を現在利用できません。" }, 503);
 }
 
 async function strictJsonBody(request: Request): Promise<unknown> {

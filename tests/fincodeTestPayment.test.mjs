@@ -335,3 +335,16 @@ test("TEST payment implementation contains no AWS, DynamoDB, Secrets Manager or 
   assert.doesNotMatch(source, /api\.fincode\.jp(?!\/)/u);
   assert.match(source, /api\.test\.fincode\.jp/u);
 });
+
+test("browser TEST routes read private configuration through Astro server secrets", async () => {
+  const register = await readFile(new URL("../src/pages/api/billing/fincode/test/register.ts", import.meta.url), "utf8");
+  const result = await readFile(new URL("../src/pages/fincode/test/result.ts", import.meta.url), "utf8");
+  const config = await readFile(new URL("../astro.config.mjs", import.meta.url), "utf8");
+  for (const source of [register, result]) {
+    assert.match(source, /from "astro:env\/server"/u);
+    for (const name of ["FINCODE_TEST_PAYMENT_ENABLED", "FINCODE_TEST_API_BASE", "FINCODE_TEST_SECRET_KEY", "FINCODE_TEST_SHOP_ID"]) {
+      assert.match(source, new RegExp(`getSecret\\("${name}"\\)`, "u"));
+    }
+  }
+  assert.match(config, /context: "server", access: "secret"/gu);
+});
