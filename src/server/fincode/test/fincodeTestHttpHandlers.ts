@@ -111,6 +111,11 @@ function resultHtml(input: { title: string; message: string; retry: boolean }): 
   return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escapeHtml(input.title)} | 白音七</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0f1a;color:#fff;font-family:sans-serif}.card{max-width:42rem;margin:1rem;padding:2rem;border:1px solid #8e7730;border-radius:1.25rem;background:#10142b;text-align:center}h1{color:#ffe58f}p{line-height:1.8}a{color:#ffe58f}</style></head><body><main class="card"><h1>${escapeHtml(input.title)}</h1><p>${escapeHtml(input.message)}</p>${retry}<p>このTESTでは実際の請求および白音七の権利付与は行いません。</p><a href="/checkout?plan=voice_single">申込内容確認へ戻る</a></main></body></html>`;
 }
 
+function failureResultHtml(input: { title: string; message: string; retry: boolean }): string {
+  const retry = input.retry ? "<p>時間をおいて、このページを再読み込みしてからもう一度決済してください。</p>" : "";
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escapeHtml(input.title)} | 白音七</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0f1a;color:#fff;font-family:sans-serif}.card{max-width:42rem;margin:1rem;padding:2rem;border:1px solid #8e7730;border-radius:1.25rem;background:#10142b;text-align:center}h1{color:#ffe58f}p{line-height:1.8}a{color:#ffe58f}</style></head><body><main class="card"><h1>${escapeHtml(input.title)}</h1><p>${escapeHtml(input.message)}</p>${retry}<p>このTESTでは実際の請求および白音七の権利付与は行いません。</p><a href="/checkout?plan=voice_single">もう一度決済する</a></main></body></html>`;
+}
+
 export async function handleFincodeTestResult(
   request: Request,
   env: FincodeTestEnvironment,
@@ -124,14 +129,21 @@ export async function handleFincodeTestResult(
     const paymentId = validateFincodeTestPaymentId(url.searchParams.get("payment_id"));
     const config = loadFincodeTestPaymentConfig(env);
     await verifyFincodeTestPayment({ config, paymentId, fetchImpl });
-    return new Response(resultHtml({ title: "TEST決済成功", message: "fincode TEST環境で300円のカード決済完了を確認しました。", retry: false }), { status: 200, headers: HTML_HEADERS });
+    return new Response(null, {
+      status: 303,
+      headers: {
+        "cache-control": "no-store",
+        location: "/fincode/test/complete",
+        "referrer-policy": "no-referrer",
+      },
+    });
   } catch (error) {
     const retryable = !isFincodeTestError(error)
       || error.code === "FINCODE_TEST_PROVIDER_UNAVAILABLE"
       || error.code === "FINCODE_TEST_RESPONSE_INVALID";
     const rejected = isFincodeTestError(error) && error.code === "FINCODE_TEST_PAYMENT_REJECTED";
     return new Response(
-      resultHtml({
+      failureResultHtml({
         title: rejected ? "TEST決済失敗" : retryable ? "確認を完了できません" : "TEST決済失敗",
         message: rejected ? "fincode TEST環境で決済完了を確認できませんでした。" : retryable ? "決済状態を安全に確認できませんでした。" : "入力内容または実行環境を確認してください。",
         retry: retryable,

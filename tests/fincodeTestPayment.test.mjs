@@ -272,7 +272,7 @@ test("registration endpoint does not expose raw provider messages", async () => 
   assert.equal(text.includes(TEST_ENV.FINCODE_TEST_SECRET_KEY), false);
 });
 
-test("result endpoint verifies on GET and POST and never trusts outcome query", async () => {
+test("result endpoint verifies on GET and POST, then redirects to a clean completion page", async () => {
   let calls = 0;
   const fetchImpl = async () => {
     calls += 1;
@@ -280,10 +280,10 @@ test("result endpoint verifies on GET and POST and never trusts outcome query", 
   };
   for (const method of ["GET", "POST"]) {
     const response = await handleFincodeTestResult(new Request(`http://localhost:4321/fincode/test/result?payment_id=${PAYMENT_ID}&outcome=failure&success=true`, { method }), TEST_ENV, fetchImpl);
-    const html = await response.text();
-    assert.equal(response.status, 200);
-    assert.match(html, /TEST決済成功/u);
-    assert.match(html, /権利付与は行いません/u);
+    assert.equal(response.status, 303);
+    assert.equal(response.headers.get("location"), "/fincode/test/complete");
+    assert.equal(response.headers.get("location")?.includes("payment_id"), false);
+    assert.equal(response.headers.get("location")?.includes("outcome"), false);
   }
   assert.equal(calls, 2);
 });
@@ -316,6 +316,15 @@ test("checkout source keeps card data on official JS path and adds no persistenc
   assert.match(source, /return_url/u);
   assert.match(source, /return_url_on_failure/u);
   assert.match(source, /allowFincodeTestRedirectUrl/u);
+});
+
+test("clean TEST completion page has the voice CTA and no callback data or entitlement claim", async () => {
+  const source = await readFile(new URL("../src/pages/fincode/test/complete.astro", import.meta.url), "utf8");
+  assert.match(source, /href="\/premium\/voice"/u);
+  assert.match(source, /音声鑑定ページを見る/u);
+  assert.match(source, /権利付与は行いません/u);
+  assert.doesNotMatch(source, /payment_id|outcome|searchParams/u);
+  assert.doesNotMatch(source, /membership|entitlement|DynamoDB/u);
 });
 
 test("legacy checkout success page cannot claim success from query parameters", async () => {
