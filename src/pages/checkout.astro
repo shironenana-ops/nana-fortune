@@ -55,7 +55,9 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
           {selectedPlan ? (
             <>
               <div class="checkout-review-state" role="status">
-                現在はfincode本番環境の審査・準備中です。申込条件は確認できますが、本番カード決済はまだ開始していません。
+                {testPaymentEnabled
+                  ? "現在はfincode TEST環境で決済動作を確認しています。本番カード決済はまだ開始していません。"
+                  : "現在はfincode本番環境の審査・準備中です。申込条件は確認できますが、本番カード決済はまだ開始していません。"}
               </div>
 
               <dl class="checkout-review-list">
@@ -174,8 +176,14 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
           try {
             const fincode = await initFincode({ publicKey, isLiveMode: false });
             const ui = fincode.ui({ layout: "vertical", hidePayTimes: true });
-            ui.create("payments", { layout: "vertical", hidePayTimes: true });
-            ui.mount("fincode-test-card-ui", "100%");
+            // @fincode/js@1.1.0のd.tsは"payments"ですが、公式SDK実行例のUI契約は"payment"です。
+            const paymentUi = ui as unknown as {
+              create: (method: "payment", appearance: { layout: "vertical"; hidePayTimes: true }) => void;
+              mount: (elementId: string, width: string) => void;
+              getFormData: typeof ui.getFormData;
+            };
+            paymentUi.create("payment", { layout: "vertical", hidePayTimes: true });
+            paymentUi.mount("fincode-test-card-ui", "400");
 
             button.addEventListener("click", async () => {
               button.disabled = true;
@@ -205,7 +213,7 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
                   throw new Error("registration rejected");
                 }
 
-                const card = await ui.getFormData();
+                const card = await paymentUi.getFormData();
                 const resultUrl = new URL("/fincode/test/result", window.location.origin);
                 resultUrl.searchParams.set("payment_id", registered.paymentId);
                 const failureUrl = new URL(resultUrl);

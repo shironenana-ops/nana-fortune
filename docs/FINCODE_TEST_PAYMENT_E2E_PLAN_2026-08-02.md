@@ -28,6 +28,10 @@
 - 公式JavaScript SDK: <https://docs.fincode.jp/sdk/js>
 - UIコンポーネント: <https://docs.fincode.jp/payment/ui_component>
 
+### SDK UIメソッド名の互換性メモ
+
+`@fincode/js@1.1.0`の型定義は`ui.create("payments", ...)`を宣言していますが、公式SDKドキュメントの実行例は`ui.create("payment", ...)`です。今回のブラウザ症状は、型定義側の複数形を実行時契約として使ったことでUI生成に失敗したものと判断しました。実装は公式実行例の単数形`payment`とmount幅`"400"`を採用し、型境界でこの差分を明示しています。
+
 ## 実装フロー
 
 ```text

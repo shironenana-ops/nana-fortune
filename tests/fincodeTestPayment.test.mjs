@@ -302,7 +302,8 @@ test("checkout source keeps card data on official JS path and adds no persistenc
   const source = await readFile(new URL("../src/pages/checkout.astro", import.meta.url), "utf8");
   assert.match(source, /initFincode/u);
   assert.match(source, /isLiveMode: false/u);
-  assert.match(source, /ui\.create\("payments"/u);
+  assert.match(source, /paymentUi\.create\("payment"/u);
+  assert.match(source, /paymentUi\.mount\("fincode-test-card-ui", "400"\)/u);
   assert.match(source, /PUBLIC_FINCODE_TEST_PAYMENT_ENABLED/u);
   assert.match(source, /isFincodeTestCheckoutEnabled/u);
   assert.match(source, /body: JSON\.stringify\(\{ plan: "voice_single" \}\)/u);
