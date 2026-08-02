@@ -856,8 +856,6 @@ export const prerender = false;
       </div>
     </footer>
 
-    <script is:inline src="/js/billing.js"></script>
-
     <script is:inline>
       const API_BASE = "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod";
       const HISTORY_API_BASE = API_BASE;
@@ -1354,28 +1352,22 @@ export const prerender = false;
         return `
           <article class="menu-card">
             <h3>ライト会員</h3>
-            <p>日々の鑑定と履歴確認を少し深く受け取りたい方向けに準備しています。</p>
-            <div class="price">料金は準備中</div>
-            <button class="btn btn-gold" type="button" data-checkout-plan="normal" data-source-path="/history">
-              ライト会員（準備中）
-            </button>
+            <p>ライト鑑定と音声枠を利用できる月額プランです。</p>
+            <div class="price">料金・利用枠を公開中</div>
+            <a class="btn btn-gold" href="/join#light">料金・申込条件を見る</a>
           </article>
 
           <article class="menu-card featured">
             <h3>プレミアム会員</h3>
-            <p>より深い鑑定や受け取り方を選びたい方向けに準備しています。</p>
-            <div class="price">料金は準備中</div>
-            <button class="btn btn-violet" type="button" data-checkout-plan="premium" data-source-path="/history">
-              Premium（準備中）
-            </button>
+            <p>ライト鑑定、深掘り鑑定、音声枠を利用できる月額プランです。</p>
+            <div class="price">料金・利用枠を公開中</div>
+            <a class="btn btn-violet" href="/join#premium">料金・申込条件を見る</a>
           </article>
 
           <article class="menu-card">
             <h3>単発音声占い</h3>
-            <p>音声で受け取る鑑定は、現在準備中です。正式なご案内まで、今しばらくお待ちください。</p>
-            <button class="btn btn-secondary" type="button" data-checkout-plan="extra" data-source-path="/history">
-              単発音声（準備中）
-            </button>
+            <p>月額契約なしで、音声鑑定1回分の利用権を追加する商品です。</p>
+            <a class="btn btn-secondary" href="/join#voice_single">料金・申込条件を見る</a>
           </article>
         `;
       }
@@ -1402,11 +1394,9 @@ export const prerender = false;
 
           <article class="menu-card">
             <h3>単発音声占い</h3>
-            <p>音声で受け取る鑑定は、現在準備中です。正式なご案内まで、今しばらくお待ちください。</p>
-            <button class="btn btn-secondary" type="button" data-checkout-plan="extra" data-source-path="/history">
-              単発音声（準備中）
-            </button>
-            <div class="plan-note">正式なご案内では、内容を確認できる形でお知らせします。</div>
+            <p>月額契約なしで、音声鑑定1回分の利用権を追加する商品です。</p>
+            <a class="btn btn-secondary" href="/join#voice_single">料金・申込条件を見る</a>
+            <div class="plan-note">本番カード決済は現在利用開始準備中です。</div>
           </article>
         `;
       }
@@ -1474,9 +1464,6 @@ export const prerender = false;
 
         container.innerHTML = buildFreePlanCards();
 
-        if (window.ShironeBilling && typeof window.ShironeBilling.bindBillingButtons === "function") {
-          window.ShironeBilling.bindBillingButtons();
-        }
       }
 
       async function loadUserStatus() {

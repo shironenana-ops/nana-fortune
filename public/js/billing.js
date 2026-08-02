@@ -1,7 +1,7 @@
 // Legacy billing UI compatibility shim.
-// MOSH導線は /join だけで管理する。旧Checkout APIへは接続しない。
+// 本番決済は開通させず、申込条件の確認導線だけを提供する。
 const BILLING_PREPARATION_MESSAGE =
-  "この画面からのお申し込みは現在利用できません。\nプラン案内ページをご確認ください。";
+  "本番カード決済は現在準備中です。\n申込内容確認ページをご確認ください。";
 
 function findMessageBox() {
   return document.getElementById("billingMessage") || document.getElementById("joinBillingMessage");
@@ -27,7 +27,7 @@ function prepareBillingButton(button) {
   if (!button) return;
   button.textContent = getPreparationButtonLabel(button);
   button.setAttribute("aria-disabled", "true");
-  button.setAttribute("title", "MOSH申込みはプラン案内ページからご確認ください");
+  button.setAttribute("title", "料金・申込条件はプラン案内ページからご確認ください");
   button.classList.add("is-billing-disabled");
 }
 

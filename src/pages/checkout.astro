@@ -1,0 +1,118 @@
+---
+import "../styles/global.css";
+import SeoHead from "../components/SeoHead.astro";
+import {
+  getPaidBillingPlan,
+  isFincodeCheckoutEnabled,
+} from "../lib/billingPlans";
+
+export const prerender = false;
+
+const pageTitle = "申込内容確認｜白音七";
+const pageDescription = "白音七の有料サービスについて、価格、利用枠、支払方法、提供時期、解約・返金条件を確認するページです。";
+const selectedPlan = getPaidBillingPlan(Astro.url.searchParams.get("plan"));
+const checkoutConfigured = isFincodeCheckoutEnabled(import.meta.env.PUBLIC_FINCODE_CHECKOUT_ENABLED);
+
+if (!selectedPlan) {
+  Astro.response.status = 404;
+}
+
+const billingLabel = selectedPlan?.billingType === "subscription" ? "月額・自動更新" : "買い切り";
+const paymentTiming = selectedPlan?.billingType === "subscription"
+  ? "初回申込時および以後の契約周期ごとに自動決済"
+  : "申込時に決済";
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <SeoHead title={pageTitle} description={pageDescription} />
+  </head>
+  <body class="fortune-body">
+    <header class="fortune-header">
+      <div class="fortune-container fortune-header-inner">
+        <a href="/" class="fortune-logo"><span class="fortune-logo-mark"></span><span>白音七</span></a>
+        <button class="fortune-mobile-menu-button" type="button" aria-label="メニューを開く" aria-expanded="false" onclick="const nav=this.parentElement.querySelector('.fortune-nav'); const open=!nav.classList.contains('is-open'); nav.classList.toggle('is-open', open); this.setAttribute('aria-expanded', String(open));"><span></span><span></span><span></span></button>
+        <nav class="fortune-nav"><a href="/">TOP</a><a href="/join">料金・プラン</a><a href="/contact">お問い合わせ</a></nav>
+      </div>
+    </header>
+
+    <main class="checkout-review-page">
+      <section class="fortune-container">
+        <div class="checkout-review-frame">
+          <div class="fortune-kicker">ORDER REVIEW</div>
+          <h1>申込内容確認</h1>
+
+          {selectedPlan ? (
+            <>
+              <div class="checkout-review-state" role="status">
+                現在はfincode本番環境の審査・準備中です。申込条件は確認できますが、本番カード決済はまだ開始していません。
+              </div>
+
+              <dl class="checkout-review-list">
+                <div><dt>商品名</dt><dd>{selectedPlan.displayName}</dd></div>
+                <div><dt>価格</dt><dd>{selectedPlan.priceLabel}</dd></div>
+                <div><dt>数量</dt><dd>1</dd></div>
+                <div><dt>請求区分</dt><dd>{billingLabel}</dd></div>
+                <div><dt>利用枠・提供内容</dt><dd><ul>{selectedPlan.features.map((feature) => <li>{feature}</li>)}</ul></dd></div>
+                <div><dt>商品代金以外の必要料金</dt><dd>なし<br /><small>インターネット接続・通信に必要な費用は利用者負担です。</small></dd></div>
+                <div><dt>支払方法</dt><dd>fincode byGMOを利用したクレジットカード決済</dd></div>
+                <div><dt>支払時期</dt><dd>{paymentTiming}</dd></div>
+                <div><dt>サービス提供時期</dt><dd>決済完了および白音七での決済確認後、原則として直ちに利用権へ反映します。処理に時間を要する場合は、決済完了から24時間以内を目安に反映します。</dd></div>
+                <div><dt>解約方法</dt><dd>月額プランは、お問い合わせ先へのご連絡によりいつでも解約手続きが可能です。現在の契約期間末まで利用でき、次回以降の自動更新を停止します。</dd></div>
+                <div><dt>返金・キャンセル</dt><dd>お客様都合による決済完了後のキャンセル・返金は原則として受け付けません。重複請求、サービス未提供、白音七側のシステム不具合等は、決済記録と利用状況を確認のうえ個別に対応します。月額プランの残期間に対する日割り返金は行いません。</dd></div>
+              </dl>
+
+              <div class="checkout-legal-links" aria-label="申込条件に関する文書">
+                <a href="/terms">利用規約</a>
+                <a href="/commercial-transactions">特定商取引法に基づく表記</a>
+                <a href="/privacy">プライバシーポリシー</a>
+                <a href="/contact">お問い合わせ</a>
+              </div>
+
+              <button class="fortune-btn gold checkout-disabled-button" type="button" disabled aria-disabled="true">
+                カード決済へ進む
+              </button>
+              <p class="checkout-disabled-note">
+                {checkoutConfigured
+                  ? "決済機能はこのリリースでは未接続です。安全確認が完了するまでカード決済は開始しません。"
+                  : "現在はfincode本番環境の審査・準備中のため、カード決済はまだ開始していません。"}
+              </p>
+            </>
+          ) : (
+            <div class="checkout-invalid" role="alert">
+              <h2>商品を確認できませんでした</h2>
+              <p>料金ページから商品を選び直してください。URL上の価格や商品名は申込内容として使用しません。</p>
+              <a class="fortune-btn secondary" href="/join">料金・プランへ戻る</a>
+            </div>
+          )}
+        </div>
+      </section>
+    </main>
+
+    <footer class="fortune-footer"><div class="fortune-container fortune-footer-inner"><div>© {new Date().getFullYear()} 白音七</div><nav class="fortune-footer-links"><a href="/terms">利用規約</a><a href="/privacy">プライバシーポリシー</a><a href="/commercial-transactions">特定商取引法に基づく表記</a><a href="/contact">お問い合わせ</a></nav></div></footer>
+
+    <style>
+      .checkout-review-page { min-height: 100vh; padding: 4rem 0 5rem; }
+      .checkout-review-frame { border: 1px solid rgba(224,184,72,.3); border-radius: 24px; padding: clamp(1.4rem,4vw,2.8rem); background: linear-gradient(145deg,rgba(15,19,42,.96),rgba(16,14,34,.94)); box-shadow: 0 24px 70px rgba(0,0,0,.28); }
+      .checkout-review-frame h1, .checkout-review-frame h2 { color: #fff0b8; }
+      .checkout-review-frame h1 { margin: .8rem 0 1.3rem; font-size: clamp(2rem,5vw,3.4rem); }
+      .checkout-review-state, .checkout-disabled-note { border: 1px solid rgba(224,184,72,.28); border-radius: 16px; padding: 1rem; color: #fff0b8; line-height: 1.8; background: rgba(224,184,72,.07); }
+      .checkout-review-list { display: grid; gap: 0; margin: 1.4rem 0; border: 1px solid rgba(224,184,72,.22); border-radius: 18px; overflow: hidden; }
+      .checkout-review-list > div { display: grid; grid-template-columns: minmax(180px,.36fr) minmax(0,1fr); border-bottom: 1px solid rgba(224,184,72,.16); }
+      .checkout-review-list > div:last-child { border-bottom: 0; }
+      .checkout-review-list dt, .checkout-review-list dd { margin: 0; padding: 1rem; line-height: 1.8; }
+      .checkout-review-list dt { color: #ffe58f; font-weight: 800; background: rgba(224,184,72,.06); }
+      .checkout-review-list dd { color: rgba(255,240,190,.84); }
+      .checkout-review-list ul { margin: 0; padding-left: 1.2rem; }
+      .checkout-legal-links { display: flex; flex-wrap: wrap; gap: .7rem 1rem; margin: 1.2rem 0; }
+      .checkout-legal-links a { color: #ffe58f; }
+      .checkout-disabled-button { width: 100%; opacity: .55; cursor: not-allowed; }
+      .checkout-disabled-note { margin-top: .8rem; text-align: center; }
+      .checkout-invalid p { color: rgba(255,240,190,.84); line-height: 1.8; }
+      @media (max-width: 700px) { .checkout-review-page { padding: 1.4rem 0 3rem; } .checkout-review-frame { border-radius: 18px; } .checkout-review-list > div { grid-template-columns: 1fr; } .checkout-review-list dt { padding-bottom: .35rem; } .checkout-review-list dd { padding-top: .35rem; } }
+    </style>
+  </body>
+</html>

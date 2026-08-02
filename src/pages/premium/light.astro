@@ -1,10 +1,13 @@
 ---
 import "../../styles/global.css";
 import SeoHead from "../../components/SeoHead.astro";
+import { BILLING_PLANS } from "../../lib/billingPlans";
 
 const pageTitle = "ライト鑑定 | 白音七";
 const pageDescription =
-  "白音七のライト鑑定案内ページです。現在は正式公開に向けて準備中です。";
+  "白音七のライト鑑定と、ライト会員・プレミアム会員の利用枠をご案内します。";
+const lightPlan = BILLING_PLANS.light;
+const premiumPlan = BILLING_PLANS.premium;
 ---
 
 <!DOCTYPE html>
@@ -54,8 +57,7 @@ const pageDescription =
 
           <p class="reading-door-lead">
             今日の流れと、今のあなたに必要なメッセージを、<br />
-            無料鑑定よりも少し丁寧に受け取るための鑑定です。<br /><br />
-            正式なご案内まで、今しばらくお待ちください。
+            無料鑑定よりも少し丁寧に受け取るための鑑定です。
           </p>
 
           <div class="reading-door-grid" aria-label="ライト鑑定の案内">
@@ -67,35 +69,34 @@ const pageDescription =
             </section>
 
             <section class="reading-door-panel">
-              <h2>現在の状態</h2>
+              <h2>ライト会員</h2>
               <p>
-                現在は正式公開に向けて、鑑定の受け取り方を静かに整えています。
+                月{lightPlan.lightMonthlyLimit}回・{lightPlan.priceLabel}<br />
+                音声は月{lightPlan.voiceMonthlyLimit}枠です。
               </p>
             </section>
 
             <section class="reading-door-panel">
-              <h2>これからのご案内</h2>
+              <h2>プレミアム会員</h2>
               <p>
-                準備が整いましたら、内容と価格を確認できる形でご案内します。
+                月{premiumPlan.lightMonthlyLimit}回・{premiumPlan.priceLabel}<br />
+                深掘り鑑定と音声月{premiumPlan.voiceMonthlyLimit}枠も含まれます。
               </p>
             </section>
           </div>
 
-          <section class="reading-input-shell" aria-label="ライト鑑定の準備中案内">
+          <section class="reading-input-shell" aria-label="ライト鑑定の利用開始準備案内">
             <div class="reading-input-head">
-              <span>準備中</span>
+              <span>本番決済審査中</span>
               <strong>light</strong>
             </div>
 
             <p class="reading-input-message">
-              ライト鑑定への扉は、現在静かに準備中です。<br />
-              この画面で入力を求めたり、料金が発生したりすることはありません。
+              プラン内容と料金は公開していますが、本番カード決済はまだ開始していません。
             </p>
 
             <div class="reading-preparing-actions">
-              <button class="fortune-btn gold" type="button" aria-disabled="true">
-                ライト鑑定（準備中）
-              </button>
+              <a class="fortune-btn gold" href="/join#light">料金・申込条件を見る</a>
               <a href="/premium" class="fortune-btn secondary">会員限定鑑定へ戻る</a>
               <a href="/members" class="fortune-btn secondary">会員ページへ</a>
             </div>
