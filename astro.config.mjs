@@ -15,6 +15,7 @@ export default defineConfig({
       filter: (page) => {
         const excludedPaths = [
           "/checkout/success",
+          "/fincode/test/result",
           "/history",
           "/login",
           "/members",

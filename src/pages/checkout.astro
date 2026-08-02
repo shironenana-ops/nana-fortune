@@ -4,6 +4,7 @@ import SeoHead from "../components/SeoHead.astro";
 import {
   getPaidBillingPlan,
   isFincodeCheckoutEnabled,
+  isFincodeTestCheckoutEnabled,
 } from "../lib/billingPlans";
 
 export const prerender = false;
@@ -12,6 +13,12 @@ const pageTitle = "申込内容確認｜白音七";
 const pageDescription = "白音七の有料サービスについて、価格、利用枠、支払方法、提供時期、解約・返金条件を確認するページです。";
 const selectedPlan = getPaidBillingPlan(Astro.url.searchParams.get("plan"));
 const checkoutConfigured = isFincodeCheckoutEnabled(import.meta.env.PUBLIC_FINCODE_CHECKOUT_ENABLED);
+const fincodeTestPublicKey = import.meta.env.PUBLIC_FINCODE_TEST_PUBLIC_KEY;
+const testPaymentEnabled = isFincodeTestCheckoutEnabled({
+  enabled: import.meta.env.PUBLIC_FINCODE_TEST_PAYMENT_ENABLED,
+  planId: selectedPlan?.id,
+  publicKey: fincodeTestPublicKey,
+});
 
 if (!selectedPlan) {
   Astro.response.status = 404;
@@ -72,14 +79,35 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
                 <a href="/contact">お問い合わせ</a>
               </div>
 
-              <button class="fortune-btn gold checkout-disabled-button" type="button" disabled aria-disabled="true">
-                カード決済へ進む
-              </button>
-              <p class="checkout-disabled-note">
-                {checkoutConfigured
-                  ? "決済機能はこのリリースでは未接続です。安全確認が完了するまでカード決済は開始しません。"
-                  : "現在はfincode本番環境の審査・準備中のため、カード決済はまだ開始していません。"}
-              </p>
+              {testPaymentEnabled ? (
+                <section
+                  class="checkout-test-payment"
+                  data-fincode-test-checkout
+                  data-public-key={fincodeTestPublicKey}
+                  aria-labelledby="fincode-test-heading"
+                >
+                  <div class="checkout-test-badge">fincode TEST環境</div>
+                  <h2 id="fincode-test-heading">300円・音声鑑定1回分のTEST決済</h2>
+                  <p>実際の請求は発生しません。fincode公式のテストカードだけを使用してください。</p>
+                  <p>このTESTでは決済と3Dセキュアの確認だけを行い、白音七の利用権は付与しません。</p>
+                  <div id="fincode-test-card-ui" class="checkout-test-card-ui"></div>
+                  <button class="fortune-btn gold checkout-test-submit" type="button">TESTカード決済へ進む</button>
+                  <p class="checkout-test-status" role="status" aria-live="polite"></p>
+                </section>
+              ) : (
+                <>
+                  <button class="fortune-btn gold checkout-disabled-button" type="button" disabled aria-disabled="true">
+                    カード決済へ進む
+                  </button>
+                  <p class="checkout-disabled-note">
+                    {selectedPlan.id !== "voice_single" && import.meta.env.PUBLIC_FINCODE_TEST_PAYMENT_ENABLED === "true"
+                      ? "このTESTでは音声鑑定1回分だけを対象としています。月額プランの決済はまだ開始しません。"
+                      : checkoutConfigured
+                        ? "決済機能はこのリリースでは未接続です。安全確認が完了するまでカード決済は開始しません。"
+                        : "現在はfincode本番環境の審査・準備中のため、カード決済はまだ開始していません。"}
+                  </p>
+                </>
+              )}
             </>
           ) : (
             <div class="checkout-invalid" role="alert">
@@ -111,8 +139,111 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
       .checkout-legal-links a { color: #ffe58f; }
       .checkout-disabled-button { width: 100%; opacity: .55; cursor: not-allowed; }
       .checkout-disabled-note { margin-top: .8rem; text-align: center; }
+      .checkout-test-payment { margin-top: 1.4rem; padding: 1.2rem; border: 1px solid rgba(92,211,199,.5); border-radius: 18px; background: rgba(31,146,139,.1); }
+      .checkout-test-payment h2 { margin: .7rem 0; }
+      .checkout-test-payment p { color: rgba(255,255,255,.84); line-height: 1.7; }
+      .checkout-test-badge { display: inline-block; padding: .3rem .7rem; border-radius: 999px; background: #1f928b; color: #fff; font-weight: 800; }
+      .checkout-test-card-ui { min-height: 240px; margin: 1rem 0; border-radius: 12px; overflow: hidden; background: #fff; }
+      .checkout-test-submit { width: 100%; }
+      .checkout-test-submit:disabled { opacity: .55; cursor: wait; }
+      .checkout-test-status { min-height: 1.7em; margin-bottom: 0; text-align: center; }
       .checkout-invalid p { color: rgba(255,240,190,.84); line-height: 1.8; }
       @media (max-width: 700px) { .checkout-review-page { padding: 1.4rem 0 3rem; } .checkout-review-frame { border-radius: 18px; } .checkout-review-list > div { grid-template-columns: 1fr; } .checkout-review-list dt { padding-bottom: .35rem; } .checkout-review-list dd { padding-top: .35rem; } }
     </style>
+
+    <script>
+      import { initFincode } from "@fincode/js";
+      import { allowFincodeTestRedirectUrl } from "../lib/fincodeTestBrowser";
+
+      const root = document.querySelector<HTMLElement>("[data-fincode-test-checkout]");
+      if (root) {
+        const publicKey = root.dataset.publicKey;
+        const button = root.querySelector<HTMLButtonElement>(".checkout-test-submit");
+        const status = root.querySelector<HTMLElement>(".checkout-test-status");
+        let registrationIdempotencyKey = "";
+        let executionIdempotencyKey = "";
+
+        const setStatus = (message: string) => {
+          if (status) status.textContent = message;
+        };
+
+        if (!publicKey?.startsWith("p_test_") || !button || !status) {
+          if (button) button.disabled = true;
+          setStatus("TEST決済の設定を確認できません。");
+        } else {
+          try {
+            const fincode = await initFincode({ publicKey, isLiveMode: false });
+            const ui = fincode.ui({ layout: "vertical", hidePayTimes: true });
+            ui.create("payments", { layout: "vertical", hidePayTimes: true });
+            ui.mount("fincode-test-card-ui", "100%");
+
+            button.addEventListener("click", async () => {
+              button.disabled = true;
+              setStatus("fincode TEST環境へ安全に接続しています…");
+              registrationIdempotencyKey ||= crypto.randomUUID();
+              executionIdempotencyKey ||= crypto.randomUUID();
+
+              try {
+                const registeredResponse = await fetch("/api/billing/fincode/test/register", {
+                  method: "POST",
+                  headers: {
+                    "content-type": "application/json",
+                    "idempotency-key": registrationIdempotencyKey,
+                  },
+                  body: JSON.stringify({ plan: "voice_single" }),
+                  credentials: "same-origin",
+                  redirect: "error",
+                });
+                const registered = await registeredResponse.json();
+                if (
+                  !registeredResponse.ok
+                  || registered?.ok !== true
+                  || typeof registered.paymentId !== "string"
+                  || typeof registered.accessId !== "string"
+                  || registered.payType !== "Card"
+                ) {
+                  throw new Error("registration rejected");
+                }
+
+                const card = await ui.getFormData();
+                const resultUrl = new URL("/fincode/test/result", window.location.origin);
+                resultUrl.searchParams.set("payment_id", registered.paymentId);
+                const failureUrl = new URL(resultUrl);
+                failureUrl.searchParams.set("outcome", "failure");
+                fincode.setIdempotentKey(executionIdempotencyKey);
+
+                const payment = await new Promise<Record<string, unknown>>((resolve, reject) => {
+                  fincode.payments({
+                    id: registered.paymentId,
+                    pay_type: "Card",
+                    access_id: registered.accessId,
+                    card_no: card.cardNo,
+                    security_code: card.CVC,
+                    expire: card.expire,
+                    holder_name: card.holderName,
+                    method: "1",
+                    return_url: resultUrl.href,
+                    return_url_on_failure: failureUrl.href,
+                  }, (httpStatus, response) => {
+                    if (httpStatus === 200) resolve(response as unknown as Record<string, unknown>);
+                    else reject();
+                  }, reject);
+                });
+                const redirectUrl = allowFincodeTestRedirectUrl(payment.redirect_url);
+                if (!redirectUrl) throw new Error("redirect rejected");
+                setStatus("3Dセキュア認証へ移動します…");
+                window.location.assign(redirectUrl);
+              } catch {
+                setStatus("TEST決済を開始できませんでした。入力内容と設定を確認してください。");
+                button.disabled = false;
+              }
+            });
+          } catch {
+            button.disabled = true;
+            setStatus("fincode公式カード入力画面を読み込めませんでした。");
+          }
+        }
+      }
+    </script>
   </body>
 </html>

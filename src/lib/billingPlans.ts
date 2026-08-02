@@ -101,3 +101,15 @@ export function getCheckoutHref(planId: PaidBillingPlanId): string {
 export function isFincodeCheckoutEnabled(value: unknown): boolean {
   return value === "true";
 }
+
+export function isFincodeTestCheckoutEnabled(input: {
+  enabled: unknown;
+  planId: unknown;
+  publicKey: unknown;
+}): boolean {
+  return input.enabled === "true"
+    && input.planId === "voice_single"
+    && typeof input.publicKey === "string"
+    && input.publicKey.startsWith("p_test_")
+    && input.publicKey.length > "p_test_".length;
+}

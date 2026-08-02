@@ -7,6 +7,7 @@ import {
   getCheckoutHref,
   getPaidBillingPlan,
   isFincodeCheckoutEnabled,
+  isFincodeTestCheckoutEnabled,
 } from "../src/lib/billingPlans.ts";
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -78,6 +79,20 @@ test("fincode checkout flagは文字列trueの明示指定時だけON", () => {
   assert.equal(isFincodeCheckoutEnabled("true"), true);
 });
 
+test("fincode TEST checkoutはvoice_singleとTEST公開鍵の組合せだけを許可する", () => {
+  assert.equal(isFincodeTestCheckoutEnabled({ enabled: "true", planId: "voice_single", publicKey: "p_test_FAKE" }), true);
+  for (const input of [
+    { enabled: undefined, planId: "voice_single", publicKey: "p_test_FAKE" },
+    { enabled: "false", planId: "voice_single", publicKey: "p_test_FAKE" },
+    { enabled: "true", planId: "light", publicKey: "p_test_FAKE" },
+    { enabled: "true", planId: "premium", publicKey: "p_test_FAKE" },
+    { enabled: "true", planId: "voice_single", publicKey: "p_live_FORBIDDEN" },
+    { enabled: "true", planId: "voice_single", publicKey: "p_test_" },
+  ]) {
+    assert.equal(isFincodeTestCheckoutEnabled(input), false);
+  }
+});
+
 test("料金ページは4商品と確認画面への導線をCatalogから描画する", () => {
   const join = source("src/pages/join.astro");
   assert.match(join, /BILLING_PLANS/);
@@ -88,7 +103,7 @@ test("料金ページは4商品と確認画面への導線をCatalogから描画
   assert.doesNotMatch(join, /target="_blank"|data-checkout-plan/i);
 });
 
-test("checkoutは申込条件を表示し、決済・カード入力・外部通信を開通しない", () => {
+test("checkoutは通常時の決済停止を維持し、voice_singleだけTEST経路を分離する", () => {
   const checkout = source("src/pages/checkout.astro");
   for (const wording of [
     "商品名", "価格", "数量", "請求区分", "利用枠・提供内容",
@@ -100,7 +115,11 @@ test("checkoutは申込条件を表示し、決済・カード入力・外部通
   }
   assert.match(checkout, /PUBLIC_FINCODE_CHECKOUT_ENABLED/);
   assert.match(checkout, /type="button" disabled aria-disabled="true"/);
-  assert.doesNotMatch(checkout, /fetch\s*\(|XMLHttpRequest|<input[^>]+(?:card|number|expiry|cvc)|fincode[^\n]+https?:\/\//i);
+  assert.match(checkout, /PUBLIC_FINCODE_TEST_PAYMENT_ENABLED/);
+  assert.match(checkout, /isFincodeTestCheckoutEnabled/);
+  assert.match(checkout, /fetch\("\/api\/billing\/fincode\/test\/register"/);
+  assert.match(checkout, /initFincode/);
+  assert.doesNotMatch(checkout, /XMLHttpRequest|<input[^>]+(?:card|number|expiry|cvc)|https:\/\/api\.fincode\.jp/i);
   assert.doesNotMatch(checkout, /Astro\.url\.searchParams\.get\(["'](?:price|quantity|amount)["']\)/i);
 });
 
