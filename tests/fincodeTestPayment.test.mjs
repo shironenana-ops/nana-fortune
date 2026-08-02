@@ -21,6 +21,7 @@ const {
   assertFincodeTestOnly,
   handleFincodeTestRegistration,
   handleFincodeTestResult,
+  isLocalFincodeTestReturn,
   isFincodeTestPublicKey,
   loadFincodeTestPaymentConfig,
   registerFincodeTestPayment,
@@ -347,4 +348,22 @@ test("browser TEST routes read private configuration through Astro server secret
     }
   }
   assert.match(config, /context: "server", access: "secret"/gu);
+});
+
+test("CSRF exception accepts only the local fincode TEST POST return route", () => {
+  assert.equal(isLocalFincodeTestReturn(new Request("http://127.0.0.1:4321/fincode/test/result?payment_id=opaque", { method: "POST" })), true);
+  assert.equal(isLocalFincodeTestReturn(new Request("http://localhost:4321/fincode/test/result", { method: "POST" })), true);
+  assert.equal(isLocalFincodeTestReturn(new Request("https://www.nana-fortune.com/fincode/test/result", { method: "POST" })), false);
+  assert.equal(isLocalFincodeTestReturn(new Request("http://127.0.0.1:4321/fincode/test/result", { method: "GET" })), false);
+  assert.equal(isLocalFincodeTestReturn(new Request("http://127.0.0.1:4321/api/billing/fincode/test/register", { method: "POST" })), false);
+  assert.equal(isLocalFincodeTestReturn(new Request("http://127.0.0.1:4321/fincode/test/result/extra", { method: "POST" })), false);
+});
+
+test("production keeps Astro origin protection enabled while dev delegates to narrow middleware", async () => {
+  const config = await readFile(new URL("../astro.config.mjs", import.meta.url), "utf8");
+  const middleware = await readFile(new URL("../src/middleware.ts", import.meta.url), "utf8");
+  assert.match(config, /checkOrigin: process\.env\.NODE_ENV !== "development"/u);
+  assert.match(middleware, /if \(!import\.meta\.env\.DEV\) return next\(\)/u);
+  assert.match(middleware, /isLocalFincodeTestReturn\(request\)/u);
+  assert.match(middleware, /Cross-site \$\{request\.method\} form submissions are forbidden/u);
 });

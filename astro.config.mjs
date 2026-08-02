@@ -9,6 +9,11 @@ export default defineConfig({
   site: "https://www.nana-fortune.com",
   output: "server",
   adapter: vercel({}),
+  security: {
+    // fincode TEST returns by cross-site POST to localhost. In dev only,
+    // src/middleware.ts applies the normal origin check with one narrow exception.
+    checkOrigin: process.env.NODE_ENV !== "development",
+  },
   env: {
     schema: {
       FINCODE_TEST_PAYMENT_ENABLED: envField.string({ context: "server", access: "secret", optional: true }),
