@@ -92,7 +92,9 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
                   <h2 id="fincode-test-heading">300円・音声鑑定1回分のTEST決済</h2>
                   <p>実際の請求は発生しません。fincode公式のテストカードだけを使用してください。</p>
                   <p>このTESTでは決済と3Dセキュアの確認だけを行い、白音七の利用権は付与しません。</p>
-                  <div id="fincode-test-card-ui" class="checkout-test-card-ui"></div>
+                  <div id="fincode-test-card-ui" class="checkout-test-card-ui">
+                    <div id="fincode-test-card-ui-form"></div>
+                  </div>
                   <button class="fortune-btn gold checkout-test-submit" type="button">TESTカード決済へ進む</button>
                   <p class="checkout-test-status" role="status" aria-live="polite"></p>
                 </section>

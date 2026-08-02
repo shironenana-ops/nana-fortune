@@ -32,6 +32,10 @@
 
 `@fincode/js@1.1.0`の型定義は`ui.create("payments", ...)`を宣言していますが、公式SDKドキュメントの実行例は`ui.create("payment", ...)`です。今回のブラウザ症状は、型定義側の複数形を実行時契約として使ったことでUI生成に失敗したものと判断しました。実装は公式実行例の単数形`payment`とmount幅`"400"`を採用し、型境界でこの差分を明示しています。
 
+### Runtime mount要件
+
+インストール済みTEST runtimeの`mount(elementId, width)`は、iframeを追加する前に`<elementId>-form`要素へstyleを設定します。したがって、mount本体と同じ領域に`fincode-test-card-ui-form`を用意し、runtimeの暗黙のDOM契約を満たします。今回の空表示はこの要素欠落によるmount前例外でした。
+
 ## 実装フロー
 
 ```text
