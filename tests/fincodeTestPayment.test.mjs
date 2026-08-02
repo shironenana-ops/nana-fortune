@@ -116,8 +116,9 @@ test("identifiers require UUIDv4 idempotency and bounded opaque payment IDs", ()
   assert.throws(() => validateFincodeTestPaymentId("x".repeat(31)), /FINCODE_TEST_REQUEST_INVALID/u);
 });
 
-test("3DS redirect permits only the exact fincode TEST API HTTPS origin", () => {
+test("3DS redirect permits only the fixed fincode TEST hosts", () => {
   assert.equal(allowFincodeTestRedirectUrl("https://api.test.fincode.jp/v1/secure2/example"), "https://api.test.fincode.jp/v1/secure2/example");
+  assert.equal(allowFincodeTestRedirectUrl("https://simulator.test.fincode.jp/v1/secure2/example"), "https://simulator.test.fincode.jp/v1/secure2/example");
   for (const value of [
     "http://api.test.fincode.jp/v1/secure2/example",
     "https://api.fincode.jp/v1/secure2/example",

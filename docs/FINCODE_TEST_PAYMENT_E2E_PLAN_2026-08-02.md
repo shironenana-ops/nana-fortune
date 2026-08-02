@@ -43,7 +43,7 @@
   -> POST /api/billing/fincode/test/register
   -> fincode TEST POST /v1/payments
   -> 公式 @fincode/js + fincode UI からカード情報をfincodeへ直接送信
-  -> redirect_url（`https://api.test.fincode.jp`だけ許可）
+  -> redirect_url（`api.test.fincode.jp`または`simulator.test.fincode.jp`だけ許可）
   -> EMV 3-Dセキュア
   -> POST /fincode/test/result?payment_id=...
   -> fincode TEST GET /v1/payments/{id}?pay_type=Card
@@ -112,7 +112,7 @@ PUBLIC_FINCODE_TEST_PUBLIC_KEY=<TEST Public API Key>
 - 戻り画面のTEST API照合なしで成功表示された
 - entitlement、membership、quota、historyに変更が発生した
 - light／premiumの決済経路が開いた
-- 公式redirect URLが`https://api.test.fincode.jp`ではない
+- 公式redirect URLが固定TESTホスト（`api.test.fincode.jp`／`simulator.test.fincode.jp`）ではない
 
 ## v1後の別工程
 
