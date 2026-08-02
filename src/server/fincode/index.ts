@@ -13,4 +13,5 @@ export * from "./membershipSchema";
 export * from "./subscriptionPeriodSource";
 export * from "./fincodeWebhookLambda";
 export * from "./membershipMigration";
+export * from "./oneTimeVoicePurchase";
 export * from "./aws";

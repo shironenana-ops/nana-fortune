@@ -5,3 +5,4 @@ export * from "./dynamoCustomerMapping";
 export * from "./dynamoAtomicCompletion";
 export * from "./secretsWebhookSignature";
 export * from "./createWebhookAwsAdapters";
+export * from "./dynamoOneTimeVoiceGrant";
