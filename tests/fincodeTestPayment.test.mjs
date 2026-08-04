@@ -300,7 +300,7 @@ test("result endpoint presents retryable safe UI on provider outage", async () =
   assert.equal(html.includes("raw internal"), false);
 });
 
-test("checkout source keeps card data on official JS path and adds no persistence or analytics", async () => {
+test("checkout source keeps card data on official JS path and only reads the existing Light auth session", async () => {
   const source = await readFile(new URL("../src/pages/checkout.astro", import.meta.url), "utf8");
   assert.match(source, /initFincode/u);
   assert.match(source, /isLiveMode: false/u);
@@ -310,7 +310,8 @@ test("checkout source keeps card data on official JS path and adds no persistenc
   assert.match(source, /PUBLIC_FINCODE_TEST_PAYMENT_ENABLED/u);
   assert.match(source, /isFincodeTestCheckoutEnabled/u);
   assert.match(source, /body: JSON\.stringify\(\{ plan: "voice_single" \}\)/u);
-  assert.doesNotMatch(source, /localStorage|sessionStorage|analytics|dataLayer|gtag\(/u);
+  assert.match(source, /localStorage\.getItem\("token"\)/u);
+  assert.doesNotMatch(source, /localStorage\.(?:setItem|removeItem)|sessionStorage|analytics|dataLayer|gtag\(/u);
   assert.doesNotMatch(source, /JSON\.stringify\([^\n]*(cardNo|CVC|expire|holderName)/u);
   assert.doesNotMatch(source, /m_test_[A-Za-z0-9]/u);
   assert.match(source, /return_url/u);

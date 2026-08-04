@@ -113,3 +113,23 @@ export function isFincodeTestCheckoutEnabled(input: {
     && input.publicKey.startsWith("p_test_")
     && input.publicKey.length > "p_test_".length;
 }
+
+export const FINCODE_TEST_LIGHT_BROWSER_E2E_PROFILE = "light-browser-e2e" as const;
+
+export function isFincodeTestLightCheckoutEnabled(input: {
+  enabled: unknown;
+  runtimeEnvironment: unknown;
+  publicProfile: unknown;
+  serverProfile: unknown;
+  planId: unknown;
+  publicKey: unknown;
+}): boolean {
+  return input.enabled === "true"
+    && input.runtimeEnvironment === "local-staging"
+    && input.publicProfile === FINCODE_TEST_LIGHT_BROWSER_E2E_PROFILE
+    && input.serverProfile === FINCODE_TEST_LIGHT_BROWSER_E2E_PROFILE
+    && input.planId === "light"
+    && typeof input.publicKey === "string"
+    && input.publicKey.startsWith("p_test_")
+    && input.publicKey.length > "p_test_".length;
+}

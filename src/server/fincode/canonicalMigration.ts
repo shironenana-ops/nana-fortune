@@ -1,4 +1,8 @@
-import { FINCODE_MEMBERSHIP_SCHEMA_VERSION, parseFincodeMembershipRecordV1 } from "./membershipSchema";
+import {
+  FINCODE_MEMBERSHIP_SCHEMA_VERSION,
+  canonicalizeFincodeUtcTimestamp,
+  parseFincodeMembershipRecordV1,
+} from "./membershipSchema";
 
 export type CanonicalMigrationDecision =
   | { status: "MIGRATABLE" | "NO_OP"; update: Record<string, unknown> }
@@ -7,7 +11,7 @@ export type CanonicalMigrationDecision =
 export type LegacyQuotaMigrationDecision = Exclude<CanonicalMigrationDecision, { status: "NO_OP" }>;
 
 const integer = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
-const iso = (value: unknown) => typeof value === "string" && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
+const iso = (value: unknown) => canonicalizeFincodeUtcTimestamp(value);
 
 export function planLegacyUserCanonicalMigration(input: {
   item: Record<string, unknown>;
@@ -49,8 +53,7 @@ export function planLegacyUserCanonicalMigration(input: {
     monthly_voice_used: used,
     extra_voice_remaining: extra,
     cancel_at_period_end: typeof input.item.cancel_at_period_end === "boolean" ? input.item.cancel_at_period_end : false,
-    current_period_start: start,
-    current_period_end: end,
+    ...(start && end ? { current_period_start: start, current_period_end: end } : {}),
     membership_source: "legacy_migration",
     membership_updated_at: updatedAt,
   } };

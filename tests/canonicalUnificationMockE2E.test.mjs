@@ -31,8 +31,8 @@ test("legacy free membership becomes canonical without inventing a contract peri
   const result = fincode.planLegacyUserCanonicalMigration({ item: legacy("free"), now: NOW });
   assert.equal(result.status, "MIGRATABLE");
   assert.equal(result.update.membership_schema_version, "shirone-membership-v1");
-  assert.equal(result.update.current_period_start, null);
-  assert.equal(result.update.current_period_end, null);
+  assert.equal("current_period_start" in result.update, false);
+  assert.equal("current_period_end" in result.update, false);
 });
 
 test("paid legacy membership fails closed without a trusted contract period", () => {

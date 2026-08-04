@@ -34,3 +34,28 @@ This manifest contains no provider identifiers or secret values.
   values, and raw provider responses are intentionally excluded from this file.
 - Cleanup status: all four TEST subscriptions are retained; deletion was not
   authorized.
+
+## Retained Light Browser E2E partial state (2026-08-04)
+
+- One staging-only Customer Mapping and Purchase Intent remained in `PREPARED`
+  state under a prior browser session that did not match the current screen-test
+  account.
+- The corresponding fincode TEST customer retained two registered TEST cards.
+- No subscription, payment, Webhook completion, entitlement grant, or quota
+  update was associated with this partial state.
+- The mapping, Purchase Intent, and cards are retained unchanged. They must not
+  be reused by the corrected identity-bound E2E and are not authorized for
+  deletion in this task.
+- User IDs, provider identifiers, card metadata, Secret values, and raw provider
+  responses are intentionally excluded from this file.
+
+### Browser E2E target clarification (2026-08-04)
+
+- The formally approved Light Browser E2E target was changed to the existing
+  staging account that already owns the retained `PREPARED` Customer Mapping
+  and Purchase Intent.
+- The previously proposed target is not used, re-created, or assigned a new
+  mapping in this E2E.
+- The retained mapping, Purchase Intent, and TEST cards remain unchanged; only
+  their pre-existing ownership and Light 980 JPY contract are verified before
+  the one-shot browser action.

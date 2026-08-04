@@ -1,10 +1,12 @@
 ---
 import "../styles/global.css";
 import SeoHead from "../components/SeoHead.astro";
+import { getSecret } from "astro:env/server";
 import {
   getPaidBillingPlan,
   isFincodeCheckoutEnabled,
   isFincodeTestCheckoutEnabled,
+  isFincodeTestLightCheckoutEnabled,
 } from "../lib/billingPlans";
 
 export const prerender = false;
@@ -14,11 +16,21 @@ const pageDescription = "白音七の有料サービスについて、価格、�
 const selectedPlan = getPaidBillingPlan(Astro.url.searchParams.get("plan"));
 const checkoutConfigured = isFincodeCheckoutEnabled(import.meta.env.PUBLIC_FINCODE_CHECKOUT_ENABLED);
 const fincodeTestPublicKey = import.meta.env.PUBLIC_FINCODE_TEST_PUBLIC_KEY;
-const testPaymentEnabled = isFincodeTestCheckoutEnabled({
+const fincodeTestBrowserProfile = import.meta.env.PUBLIC_FINCODE_TEST_BROWSER_E2E_PROFILE;
+const testLightCheckoutEnabled = isFincodeTestLightCheckoutEnabled({
+  enabled: import.meta.env.PUBLIC_FINCODE_TEST_PAYMENT_ENABLED,
+  runtimeEnvironment: import.meta.env.PUBLIC_RUNTIME_ENV,
+  publicProfile: fincodeTestBrowserProfile,
+  serverProfile: getSecret("FINCODE_TEST_BROWSER_E2E_PROFILE"),
+  planId: selectedPlan?.id,
+  publicKey: fincodeTestPublicKey,
+});
+const testVoicePaymentEnabled = !fincodeTestBrowserProfile && isFincodeTestCheckoutEnabled({
   enabled: import.meta.env.PUBLIC_FINCODE_TEST_PAYMENT_ENABLED,
   planId: selectedPlan?.id,
   publicKey: fincodeTestPublicKey,
 });
+const testCheckoutEnabled = testLightCheckoutEnabled || testVoicePaymentEnabled;
 
 if (!selectedPlan) {
   Astro.response.status = 404;
@@ -55,7 +67,7 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
           {selectedPlan ? (
             <>
               <div class="checkout-review-state" role="status">
-                {testPaymentEnabled
+                {testCheckoutEnabled
                   ? "現在はfincode TEST環境で決済動作を確認しています。本番カード決済はまだ開始していません。"
                   : "現在はfincode本番環境の審査・準備中です。申込条件は確認できますが、本番カード決済はまだ開始していません。"}
               </div>
@@ -81,7 +93,24 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
                 <a href="/contact">お問い合わせ</a>
               </div>
 
-              {testPaymentEnabled ? (
+              {testLightCheckoutEnabled ? (
+                <section
+                  class="checkout-test-payment"
+                  data-fincode-test-light-checkout
+                  data-public-key={fincodeTestPublicKey}
+                  aria-labelledby="fincode-test-light-heading"
+                >
+                  <div class="checkout-test-badge">fincode TEST環境 / Light Browser E2E</div>
+                  <h2 id="fincode-test-light-heading">ライト会員 月額980円のTEST申込</h2>
+                  <p>表示商品、Purchase Intent、月額Light plan、完了確認、signed WebhookをLightへ統一しています。</p>
+                  <p>カード情報はfincode公式カードUIへ直接送信され、白音七のサーバーには送信・保存されません。voice_singleへ切り替える処理はありません。</p>
+                  <form id="fincode-test-light-card-ui-form" class="checkout-test-card-form">
+                    <div id="fincode-test-light-card-ui" class="checkout-test-card-ui"></div>
+                  </form>
+                  <button class="fortune-btn gold checkout-test-submit" type="button">Light TEST申込へ進む</button>
+                  <p class="checkout-test-status" role="status" aria-live="polite"></p>
+                </section>
+              ) : testVoicePaymentEnabled ? (
                 <section
                   class="checkout-test-payment"
                   data-fincode-test-checkout
@@ -104,7 +133,7 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
                     カード決済へ進む
                   </button>
                   <p class="checkout-disabled-note">
-                    {selectedPlan.id !== "voice_single" && import.meta.env.PUBLIC_FINCODE_TEST_PAYMENT_ENABLED === "true"
+                    {selectedPlan.id !== "voice_single" && import.meta.env.PUBLIC_FINCODE_TEST_PAYMENT_ENABLED === "true" && !fincodeTestBrowserProfile
                       ? "このTESTでは音声鑑定1回分だけを対象としています。月額プランの決済はまだ開始しません。"
                       : checkoutConfigured
                         ? "決済機能はこのリリースでは未接続です。安全確認が完了するまでカード決済は開始しません。"
@@ -148,6 +177,7 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
       .checkout-test-payment p { color: rgba(255,255,255,.84); line-height: 1.7; }
       .checkout-test-badge { display: inline-block; padding: .3rem .7rem; border-radius: 999px; background: #1f928b; color: #fff; font-weight: 800; }
       .checkout-test-card-ui { min-height: 240px; margin: 1rem 0; border-radius: 12px; overflow: hidden; background: #fff; }
+      .checkout-test-card-form { margin: 0; }
       .checkout-test-submit { width: 100%; }
       .checkout-test-submit:disabled { opacity: .55; cursor: wait; }
       .checkout-test-status { min-height: 1.7em; margin-bottom: 0; text-align: center; }
@@ -156,8 +186,120 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
     </style>
 
     <script>
-      import { initFincode } from "@fincode/js";
+      import { initFincode, registerCard } from "@fincode/js";
       import { allowFincodeTestRedirectUrl } from "../lib/fincodeTestBrowser";
+
+      const lightRoot = document.querySelector<HTMLElement>("[data-fincode-test-light-checkout]");
+      if (lightRoot) {
+        const publicKey = lightRoot.dataset.publicKey;
+        const button = lightRoot.querySelector<HTMLButtonElement>(".checkout-test-submit");
+        const status = lightRoot.querySelector<HTMLElement>(".checkout-test-status");
+        const authorization = localStorage.getItem("token") || "";
+        const preparationIdempotencyKey = crypto.randomUUID();
+        const subscriptionIdempotencyKey = crypto.randomUUID();
+        const setStatus = (message: string) => { if (status) status.textContent = message; };
+
+        if (!publicKey?.startsWith("p_test_") || !button || !status || !authorization) {
+          if (button) button.disabled = true;
+          setStatus(authorization
+            ? "Light TESTの設定を確認できないため、安全に停止しました。"
+            : "Light TEST用のログイン状態を確認できません。会員ページからログイン状態を保ったまま戻ってください。");
+        } else try {
+          button.disabled = true;
+          setStatus("Light TESTのPurchase Intentを準備しています…");
+          const prepareResponse = await fetch("/api/billing/fincode/test/register", {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${authorization}`,
+              "content-type": "application/json",
+              "idempotency-key": preparationIdempotencyKey,
+            },
+            body: JSON.stringify({ action: "prepare", plan: "light" }),
+            credentials: "same-origin",
+            redirect: "error",
+          });
+          const prepared = await prepareResponse.json();
+          if (
+            !prepareResponse.ok
+            || prepared?.ok !== true
+            || prepared.action !== "prepare"
+            || prepared.product !== "light"
+            || prepared.amount !== 980
+            || prepared.billingType !== "subscription"
+            || typeof prepared.customerId !== "string"
+            || typeof prepared.purchaseIntentId !== "string"
+          ) {
+            throw new Error("Light preparation rejected");
+          }
+
+          const fincode = await initFincode({ publicKey, isLiveMode: false });
+          const ui = fincode.ui({ layout: "vertical", hidePayTimes: true });
+          // @fincode/js@1.1.0のd.tsと実runtimeには差があるため、既存の
+          // 実ブラウザ検証済み契約と同じ単数形paymentでカード入力UIを作る。
+          const cardInputUi = ui as unknown as {
+            create: (method: "payment", appearance: { layout: "vertical"; hidePayTimes: true }) => void;
+            mount: (elementId: string, width: string) => void;
+          };
+          cardInputUi.create("payment", { layout: "vertical", hidePayTimes: true });
+          cardInputUi.mount("fincode-test-light-card-ui", "400");
+          button.disabled = false;
+          setStatus("カード情報を入力し、Light TEST申込へ進んでください。");
+
+          button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            setStatus("カードをfincode TESTへ登録しています…");
+            const card = await registerCard({ fincode, ui, customerId: prepared.customerId, useDefault: true });
+            if (typeof card?.id !== "string" || card.customer_id !== prepared.customerId) throw new Error("Card registration rejected");
+
+            setStatus("月額980円のLight TEST subscriptionを登録しています…");
+            const subscribeResponse = await fetch("/api/billing/fincode/test/register", {
+              method: "POST",
+              headers: {
+                authorization: `Bearer ${authorization}`,
+                "content-type": "application/json",
+                "idempotency-key": subscriptionIdempotencyKey,
+              },
+              body: JSON.stringify({
+                action: "subscribe",
+                plan: "light",
+                customerId: prepared.customerId,
+                purchaseIntentId: prepared.purchaseIntentId,
+                cardId: card.id,
+              }),
+              credentials: "same-origin",
+              redirect: "error",
+            });
+            const subscribed = await subscribeResponse.json();
+            if (
+              !subscribeResponse.ok
+              || subscribed?.ok !== true
+              || subscribed.action !== "subscribe"
+              || subscribed.product !== "light"
+              || subscribed.amount !== 980
+              || subscribed.billingType !== "subscription"
+              || subscribed.purchaseIntentId !== prepared.purchaseIntentId
+              || typeof subscribed.subscriptionId !== "string"
+              || (subscribed.status !== "ACTIVE" && subscribed.status !== "RUNNING")
+            ) throw new Error("Light subscription rejected");
+
+            const callback = new URL("/fincode/test/result", window.location.origin);
+            callback.searchParams.set("plan", "light");
+            callback.searchParams.set("customer_id", prepared.customerId);
+            callback.searchParams.set("subscription_id", subscribed.subscriptionId);
+            callback.searchParams.set("purchase_intent_id", prepared.purchaseIntentId);
+            setStatus("Light TEST subscriptionをサーバーで再確認します…");
+            window.location.assign(callback.href);
+          } catch {
+            setStatus("Light TEST checkoutを開始できませんでした。voice_singleへ切り替えず停止しました。");
+            button.disabled = false;
+          }
+          });
+        } catch {
+          button.disabled = true;
+          setStatus("Light TESTの契約準備またはカード入力画面を確認できませんでした。");
+        }
+      }
 
       const root = document.querySelector<HTMLElement>("[data-fincode-test-checkout]");
       if (root) {

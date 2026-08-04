@@ -57,7 +57,7 @@ def lambda_handler(event, context, dependencies: SignupDependencies | None = Non
         if not valid_email(email, staging_test_only=True) or not validate_password(password):
             raise StagingAuthError(400, "SIGNUP_INPUT_INVALID", "registration data is invalid")
 
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         item = {
             "user_id": email,
             "password": password_hash(password),
@@ -68,8 +68,6 @@ def lambda_handler(event, context, dependencies: SignupDependencies | None = Non
             "monthly_voice_used": 0,
             "extra_voice_remaining": 0,
             "cancel_at_period_end": False,
-            "current_period_start": None,
-            "current_period_end": None,
             "membership_version": 1,
             "membership_schema_version": "shirone-membership-v1",
             "membership_source": "manual",

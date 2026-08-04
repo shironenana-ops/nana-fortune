@@ -6,7 +6,9 @@ import { FincodeWebhookAwsError } from "./webhookAwsErrors";
 
 type Sender = { send(command: unknown): Promise<unknown> };
 type Item = Record<string, AttributeValue>;
-const USER_REF = /^[A-Za-z0-9_-]{1,128}$/u;
+// Canonical auth uses normalized email addresses as user_id. Keep the accepted
+// character set bounded while allowing the staging/production auth contract.
+const USER_REF = /^[A-Za-z0-9][A-Za-z0-9._@+-]{0,127}$/u;
 const string = (item: Item, key: string) => item[key] && "S" in item[key] ? item[key].S : undefined;
 const integer = (item: Item, key: string) => item[key] && "N" in item[key] && /^\d+$/u.test(item[key].N ?? "") ? Number(item[key].N) : undefined;
 const boolean = (item: Item, key: string) => item[key] && "BOOL" in item[key] ? item[key].BOOL : undefined;

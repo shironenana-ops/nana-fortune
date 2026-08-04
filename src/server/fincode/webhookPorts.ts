@@ -151,6 +151,7 @@ export type FincodeWebhookAtomicCompletionPlanFactory = (input: {
 }) => FincodeWebhookAtomicCompletionPlan | null;
 
 const HEX_DIGEST = /^[0-9a-f]{64}$/u;
+const INTERNAL_USER_REFERENCE = /^[A-Za-z0-9][A-Za-z0-9._@+-]{0,127}$/u;
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
 const SOURCE_VERSION = /^[A-Za-z0-9_.-]{1,64}$/u;
 const TRANSITION_DECISIONS: readonly FincodeTransitionDecision[] = [
@@ -263,7 +264,7 @@ export function isFincodeWebhookAtomicCompletionRequest(
     "payloadFingerprint", "retentionTtlSeconds", "semanticEventKey", "userReference",
   ])) return false;
   return request.expectedLedgerState === "RESERVED" &&
-    typeof request.userReference === "string" && /^[A-Za-z0-9_-]{1,128}$/u.test(request.userReference) &&
+    typeof request.userReference === "string" && INTERNAL_USER_REFERENCE.test(request.userReference) &&
     HEX_DIGEST.test(request.semanticEventKey ?? "") && HEX_DIGEST.test(request.payloadFingerprint ?? "") &&
     HEX_DIGEST.test(request.correlationDigest ?? "") &&
     Number.isSafeInteger(request.retentionTtlSeconds) && (request.retentionTtlSeconds ?? 0) > 0 &&

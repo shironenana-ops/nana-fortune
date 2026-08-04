@@ -20,6 +20,10 @@ export default defineConfig({
       FINCODE_TEST_API_BASE: envField.string({ context: "server", access: "secret", optional: true }),
       FINCODE_TEST_SECRET_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       FINCODE_TEST_SHOP_ID: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_BROWSER_E2E_PROFILE: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_LIGHT_START_DATE: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_AWS_REGION: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_CUSTOMER_MAPPING_TABLE: envField.string({ context: "server", access: "secret", optional: true }),
     },
   },
   integrations: [

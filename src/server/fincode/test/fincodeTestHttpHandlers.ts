@@ -8,6 +8,17 @@ import {
   validateFincodeTestRegistrationPayload,
   verifyFincodeTestPayment,
 } from "./fincodeTestPayments";
+import {
+  FINCODE_TEST_LIGHT_BROWSER_E2E_PROFILE,
+  FINCODE_TEST_LIGHT_COMPLETE_PATH,
+  loadFincodeTestLightCheckoutConfig,
+  prepareFincodeTestLightCheckout,
+  subscribeFincodeTestLightCheckout,
+  validateFincodeTestLightRequest,
+  verifyFincodeTestLightBrowserSession,
+  verifyFincodeTestLightSubscription,
+  type FincodeTestLightIntentPort,
+} from "./fincodeTestLightCheckout";
 
 const JSON_HEADERS = {
   "cache-control": "no-store",
@@ -38,6 +49,9 @@ function json(body: object, status: number): Response {
 
 function safeError(error: unknown): Response {
   const code = isFincodeTestError(error) ? error.code : "FINCODE_TEST_PROVIDER_UNAVAILABLE";
+  if (code === "FINCODE_TEST_AUTH_REJECTED") {
+    return json({ ok: false, code, message: "Light TEST用のログイン状態を確認できません。" }, 401);
+  }
   if (code === "FINCODE_TEST_REQUEST_INVALID") {
     return json({ ok: false, code: "FINCODE_TEST_REQUEST_INVALID", message: "リクエストを確認してください。" }, 400);
   }
@@ -72,6 +86,7 @@ export async function handleFincodeTestRegistration(
   request: Request,
   env: FincodeTestEnvironment,
   fetchImpl?: FincodeTestFetch,
+  lightIntents?: FincodeTestLightIntentPort,
 ): Promise<Response> {
   try {
     const url = localRequestUrl(request);
@@ -81,8 +96,34 @@ export async function handleFincodeTestRegistration(
     if (request.headers.get("origin") !== url.origin) {
       throw new FincodeTestError("FINCODE_TEST_REQUEST_INVALID");
     }
-    const config = loadFincodeTestPaymentConfig(env);
     const payload = await strictJsonBody(request);
+    if (env.FINCODE_TEST_BROWSER_E2E_PROFILE === FINCODE_TEST_LIGHT_BROWSER_E2E_PROFILE && (payload as { plan?: unknown } | null)?.plan !== "light") {
+      throw new FincodeTestError("FINCODE_TEST_ENVIRONMENT_REJECTED");
+    }
+    if ((payload as { plan?: unknown } | null)?.plan === "light") {
+      if (!lightIntents) throw new FincodeTestError("FINCODE_TEST_DISABLED");
+      const lightRequest = validateFincodeTestLightRequest(payload);
+      const config = loadFincodeTestLightCheckoutConfig(env);
+      const userId = await verifyFincodeTestLightBrowserSession({
+        config,
+        authorization: request.headers.get("authorization"),
+        fetchImpl,
+      });
+      if (lightRequest.action === "prepare") {
+        const prepared = await prepareFincodeTestLightCheckout({ config, userId, intents: lightIntents, fetchImpl });
+        return json({ ok: true, ...prepared }, 200);
+      }
+      const subscribed = await subscribeFincodeTestLightCheckout({
+        config,
+        userId,
+        request: lightRequest,
+        idempotencyKey: request.headers.get("idempotency-key") ?? "",
+        intents: lightIntents,
+        fetchImpl,
+      });
+      return json({ ok: true, ...subscribed }, 200);
+    }
+    const config = loadFincodeTestPaymentConfig(env);
     validateFincodeTestRegistrationPayload(payload);
     const idempotencyKey = request.headers.get("idempotency-key");
     const registered = await registerFincodeTestPayment({
@@ -120,11 +161,34 @@ export async function handleFincodeTestResult(
   request: Request,
   env: FincodeTestEnvironment,
   fetchImpl?: FincodeTestFetch,
+  lightIntents?: FincodeTestLightIntentPort,
 ): Promise<Response> {
   try {
     const url = localRequestUrl(request);
     if (request.method !== "GET" && request.method !== "POST") {
       return new Response(resultHtml({ title: "確認できません", message: "許可されていない操作です。", retry: false }), { status: 405, headers: HTML_HEADERS });
+    }
+    if (url.searchParams.get("plan") === "light") {
+      if (!lightIntents || request.method !== "GET") throw new FincodeTestError("FINCODE_TEST_REQUEST_INVALID");
+      if ([...url.searchParams.keys()].sort().join(",") !== "customer_id,plan,purchase_intent_id,subscription_id") {
+        throw new FincodeTestError("FINCODE_TEST_REQUEST_INVALID");
+      }
+      const lightConfig = loadFincodeTestLightCheckoutConfig(env);
+      await verifyFincodeTestLightSubscription({
+        config: lightConfig,
+        customerId: url.searchParams.get("customer_id"),
+        subscriptionId: url.searchParams.get("subscription_id"),
+        purchaseIntentId: url.searchParams.get("purchase_intent_id"),
+        intents: lightIntents,
+        fetchImpl,
+      });
+      return new Response(null, {
+        status: 303,
+        headers: { "cache-control": "no-store", location: FINCODE_TEST_LIGHT_COMPLETE_PATH, "referrer-policy": "no-referrer" },
+      });
+    }
+    if (env.FINCODE_TEST_BROWSER_E2E_PROFILE === FINCODE_TEST_LIGHT_BROWSER_E2E_PROFILE) {
+      throw new FincodeTestError("FINCODE_TEST_ENVIRONMENT_REJECTED");
     }
     const paymentId = validateFincodeTestPaymentId(url.searchParams.get("payment_id"));
     const config = loadFincodeTestPaymentConfig(env);

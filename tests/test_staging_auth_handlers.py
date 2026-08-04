@@ -171,6 +171,9 @@ class StagingAuthHandlerTests(unittest.TestCase):
         item = users.items["browser-check@staging.invalid"]
         self.assertEqual(item["plan"], "free")
         self.assertEqual(item["membership_schema_version"], "shirone-membership-v1")
+        self.assertNotIn("current_period_start", item)
+        self.assertNotIn("current_period_end", item)
+        self.assertRegex(item["membership_updated_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$")
         self.assertTrue(item["password"].startswith("pbkdf2_sha256$600000$"))
         real = signup_handler(
             event("/signup", body={"email": "person@example.com", "password": "safe test password"}),
