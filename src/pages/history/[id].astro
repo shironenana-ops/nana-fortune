@@ -62,13 +62,14 @@ export const prerender = false;
     </main>
 
     <script>
-      const API_BASE = "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod";
       import { shironeIconMap } from "../../lib/shironeIconMap";
+      import { resolvePublicRuntimeApiConfig } from "../../lib/runtimeApiConfig";
       import {
         getShironePhaseDetail,
         getShironeTypeByBirthDate,
         getShironeTypeDisplayName,
       } from "../../lib/shironeTypes";
+      const API_BASE = resolvePublicRuntimeApiConfig(import.meta.env).historyBaseUrl || "";
 
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
@@ -1254,6 +1255,11 @@ export const prerender = false;
       async function loadDetail() {
         const token = getAuthToken();
         const historyId = getHistoryIdFromPath();
+
+        if (!API_BASE) {
+          renderSimpleError("現在このテスト環境では鑑定履歴を利用できません。");
+          return;
+        }
 
         if (!token) {
           renderSimpleError("ログインしてください。");

@@ -81,8 +81,10 @@ const pageDescription =
 
     <script>
       import { getMembershipDisplayInfo } from "../lib/membership";
+      import { resolvePublicRuntimeApiConfig } from "../lib/runtimeApiConfig";
 
-      const USER_STATUS_ENDPOINT = import.meta.env.PUBLIC_CANONICAL_MEMBERSHIP_STATUS_URL || "";
+      const runtimeApi = resolvePublicRuntimeApiConfig(import.meta.env);
+      const USER_STATUS_ENDPOINT = runtimeApi.authEnabled ? (runtimeApi.membershipStatusUrl || "") : "";
 
       const authArea = document.getElementById("authArea");
       const premiumContent = document.getElementById("premiumContent");

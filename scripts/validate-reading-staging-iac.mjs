@@ -34,14 +34,17 @@ export function validateReadingStagingTemplate(template) {
   for (const forbidden of ["BEDROCK_MODEL_ID", "global.", "production", "READING_DEEP_GENERATE_API_ENABLED"]) {
     if (serialized.toLowerCase().includes(forbidden.toLowerCase())) fail(`forbidden token: ${forbidden}`);
   }
+  if (!template.Parameters?.RuntimeSecretsArn || !template.Parameters?.FincodeWebhookSignatureSecretArn) {
+    fail("staging secret parameters are missing");
+  }
 
   const expectedTypes = {
-    "AWS::DynamoDB::Table": 10,
+    "AWS::DynamoDB::Table": 11,
     "AWS::SQS::Queue": 4,
-    "AWS::Lambda::Function": 5,
+    "AWS::Lambda::Function": 8,
     "AWS::Lambda::EventSourceMapping": 2,
-    "AWS::ApiGatewayV2::Route": 3,
-    "AWS::Logs::LogGroup": 5,
+    "AWS::ApiGatewayV2::Route": 6,
+    "AWS::Logs::LogGroup": 8,
   };
   const resourceValues = Object.values(template.Resources ?? {});
   for (const [type, count] of Object.entries(expectedTypes)) {
@@ -93,6 +96,18 @@ export function validateReadingStagingTemplate(template) {
     fail("status role table scope");
   }
 
+  const login = statements(template, "StagingLoginRole");
+  const loginActions = login.flatMap(actions);
+  if (text(loginActions) !== text(["logs:CreateLogStream", "logs:PutLogEvents", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "secretsmanager:GetSecretValue"])) fail("staging login role scope");
+  const loginSecret = login.find((statement) => actions(statement).includes("secretsmanager:GetSecretValue"));
+  if (text(loginSecret?.Resource) !== text({ Ref: "RuntimeSecretsArn" })) fail("staging login secret scope");
+  const signup = statements(template, "StagingSignupRole");
+  if (text(signup.flatMap(actions)) !== text(["logs:CreateLogStream", "logs:PutLogEvents", "dynamodb:PutItem"])) fail("staging signup role scope");
+  const membership = statements(template, "StagingMembershipStatusRole");
+  if (text(membership.flatMap(actions)) !== text(["logs:CreateLogStream", "logs:PutLogEvents", "dynamodb:GetItem", "secretsmanager:GetSecretValue"])) fail("staging membership role scope");
+  if (text(membership.find((statement) => actions(statement).includes("dynamodb:GetItem"))?.Resource) !== text({ "Fn::GetAtt": ["ReadingUsersTable", "Arn"] })) fail("staging membership table scope");
+  if (text(membership.find((statement) => actions(statement).includes("secretsmanager:GetSecretValue"))?.Resource) !== text({ Ref: "RuntimeSecretsArn" })) fail("staging membership secret scope");
+
   for (const mode of ["Light", "Deep"]) {
     const worker = statements(template, `${mode}WorkerRole`);
     const queueStatement = worker.find((statement) => actions(statement).includes("sqs:ReceiveMessage"));
@@ -117,6 +132,9 @@ export function validateReadingStagingTemplate(template) {
   if (requestIntegration.RequestParameters?.["overwrite:path"] !== undefined) fail("public /reading path must not be rewritten");
   if (template.Resources.ReadingRequestRoute.Properties.RouteKey !== "POST /reading") fail("request route");
   if (template.Resources.ReadingStatusRoute.Properties.RouteKey !== "GET /reading/status") fail("status route");
+  if (template.Resources.StagingLoginRoute.Properties.RouteKey !== "POST /login") fail("staging login route");
+  if (template.Resources.StagingSignupRoute.Properties.RouteKey !== "POST /signup") fail("staging signup route");
+  if (template.Resources.StagingMembershipStatusRoute.Properties.RouteKey !== "GET /membership/status") fail("staging membership route");
   if (template.Resources.FincodeWebhookRoute.Properties.RouteKey !== "POST /webhooks/fincode" || template.Resources.FincodeWebhookRoute.Properties.AuthorizationType !== "NONE") fail("webhook route");
   if (template.Resources.FincodeWebhookHttpApi.Properties.CorsConfiguration !== undefined || template.Resources.FincodeWebhookRoute.Properties.ApiId?.Ref !== "FincodeWebhookHttpApi") fail("webhook API must be dedicated and CORS-free");
   if (template.Resources.FincodeWebhookIntegration.Properties.TimeoutInMillis !== 15000 || template.Resources.FincodeWebhookFunction.Properties.Timeout !== 15) fail("webhook integration timeout");
@@ -126,15 +144,34 @@ export function validateReadingStagingTemplate(template) {
   if (!requestSourceArn?.endsWith("/${Environment}/POST/reading")) fail("request invoke stage scope");
   if (!statusSourceArn?.endsWith("/${Environment}/GET/reading/status")) fail("status invoke stage scope");
 
-  const functionNames = ["ReadingRequestFunction", "ReadingStatusFunction", "LightWorkerFunction", "DeepWorkerFunction", "FincodeWebhookFunction"];
+  const functionNames = ["ReadingRequestFunction", "ReadingStatusFunction", "LightWorkerFunction", "DeepWorkerFunction", "FincodeWebhookFunction", "StagingMembershipStatusFunction"];
   for (const name of functionNames) {
     const properties = template.Resources[name].Properties;
     if (properties.Runtime !== "nodejs22.x" || properties.Handler !== "index.handler") fail(`${name} runtime`);
     if (!properties.FunctionName?.["Fn::Sub"]?.startsWith("${AWS::StackName}-")) fail(`${name} must be stack scoped`);
   }
-  for (const parameter of ["ReadingGenerateApiEnabled", "ReadingAsyncPaidEnabled", "ReadingStatusApiEnabled", "ReadingBedrockEnabled", "WorkerEventSourceMappingsEnabled", "FincodeWebhookEnabled", "FincodePeriodSourceEnabled", "FincodeProvisionalTestPeriodSourceEnabled", "FincodeOneTimeVoiceWebhookEnabled", "ReadingLightQuotaEnabled"]) {
+  for (const name of ["StagingLoginFunction", "StagingSignupFunction"]) {
+    const properties = template.Resources[name].Properties;
+    if (properties.Runtime !== "python3.12" || properties.Handler !== "index.lambda_handler") fail(`${name} runtime`);
+    if (!properties.FunctionName?.["Fn::Sub"]?.startsWith("${AWS::StackName}-")) fail(`${name} must be stack scoped`);
+  }
+  for (const parameter of ["ReadingGenerateApiEnabled", "ReadingAsyncPaidEnabled", "ReadingStatusApiEnabled", "ReadingBedrockEnabled", "WorkerEventSourceMappingsEnabled", "FincodeWebhookEnabled", "FincodePeriodSourceEnabled", "FincodeProvisionalTestPeriodSourceEnabled", "FincodeOneTimeVoiceWebhookEnabled", "ReadingLightQuotaEnabled", "StagingLoginEnabled", "StagingSignupEnabled", "StagingMembershipStatusEnabled"]) {
     if (template.Parameters[parameter].Default !== "false") fail(`${parameter} must fail closed`);
   }
+  const attempt = template.Resources.StagingAuthAttemptTable.Properties;
+  if (attempt.TimeToLiveSpecification?.AttributeName !== "expires_at" || attempt.TimeToLiveSpecification?.Enabled !== true) fail("staging auth attempt TTL");
+  if (text(attempt.KeySchema) !== text([{ AttributeName: "security_ref", KeyType: "HASH" }])) fail("staging auth attempt key");
+  const authFunctions = ["StagingLoginFunction", "StagingSignupFunction", "StagingMembershipStatusFunction"];
+  for (const name of authFunctions) {
+    const env = template.Resources[name].Properties.Environment?.Variables ?? {};
+    if (env.STAGING_ENVIRONMENT?.Ref !== "Environment") fail(`${name} staging boundary`);
+    if (env.SESSION_TOKEN_SECRET !== undefined) fail(`${name} secret must not be stored in environment`);
+  }
+  if (template.Resources.StagingLoginFunction.Properties.Environment.Variables.RUNTIME_SECRETS_ARN?.Ref !== "RuntimeSecretsArn") fail("staging login secret binding");
+  if (template.Resources.StagingMembershipStatusFunction.Properties.Environment.Variables.RUNTIME_SECRETS_ARN?.Ref !== "RuntimeSecretsArn") fail("staging membership secret binding");
+  if (template.Resources.FincodeWebhookFunction.Properties.Environment.Variables.FINCODE_WEBHOOK_SIGNATURE_SECRET_ID?.Ref !== "FincodeWebhookSignatureSecretArn") fail("webhook signature secret binding");
+  if (template.Resources.StagingSignupFunction.Properties.Environment.Variables.EMAIL_VERIFICATION_ENABLED !== "false") fail("staging signup email verification");
+  if (text(template.Resources.ReadingHttpApi.Properties.CorsConfiguration.AllowHeaders) !== text(["authorization", "content-type", "idempotency-key"])) fail("staging CORS headers");
   for (const mode of ["Light", "Deep"]) {
     if (text(template.Resources[`${mode}EventSourceMapping`].Properties.Enabled) !== text({ "Fn::If": ["WorkersEnabled", true, false] })) fail(`${mode} event source kill switch`);
   }

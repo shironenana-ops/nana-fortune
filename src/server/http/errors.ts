@@ -56,6 +56,8 @@ export type ServerErrorCode =
   | "READING_STATUS_REF_INVALID"
   | "READING_STATUS_NOT_FOUND"
   | "READING_STATUS_UNAVAILABLE"
+  | "STAGING_MEMBERSHIP_STATUS_DISABLED"
+  | "STAGING_AUTH_NOT_CONFIGURED"
   | "INTERNAL_ERROR";
 
 const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> = {
@@ -116,6 +118,8 @@ const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> 
   READING_STATUS_REF_INVALID: { status: 400, message: "鑑定受付番号を確認してください" },
   READING_STATUS_NOT_FOUND: { status: 404, message: "鑑定状況を確認できません" },
   READING_STATUS_UNAVAILABLE: { status: 503, message: "現在、鑑定状況を確認できません" },
+  STAGING_MEMBERSHIP_STATUS_DISABLED: { status: 503, message: "会員情報の確認機能は現在利用できません" },
+  STAGING_AUTH_NOT_CONFIGURED: { status: 503, message: "現在、認証機能を利用できません" },
   INTERNAL_ERROR: { status: 500, message: "処理を完了できませんでした" },
 };
 

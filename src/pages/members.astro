@@ -1452,8 +1452,10 @@ body.members-page-body {
   <script>
     import { getMembershipDisplayInfo, normalizeMembershipTier } from "../lib/membership";
     import { getMembershipEntitlements } from "../lib/membershipEntitlements";
+    import { resolvePublicRuntimeApiConfig } from "../lib/runtimeApiConfig";
 
-    const USER_STATUS_API = import.meta.env.PUBLIC_CANONICAL_MEMBERSHIP_STATUS_URL || "";
+    const runtimeApi = resolvePublicRuntimeApiConfig(import.meta.env);
+    const USER_STATUS_API = runtimeApi.authEnabled ? (runtimeApi.membershipStatusUrl || "") : "";
     const authSession = localStorage.getItem("token") || "";
 
     const userId =
@@ -1848,7 +1850,9 @@ body.members-page-body {
       if (!authSession || !USER_STATUS_API) {
         loading.hidden = true;
         errorBox.hidden = false;
-        errorText.textContent = "ユーザーIDが見つかりません。ログインし直してください。";
+        errorText.textContent = runtimeApi.stagingIndicator
+          ? "このstaging環境では会員照会をまだ有効化していません。"
+          : "ログイン情報が見つかりません。ログインし直してください。";
         updateReadingTierBridge(getMembershipEntitlements({ plan: "free" }), true);
         return;
       }

@@ -97,3 +97,46 @@ test("fincode Webhookはstaging限定・既定OFF・最小権限である", asyn
   });
   assert.doesNotMatch(serialized, /dynamodb:TransactWriteItems/u);
 });
+
+test("staging authは既定OFF・専用route・最小権限・実行時Secret参照である", async () => {
+  const template = await loadReadingStagingTemplate();
+  for (const name of ["StagingLoginEnabled", "StagingSignupEnabled", "StagingMembershipStatusEnabled"]) {
+    assert.equal(template.Parameters[name].Default, "false");
+  }
+  assert.equal(template.Resources.StagingLoginRoute.Properties.RouteKey, "POST /login");
+  assert.equal(template.Resources.StagingSignupRoute.Properties.RouteKey, "POST /signup");
+  assert.equal(template.Resources.StagingMembershipStatusRoute.Properties.RouteKey, "GET /membership/status");
+  assert.equal(template.Resources.StagingAuthAttemptTable.Properties.TimeToLiveSpecification.AttributeName, "expires_at");
+  assert.equal(template.Resources.StagingAuthAttemptTable.Properties.TimeToLiveSpecification.Enabled, true);
+  const loginRole = JSON.stringify(template.Resources.StagingLoginRole);
+  const signupRole = JSON.stringify(template.Resources.StagingSignupRole);
+  const membershipRole = JSON.stringify(template.Resources.StagingMembershipStatusRole);
+  assert.match(loginRole, /secretsmanager:GetSecretValue/u);
+  assert.match(membershipRole, /secretsmanager:GetSecretValue/u);
+  assert.doesNotMatch(signupRole, /secretsmanager:|ses:|dynamodb:GetItem|dynamodb:UpdateItem/u);
+  assert.doesNotMatch(`${loginRole}${signupRole}${membershipRole}`, /"Resource":"\*"|bedrock:|sqs:|iam:/u);
+  for (const name of ["StagingLoginFunction", "StagingSignupFunction", "StagingMembershipStatusFunction"]) {
+    assert.equal(template.Resources[name].Properties.Environment.Variables.SESSION_TOKEN_SECRET, undefined);
+  }
+});
+
+test("staging auth flagのdefault true化と過剰権限を拒否する", async () => {
+  const enabled = clone(await loadReadingStagingTemplate());
+  enabled.Parameters.StagingLoginEnabled.Default = "true";
+  assert.throws(() => validateReadingStagingTemplate(enabled), /must fail closed/u);
+
+  const wildcard = clone(await loadReadingStagingTemplate());
+  wildcard.Resources.StagingSignupRole.Properties.Policies[0].PolicyDocument.Statement[1].Resource = "*";
+  assert.throws(() => validateReadingStagingTemplate(wildcard), /wildcard resource/u);
+});
+
+test("runtime SecretとWebhook署名Secretの参照契約を分離する", async () => {
+  const template = await loadReadingStagingTemplate();
+  assert.equal(template.Resources.StagingLoginFunction.Properties.Environment.Variables.RUNTIME_SECRETS_ARN.Ref, "RuntimeSecretsArn");
+  assert.equal(template.Resources.StagingMembershipStatusFunction.Properties.Environment.Variables.RUNTIME_SECRETS_ARN.Ref, "RuntimeSecretsArn");
+  assert.equal(template.Resources.FincodeWebhookFunction.Properties.Environment.Variables.FINCODE_WEBHOOK_SIGNATURE_SECRET_ID.Ref, "FincodeWebhookSignatureSecretArn");
+
+  const crossed = clone(template);
+  crossed.Resources.StagingLoginFunction.Properties.Environment.Variables.RUNTIME_SECRETS_ARN.Ref = "FincodeWebhookSignatureSecretArn";
+  assert.throws(() => validateReadingStagingTemplate(crossed), /staging login secret binding/u);
+});

@@ -19,6 +19,8 @@ export * from "./users/dynamoUserRepository";
 export * from "./users/membershipContext";
 export * from "./users/userRepository";
 export * from "./users/canonicalMembershipService";
+export * from "./stagingAuth/runtimeSecret";
+export * from "./stagingAuth/membershipStatusHandler";
 export * from "./readingApi/readingApiHandler";
 export * from "./readingApi/readingApiResponse";
 export * from "./readingApi/readingApiService";

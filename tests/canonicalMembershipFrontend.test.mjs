@@ -17,7 +17,7 @@ function token(userId) {
 
 test("membership pages no longer hard-code the legacy public API", () => {
   assert.doesNotMatch(source, /zaebx82pyf|subscription\/change-plan/u);
-  assert.match(source, /PUBLIC_CANONICAL_MEMBERSHIP_STATUS_URL/u);
+  assert.match(source, /runtimeApiConfig/u);
 });
 
 test("membership status uses Bearer identity and never sends user_id", () => {

@@ -1,10 +1,14 @@
 ﻿---
 import SeoHead from "../../components/SeoHead.astro";
+import { resolvePublicRuntimeApiConfig } from "../../lib/runtimeApiConfig";
 
 const pageTitle = "鑑定履歴 | 白音七";
 const pageDescription = "白音七の鑑定履歴一覧";
 
 export const prerender = false;
+const runtimeApi = resolvePublicRuntimeApiConfig(import.meta.env);
+const historyApiBase = runtimeApi.historyBaseUrl ?? "";
+const localStaging = runtimeApi.stagingIndicator;
 ---
 
 <!DOCTYPE html>
@@ -856,9 +860,8 @@ export const prerender = false;
       </div>
     </footer>
 
-    <script is:inline>
-      const API_BASE = "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod";
-      const HISTORY_API_BASE = API_BASE;
+    <script define:vars={{ historyApiBase, localStaging }}>
+      const HISTORY_API_BASE = historyApiBase;
       const DEBUG_HISTORY = false;
       const HISTORY_PAGE_SIZE = 5;
       let allHistoryItems = [];
@@ -1776,6 +1779,15 @@ export const prerender = false;
         setupHistoryDeleteHandler();
         setupHistoryMoreHandler();
 
+        if (!HISTORY_API_BASE) {
+          const list = document.getElementById("historyList");
+          if (list) list.innerHTML = '<div class="empty-card">現在このテスト環境では鑑定履歴を利用できません。</div>';
+          showNotice(localStaging ? "staging環境では履歴APIへ接続しません" : "履歴機能は現在利用できません", false);
+          const reload = document.getElementById("reloadHistoryButton");
+          if (reload) reload.disabled = true;
+          return;
+        }
+
         const reloadButton = document.getElementById("reloadHistoryButton");
         if (reloadButton) {
           reloadButton.addEventListener("click", function () {
@@ -1783,7 +1795,7 @@ export const prerender = false;
             loadUserStatus();
           });
         }
-loadUserStatus();
+        loadUserStatus();
         loadHistory();
       });
     </script>

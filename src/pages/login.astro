@@ -1,10 +1,15 @@
 ---
 import "../styles/global.css";
 import SeoHead from "../components/SeoHead.astro";
+import { resolvePublicRuntimeApiConfig } from "../lib/runtimeApiConfig";
 
 const siteTitle = "白音七";
 const pageTitle = `${siteTitle} | ログイン`;
 const pageDescription = "ログインして鑑定結果を記録する";
+const runtimeApi = resolvePublicRuntimeApiConfig(import.meta.env);
+const loginApiUrl = runtimeApi.loginUrl ?? "";
+const stagingAuthEnabled = runtimeApi.authEnabled;
+const localStaging = runtimeApi.stagingIndicator;
 ---
 
 <!DOCTYPE html>
@@ -16,6 +21,7 @@ const pageDescription = "ログインして鑑定結果を記録する";
   </head>
 
   <body class="fortune-body">
+    {localStaging && <p class="fortune-container" role="status">staging接続モードです。認証機能は現在停止中です。</p>}
     <header class="fortune-header">
       <div class="fortune-container fortune-header-inner">
         <a href="/" class="fortune-logo">
@@ -241,8 +247,7 @@ const pageDescription = "ログインして鑑定結果を記録する";
     </style>
 
 
-    <script is:inline>
-      const API_BASE = "https://i3fn2xgcrl.execute-api.ap-northeast-1.amazonaws.com";
+    <script define:vars={{ loginApiUrl, stagingAuthEnabled }}>
 
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
@@ -315,6 +320,11 @@ const pageDescription = "ログインして鑑定結果を記録する";
       const loginForm = document.getElementById("loginForm");
       const loginMessage = document.getElementById("loginMessage");
 
+      if (!stagingAuthEnabled || !loginApiUrl) {
+        loginForm.querySelector("button[type='submit']").disabled = true;
+        loginMessage.textContent = "この環境ではログイン機能をまだ有効化していません。";
+      }
+
       loginForm.addEventListener("submit", async (event) => {
         event.preventDefault();
 
@@ -329,7 +339,8 @@ const pageDescription = "ログインして鑑定結果を記録する";
         }
 
         try {
-          const res = await fetch(`${API_BASE}/login`, {
+          if (!stagingAuthEnabled || !loginApiUrl) return;
+          const res = await fetch(loginApiUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
