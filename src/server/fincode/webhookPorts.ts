@@ -172,7 +172,7 @@ function hasExactKeys(value: object, expected: readonly string[]): boolean {
 
 function hasValidTrustedPeriod(value: FincodeWebhookTrustedMembershipPeriod): boolean {
   try {
-    return value.source === "TRUSTED_MEMBERSHIP_SOURCE" &&
+    return ["TRUSTED_MEMBERSHIP_SOURCE", "PROVISIONAL_FINCODE_TEST_ASIA_TOKYO"].includes(value.source) &&
       hasExactKeys(value, ["periodEnd", "periodId", "periodStart", "source", "sourceVersion"]) &&
       HEX_DIGEST.test(value.periodId) && ISO_TIMESTAMP.test(value.periodStart) && ISO_TIMESTAMP.test(value.periodEnd) &&
       Date.parse(value.periodStart) < Date.parse(value.periodEnd) &&
@@ -272,6 +272,8 @@ export function isFincodeWebhookAtomicCompletionRequest(
     ["staging", "production"].includes(request.normalizedEvent.environment) &&
     EVENT_TYPES.includes(request.normalizedEvent.eventType) &&
     EVENT_STATUSES.includes(request.normalizedEvent.status) &&
+    (request.completionPlan?.period?.source !== "PROVISIONAL_FINCODE_TEST_ASIA_TOKYO" ||
+      request.normalizedEvent.environment === "staging") &&
     isFincodeWebhookAtomicCompletionPlan(request.completionPlan);
 }
 

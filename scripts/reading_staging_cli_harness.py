@@ -51,11 +51,14 @@ EXPECTED_PARAMETERS = {
     "WorkerEventSourceMappingsEnabled": "false",
     "FincodeWebhookEnabled": "false",
     "FincodePeriodSourceEnabled": "false",
+    "FincodeProvisionalTestPeriodSourceEnabled": "false",
+    "FincodeOneTimeVoiceWebhookEnabled": "false",
     "ReadingLightQuotaEnabled": "false",
 }
 EXPECTED_RESOURCE_TYPES = {
     "FincodeCustomerMappingTable": "AWS::DynamoDB::Table",
     "FincodeLightQuotaTable": "AWS::DynamoDB::Table",
+    "FincodeOneTimeVoicePurchaseTable": "AWS::DynamoDB::Table",
     "FincodeWebhookFunction": "AWS::Lambda::Function",
     "FincodeWebhookHttpApi": "AWS::ApiGatewayV2::Api",
     "FincodeWebhookApiStage": "AWS::ApiGatewayV2::Stage",
@@ -108,6 +111,7 @@ TABLE_LOGICAL_IDS = (
     "FincodeWebhookLedgerTable",
     "FincodeCustomerMappingTable",
     "FincodeLightQuotaTable",
+    "FincodeOneTimeVoicePurchaseTable",
 )
 QUEUE_LOGICAL_IDS = ("LightQueue", "DeepQueue", "LightDeadLetterQueue", "DeepDeadLetterQueue")
 ESM_LOGICAL_IDS = ("LightEventSourceMapping", "DeepEventSourceMapping")

@@ -166,8 +166,11 @@ export async function orchestrateFincodeWebhook(
     const plan = dependencies.planResolver?.(normalized.planRef) ?? null;
     const periodInput = {
       environment: normalized.environment,
+      subscriptionReference: normalized.subscriptionRef,
       subscriptionDigest: createHash("sha256").update(`fincode-subscription-v1\0${normalized.subscriptionRef}`, "utf8").digest("hex"),
+      customerReference: normalized.customerRef,
       customerDigest: createHash("sha256").update(`fincode-customer-v1\0${normalized.customerRef}`, "utf8").digest("hex"),
+      planReference: normalized.planRef,
       plan,
       eventType: normalized.eventType,
       processDate: normalized.processDate,

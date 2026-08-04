@@ -82,8 +82,7 @@ const pageDescription =
     <script>
       import { getMembershipDisplayInfo } from "../lib/membership";
 
-      const USER_STATUS_ENDPOINT =
-        "https://zaebx82pyf.execute-" + "a" + "pi.ap-northeast-1.amazonaws.com/user/status";
+      const USER_STATUS_ENDPOINT = import.meta.env.PUBLIC_CANONICAL_MEMBERSHIP_STATUS_URL || "";
 
       const authArea = document.getElementById("authArea");
       const premiumContent = document.getElementById("premiumContent");
@@ -275,12 +274,11 @@ const pageDescription =
       }
 
       async function fetchUserStatus() {
-        const userId = getUserId();
-        if (!userId) {
+        if (!authSession || !USER_STATUS_ENDPOINT) {
           throw new Error("ログイン情報が見つかりません。");
         }
 
-        const res = await fetch(`${USER_STATUS_ENDPOINT}?user_id=${encodeURIComponent(userId)}`);
+        const res = await fetch(USER_STATUS_ENDPOINT, { headers: { Authorization: `Bearer ${authSession}` } });
         const data = await res.json();
 
         if (!res.ok) {

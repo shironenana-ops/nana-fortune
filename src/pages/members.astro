@@ -1453,8 +1453,8 @@ body.members-page-body {
     import { getMembershipDisplayInfo, normalizeMembershipTier } from "../lib/membership";
     import { getMembershipEntitlements } from "../lib/membershipEntitlements";
 
-    const USER_STATUS_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/user/status";
-    const CHANGE_PLAN_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/subscription/change-plan";
+    const USER_STATUS_API = import.meta.env.PUBLIC_CANONICAL_MEMBERSHIP_STATUS_URL || "";
+    const authSession = localStorage.getItem("token") || "";
 
     const userId =
       localStorage.getItem("userId") ||
@@ -1792,40 +1792,8 @@ body.members-page-body {
     }
 
     async function requestPlanChange(targetPlan) {
-      if (isSubmittingPlanChange) return;
-      isSubmittingPlanChange = true;
-
-      try {
-        const response = await fetch(CHANGE_PLAN_API, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            user_id: userId,
-            target_plan: targetPlan
-          })
-        });
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data?.message || data?.error || "プラン変更予約に失敗しました。");
-        }
-
-        currentPendingPlan = data.pending_plan || targetPlan;
-        currentPeriodEnd = data.effective_at || currentPeriodEnd;
-
-        showPlanChangeNotice(currentPlan, currentPendingPlan, currentPeriodEnd);
-        renderPlanCards(currentPlan, currentPendingPlan, currentPeriodEnd);
-
-        alert(
-          data?.message ||
-            `${planNames[targetPlan] || targetPlan} への変更を予約しました。`
-        );
-      } finally {
-        isSubmittingPlanChange = false;
-      }
+      void targetPlan;
+      throw new Error("プラン変更は安全な会員連携の準備完了まで利用できません。");
     }
 
     function bindPlanButtons() {
@@ -1877,7 +1845,7 @@ body.members-page-body {
       const errorBox = document.getElementById("statusError");
       const errorText = document.getElementById("statusErrorText");
 
-      if (!userId) {
+      if (!authSession || !USER_STATUS_API) {
         loading.hidden = true;
         errorBox.hidden = false;
         errorText.textContent = "ユーザーIDが見つかりません。ログインし直してください。";
@@ -1886,7 +1854,7 @@ body.members-page-body {
       }
 
       try {
-        const res = await fetch(`${USER_STATUS_API}?user_id=${encodeURIComponent(userId)}`);
+        const res = await fetch(USER_STATUS_API, { headers: { Authorization: `Bearer ${authSession}` } });
         const data = await res.json();
 
         if (!res.ok) {

@@ -36,7 +36,7 @@ export function validateReadingStagingTemplate(template) {
   }
 
   const expectedTypes = {
-    "AWS::DynamoDB::Table": 9,
+    "AWS::DynamoDB::Table": 10,
     "AWS::SQS::Queue": 4,
     "AWS::Lambda::Function": 5,
     "AWS::Lambda::EventSourceMapping": 2,
@@ -76,7 +76,14 @@ export function validateReadingStagingTemplate(template) {
     if (webhookActions.includes(forbidden)) fail(`webhook role forbidden action: ${forbidden}`);
   }
   if (webhookActions.filter((action) => action === "secretsmanager:GetSecretValue").length !== 1) fail("webhook secret scope");
-  if (text(webhook.find((statement) => actions(statement).includes("secretsmanager:GetSecretValue"))?.Resource) !== text({ Ref: "FincodeWebhookSignatureSecretArn" })) fail("webhook secret resource scope");
+  if (text(webhook.find((statement) => actions(statement).includes("secretsmanager:GetSecretValue"))?.Resource) !== text([{ Ref: "FincodeWebhookSignatureSecretArn" }, { Ref: "FincodeTestProviderSecretArn" }])) fail("webhook secret resource scope");
+  const membershipCompletion = webhook.find((statement) => statement.Sid === "CompleteWebhookMembership");
+  if (text(actions(membershipCompletion)) !== text(["dynamodb:ConditionCheckItem", "dynamodb:UpdateItem"]) || text(membershipCompletion?.Resource) !== text({ "Fn::GetAtt": ["ReadingUsersTable", "Arn"] })) fail("webhook membership transaction scope");
+  const quotaCompletion = webhook.find((statement) => statement.Sid === "CompleteWebhookLightQuota");
+  if (text(actions(quotaCompletion)) !== text(["dynamodb:ConditionCheckItem", "dynamodb:PutItem"]) || text(quotaCompletion?.Resource) !== text({ "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] })) fail("webhook quota transaction scope");
+  const voiceCompletion = webhook.find((statement) => statement.Sid === "CompleteOneTimeVoiceAtomically");
+  if (text(actions(voiceCompletion)) !== text(["dynamodb:UpdateItem"]) || text(voiceCompletion?.Resource) !== text([{ "Fn::GetAtt": ["FincodeOneTimeVoicePurchaseTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }])) fail("webhook voice transaction scope");
+  if (webhookActions.includes("dynamodb:TransactWriteItems")) fail("webhook role uses API name instead of transaction item actions");
 
   const status = statements(template, "ReadingStatusRole");
   const statusActions = status.flatMap(actions);
@@ -112,7 +119,8 @@ export function validateReadingStagingTemplate(template) {
   if (template.Resources.ReadingStatusRoute.Properties.RouteKey !== "GET /reading/status") fail("status route");
   if (template.Resources.FincodeWebhookRoute.Properties.RouteKey !== "POST /webhooks/fincode" || template.Resources.FincodeWebhookRoute.Properties.AuthorizationType !== "NONE") fail("webhook route");
   if (template.Resources.FincodeWebhookHttpApi.Properties.CorsConfiguration !== undefined || template.Resources.FincodeWebhookRoute.Properties.ApiId?.Ref !== "FincodeWebhookHttpApi") fail("webhook API must be dedicated and CORS-free");
-  if (template.Resources.FincodeWebhookIntegration.Properties.TimeoutInMillis !== 3000) fail("webhook integration timeout");
+  if (template.Resources.FincodeWebhookIntegration.Properties.TimeoutInMillis !== 15000 || template.Resources.FincodeWebhookFunction.Properties.Timeout !== 15) fail("webhook integration timeout");
+  if (template.Resources.FincodeWebhookFunction.Properties.Environment.Variables.FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS !== "14000") fail("webhook internal deadline");
   const requestSourceArn = template.Resources.ReadingRequestInvokePermission.Properties.SourceArn?.["Fn::Sub"];
   const statusSourceArn = template.Resources.ReadingStatusInvokePermission.Properties.SourceArn?.["Fn::Sub"];
   if (!requestSourceArn?.endsWith("/${Environment}/POST/reading")) fail("request invoke stage scope");
@@ -124,7 +132,7 @@ export function validateReadingStagingTemplate(template) {
     if (properties.Runtime !== "nodejs22.x" || properties.Handler !== "index.handler") fail(`${name} runtime`);
     if (!properties.FunctionName?.["Fn::Sub"]?.startsWith("${AWS::StackName}-")) fail(`${name} must be stack scoped`);
   }
-  for (const parameter of ["ReadingGenerateApiEnabled", "ReadingAsyncPaidEnabled", "ReadingStatusApiEnabled", "ReadingBedrockEnabled", "WorkerEventSourceMappingsEnabled", "FincodeWebhookEnabled", "FincodePeriodSourceEnabled", "ReadingLightQuotaEnabled"]) {
+  for (const parameter of ["ReadingGenerateApiEnabled", "ReadingAsyncPaidEnabled", "ReadingStatusApiEnabled", "ReadingBedrockEnabled", "WorkerEventSourceMappingsEnabled", "FincodeWebhookEnabled", "FincodePeriodSourceEnabled", "FincodeProvisionalTestPeriodSourceEnabled", "FincodeOneTimeVoiceWebhookEnabled", "ReadingLightQuotaEnabled"]) {
     if (template.Parameters[parameter].Default !== "false") fail(`${parameter} must fail closed`);
   }
   for (const mode of ["Light", "Deep"]) {

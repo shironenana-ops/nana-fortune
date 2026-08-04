@@ -229,7 +229,9 @@ test("period conflictは409、period sourceへはdigestと明示planだけを渡
   assert.match(sourceInput.customerDigest, /^[0-9a-f]{64}$/u);
   assert.equal(sourceInput.plan, "light");
   assert.equal(sourceInput.processDate, "2026/07/30 09:10:11.123");
-  assert.doesNotMatch(JSON.stringify(sourceInput), new RegExp(`${CUSTOMER}|${SUBSCRIPTION}`));
+  assert.equal(sourceInput.customerReference, CUSTOMER);
+  assert.equal(sourceInput.subscriptionReference, SUBSCRIPTION);
+  assert.equal(sourceInput.planReference, PLAN);
 });
 
 test("completed duplicateだけ200、in-progress/unavailableは503、fingerprint conflictは409", async () => {
@@ -465,6 +467,36 @@ test("原子的完了planはtransactionに必要な安全な値を表現し不�
   assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, expectedMembership: { version: 2, plan: "light", subscriptionStatus: "active", currentPeriodStart: null, currentPeriodEnd: null } }), false);
   assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, resultCode: "UNKNOWN" }), false);
   assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan({ ...fixturePlan, rawPlanId: PLAN }), false);
+});
+
+test("stagingの暖定Tokyo periodは原子的完了で受理しproductionではfail closedにする", () => {
+  const provisionalPlan = activeLightCompletionPlan({
+    period: {
+      source: "PROVISIONAL_FINCODE_TEST_ASIA_TOKYO",
+      sourceVersion: "fincode-test-provisional-asia-tokyo-v1",
+      periodId: PERIOD_ID,
+      periodStart: PERIOD_START,
+      periodEnd: PERIOD_END,
+    },
+  });
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionPlan(provisionalPlan), true);
+
+  const request = {
+    semanticEventKey: "a".repeat(64),
+    payloadFingerprint: "b".repeat(64),
+    expectedLedgerState: "RESERVED",
+    userReference: "opaque-user-fixture",
+    normalizedEvent: { environment: "staging", eventType: "subscription.card.regist", status: "ACTIVE" },
+    completionPlan: provisionalPlan,
+    correlationDigest: "c".repeat(64),
+    retentionTtlSeconds: 3600,
+    completedAt: "2026-08-04T00:00:00.000Z",
+  };
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionRequest(request), true);
+  assert.equal(fincode.isFincodeWebhookAtomicCompletionRequest({
+    ...request,
+    normalizedEvent: { ...request.normalizedEvent, environment: "production" },
+  }), false);
 });
 
 test("AWS SDK・実adapter・秘密値・production接続を追加せずPort境界を保つ", () => {

@@ -6,6 +6,8 @@ await buildReadingFoundation();
 const api = await import(`${new URL("../dist/reading-server-foundation/index.mjs", import.meta.url).href}?deep=${Date.now()}`);
 
 const QUOTA_SECRET = "fixture-only-deep-quota-secret-32-characters-minimum";
+const PERIOD_START = "2026-07-15T00:00:00.000Z";
+const PERIOD_END = "2026-08-15T00:00:00.000Z";
 const config = {
   idempotencyTable: "fixture-idempotency",
   historyTable: "fixture-history",
@@ -31,6 +33,7 @@ class FakeDynamo {
       [config.deepQuota.tableName, new Map()],
       [config.deepQuota.usersTableName, new Map([["fixture-user", {
         user_id: s("fixture-user"), plan: s("premium"), subscription_status: s("active"), deep_enabled: { BOOL: true },
+        membership_version: { N: "2" }, current_period_start: s(PERIOD_START), current_period_end: s(PERIOD_END),
       }]])],
     ]);
     this.commands = [];
@@ -107,20 +110,22 @@ class FakeDynamo {
 
 function uuidFactory() { let value = 0; return () => `00000000-0000-4000-8000-${String(++value).padStart(12, "0")}`; }
 function begin(repo, requestRef, now, userId = "fixture-user") {
-  return repo.begin({ requestRef, fingerprint: "b".repeat(64), userId, resolvedMode: "deep", readingDate: "2026-07-18", now });
+  return repo.begin({ requestRef, fingerprint: "b".repeat(64), userId, membershipTier: "premium", resolvedMode: "deep", readingDate: "2026-07-18", now,
+    membership: { plan: "premium", subscriptionStatus: "active", currentPeriodStart: PERIOD_START, currentPeriodEnd: PERIOD_END, version: 2 } });
 }
 function response() {
   return { request_id: "public-request", resolved_mode: "deep", status: "completed", rendering_status: "rendered", result: { title: "架空結果", sections: [], one_step: "一歩", avoid_hint: "注意" } };
 }
 
-test("JST暦月、quota_ref、remaining、設定値を固定仕様で扱う", () => {
-  assert.equal(api.getJstPeriodKey(new Date("2026-07-31T14:59:59Z")), "2026-07");
-  assert.equal(api.getJstPeriodKey(new Date("2026-07-31T15:00:00Z")), "2026-08");
-  assert.equal(api.getJstPeriodKey(new Date("2026-12-31T15:00:00Z")), "2027-01");
-  const a = api.createDeepQuotaRef({ userId: "fixture-user", periodKey: "2026-07", secret: QUOTA_SECRET });
-  assert.equal(a, api.createDeepQuotaRef({ userId: "fixture-user", periodKey: "2026-07", secret: QUOTA_SECRET }));
-  assert.notEqual(a, api.createDeepQuotaRef({ userId: "other-user", periodKey: "2026-07", secret: QUOTA_SECRET }));
-  assert.notEqual(a, api.createDeepQuotaRef({ userId: "fixture-user", periodKey: "2026-08", secret: QUOTA_SECRET }));
+test("契約期間、quota_ref、remaining、設定値を固定仕様で扱う", () => {
+  const periodKey = api.createDeepContractPeriodKey(PERIOD_START, PERIOD_END);
+  const nextPeriod = api.createDeepContractPeriodKey(PERIOD_END, "2026-09-15T00:00:00.000Z");
+  assert.match(periodKey, /^[0-9a-f]{64}$/u);
+  assert.notEqual(periodKey, nextPeriod);
+  const a = api.createDeepQuotaRef({ userId: "fixture-user", periodKey, secret: QUOTA_SECRET });
+  assert.equal(a, api.createDeepQuotaRef({ userId: "fixture-user", periodKey, secret: QUOTA_SECRET }));
+  assert.notEqual(a, api.createDeepQuotaRef({ userId: "other-user", periodKey, secret: QUOTA_SECRET }));
+  assert.notEqual(a, api.createDeepQuotaRef({ userId: "fixture-user", periodKey: nextPeriod, secret: QUOTA_SECRET }));
   assert.equal(a.length, 64); assert.doesNotMatch(a, /fixture-user/);
   assert.deepEqual(api.readDeepQuotaConfig({ READING_DEEP_QUOTA_TABLE_NAME: "quota", USERS_TABLE_NAME: "users", READING_DEEP_QUOTA_HASH_SECRET: QUOTA_SECRET }), { tableName: "quota", usersTableName: "users", hashSecret: QUOTA_SECRET, reservationSeconds: 600 });
   for (const invalid of [{}, { READING_DEEP_QUOTA_TABLE_NAME: " " }, { READING_DEEP_QUOTA_TABLE_NAME: "quota", USERS_TABLE_NAME: "users", READING_DEEP_QUOTA_HASH_SECRET: "short" }, { READING_DEEP_QUOTA_TABLE_NAME: "quota", USERS_TABLE_NAME: "users", READING_DEEP_QUOTA_HASH_SECRET: `${QUOTA_SECRET}\n` }, { READING_DEEP_QUOTA_TABLE_NAME: "quota", USERS_TABLE_NAME: "users", READING_DEEP_QUOTA_HASH_SECRET: "x".repeat(4097) }]) assert.throws(() => api.readDeepQuotaConfig(invalid), /READING_DEEP_QUOTA_CONFIG_ERROR/);
@@ -187,12 +192,14 @@ test("deep生成失敗はidempotencyとquotaを同一transactionで解放しFAIL
   quota = [...fake.tables.get(config.deepQuota.tableName).values()][0]; assert.equal(quota.reservations.L.length, 1); assert.equal(retried.reservation.historyId, begun.reservation.historyId);
 });
 
-test("月またぎは開始月quotaを消費し新月requestは別itemへ予約する", async () => {
+test("暦月をまたいでも同じ契約期間を使い、更新後だけ別itemへ予約する", async () => {
   const fake = new FakeDynamo(); const repo = new api.DynamoReadingPersistence(fake, config, uuidFactory());
-  const july = await begin(repo, "d".repeat(64), new Date("2026-07-31T14:59:50Z")); assert.equal(july.reservation.deep.periodKey, "2026-07");
+  const july = await begin(repo, "d".repeat(64), new Date("2026-07-31T14:59:50Z"));
+  assert.equal(july.reservation.deep.periodKey, api.createDeepContractPeriodKey(PERIOD_START, PERIOD_END));
   await repo.complete({ reservation: july.reservation, userId: "fixture-user", response: response(), now: new Date("2026-07-31T15:00:10Z") });
-  const august = await begin(repo, "e".repeat(64), new Date("2026-07-31T15:00:20Z")); assert.equal(august.reservation.deep.periodKey, "2026-08");
-  assert.equal(fake.tables.get(config.deepQuota.tableName).size, 2);
+  const august = await begin(repo, "e".repeat(64), new Date("2026-07-31T15:00:20Z"));
+  assert.equal(august.reservation.deep.periodKey, july.reservation.deep.periodKey);
+  assert.equal(fake.tables.get(config.deepQuota.tableName).size, 1);
 });
 
 test("expired reservationは対応idempotencyと同一transactionで回収して新予約を作る", async () => {

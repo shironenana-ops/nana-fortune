@@ -1,9 +1,12 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { createFincodeWebhookAwsAdapters, readFincodeWebhookAwsConfig } from "./aws";
+import { createFincodeWebhookAwsAdapters, DynamoFincodeOneTimeVoicePurchaseStore, loadStagingFincodeTestProviderConfig, readFincodeWebhookAwsConfig } from "./aws";
 import { fincodeWebhookRetryResponse, type FincodeWebhookHttpResponse } from "./webhookHttpAdapter";
 import { orchestrateFincodeWebhook } from "./webhookOrchestrator";
 import type { FincodeSubscriptionPeriodSource } from "./subscriptionPeriodSource";
+import { ProvisionalFincodeTestAsiaTokyoPeriodSource } from "./provisionalFincodeTestPeriodSource";
+import { orchestrateFincodeOneTimeVoiceWebhook } from "./fincodeOneTimeVoiceWebhook";
+import { adaptFincodeWebhookHttpEvent } from "./webhookHttpAdapter";
 
 type Env = Record<string, string | undefined>;
 type Dependencies = {
@@ -48,8 +51,26 @@ export function createFincodeWebhookLambda(dependencies: Dependencies = {}) {
     try { expectedSignature = await beforeDeadline(adapters.signature.getExpectedSignature(), Math.max(1, config.internalDeadlineMs - (clock() - started))); }
     catch { return fincodeWebhookRetryResponse(); }
 
+    let providerConfig;
+    if (config.provisionalTestPeriodSourceEnabled || config.oneTimeVoiceEnabled) {
+      try { providerConfig = await beforeDeadline(loadStagingFincodeTestProviderConfig(secretsManager, config.testProviderSecretId!), Math.max(1, config.internalDeadlineMs - (clock() - started))); }
+      catch { return fincodeWebhookRetryResponse(); }
+    }
     const remaining = Math.max(1, config.internalDeadlineMs - (clock() - started));
     try {
+      if (config.oneTimeVoiceEnabled && providerConfig) {
+        let eventType: unknown;
+        try { eventType = JSON.parse(adaptFincodeWebhookHttpEvent(event).rawBody)?.event; } catch { eventType = undefined; }
+        if (typeof eventType === "string" && eventType.startsWith("payments.card.")) {
+          const diagnosticSink = dependencies.auditSink ?? console.log;
+          const store = new DynamoFincodeOneTimeVoicePurchaseStore(
+            dynamodb,
+            { purchaseTableName: config.oneTimeVoicePurchaseTableName!, usersTableName: config.usersTableName, environment: "staging" },
+            (resultCode) => diagnosticSink(JSON.stringify({ event: "fincode_voice_single", result_code: resultCode })),
+          );
+          return await beforeDeadline(orchestrateFincodeOneTimeVoiceWebhook({ event, expectedSignature, provider: providerConfig, intents: store, grants: store, auditSink: dependencies.auditSink, now: dependencies.now }), remaining);
+        }
+      }
       return await beforeDeadline(orchestrateFincodeWebhook(event, {
         boundary: {
           enabled: true,
@@ -60,13 +81,15 @@ export function createFincodeWebhookLambda(dependencies: Dependencies = {}) {
           allowedPlanRefs: new Set(config.planMapping.keys()),
         },
         expectedSignature,
-        retentionPolicy: { retentionDays: config.ledgerRetentionDays, nowEpochSeconds: Math.floor(clock() / 1000) },
+        retentionPolicy: { ttlSeconds: config.ledgerRetentionDays * 86_400, minimumTtlSeconds: 30 * 86_400, maximumTtlSeconds: 730 * 86_400 },
         ledger: adapters.ledger,
         customers: adapters.customers,
         atomicCompletion: adapters.atomicCompletion,
         completionPlanFactory: adapters.completionPlanFactory,
         planResolver: adapters.planResolver,
-        periodSource: config.periodSourceEnabled ? dependencies.periodSource : unavailablePeriodSource,
+        periodSource: config.periodSourceEnabled
+          ? dependencies.periodSource ?? (config.provisionalTestPeriodSourceEnabled && providerConfig ? new ProvisionalFincodeTestAsiaTokyoPeriodSource(providerConfig) : unavailablePeriodSource)
+          : unavailablePeriodSource,
         auditSink: dependencies.auditSink,
         now: dependencies.now,
       }), remaining);

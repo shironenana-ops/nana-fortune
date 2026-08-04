@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { ServerFoundationError } from "../http/errors";
+import { createFincodePeriodId } from "../fincode/subscriptionPeriodSource";
 
 export const PREMIUM_DEEP_MONTHLY_LIMIT = 3;
 export const DEEP_QUOTA_SCHEMA_VERSION = "shirone-deep-quota-v1";
@@ -45,24 +46,17 @@ export function readDeepQuotaConfig(env: Record<string, string | undefined> = pr
   };
 }
 
-export function getJstPeriodKey(now: Date): string {
-  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+export function createDeepContractPeriodKey(periodStart: string, periodEnd: string): string {
+  try {
+    return createFincodePeriodId(periodStart, periodEnd);
+  } catch {
     throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
   }
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-  }).formatToParts(now);
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  if (!year || !month) throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
-  return `${year}-${month}`;
 }
 
 export function createDeepQuotaRef(params: { userId: string; periodKey: string; secret?: string }): string {
   const secret = strictSecret(params.secret);
-  if (!params.userId || !/^\d{4}-\d{2}$/u.test(params.periodKey)) {
+  if (!params.userId || !/^[0-9a-f]{64}$/u.test(params.periodKey)) {
     throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
   }
   return createHmac("sha256", secret)

@@ -91,7 +91,8 @@ test("trusted period result requires exact canonical shape and matching period d
 
 test("static period source never derives a period from processDate or delivery time", async () => {
   const source = new fincode.StaticFincodeSubscriptionPeriodSource(new Map());
-  const input = { environment: "staging", subscriptionDigest: "c".repeat(64), customerDigest: "d".repeat(64), plan: "light",
+  const input = { environment: "staging", subscriptionReference: "subscription_fixture", subscriptionDigest: "c".repeat(64),
+    customerReference: "stg_customer_fixture_000000000000", customerDigest: "d".repeat(64), planReference: "plan_fixture", plan: "light",
     eventType: "subscription.card.regist", processDate: "2099/12/31 23:59:59.999" };
   assert.deepEqual(await source.resolve(input), { status: "NOT_AVAILABLE" });
 });

@@ -37,7 +37,7 @@ export async function planFincodeMembershipMigration(input: {
     if (current && JSON.stringify(candidate.current) === JSON.stringify(candidate.proposed)) {
       results.push({ targetDigest, status: "NO_OP", reason: "ALREADY_CURRENT" }); continue;
     }
-    if (current && proposed.version <= current.version) {
+    if (current && proposed.membershipVersion <= current.membershipVersion) {
       results.push({ targetDigest, status: "CONFLICT", reason: "VERSION_NOT_ADVANCED" }); continue;
     }
     results.push({ targetDigest, status: "READY", reason: "EXPLICIT_STAGING_UPDATE" });

@@ -64,14 +64,36 @@ test("fincode Webhookはstaging限定・既定OFF・最小権限である", asyn
   const template = await loadReadingStagingTemplate();
   assert.equal(template.Parameters.FincodeWebhookEnabled.Default, "false");
   assert.equal(template.Parameters.FincodePeriodSourceEnabled.Default, "false");
+  assert.equal(template.Parameters.FincodeProvisionalTestPeriodSourceEnabled.Default, "false");
+  assert.equal(template.Parameters.FincodeOneTimeVoiceWebhookEnabled.Default, "false");
   assert.equal(template.Parameters.ReadingLightQuotaEnabled.Default, "false");
   assert.equal(template.Resources.FincodeWebhookFunction.Properties.Runtime, "nodejs22.x");
   assert.equal(template.Resources.FincodeWebhookRoute.Properties.RouteKey, "POST /webhooks/fincode");
   assert.equal(template.Resources.FincodeWebhookRoute.Properties.AuthorizationType, "NONE");
   assert.equal(template.Resources.FincodeWebhookRoute.Properties.ApiId.Ref, "FincodeWebhookHttpApi");
   assert.equal(template.Resources.FincodeWebhookHttpApi.Properties.CorsConfiguration, undefined);
-  assert.equal(template.Resources.FincodeWebhookIntegration.Properties.TimeoutInMillis, 3000);
+  assert.equal(template.Resources.FincodeWebhookIntegration.Properties.TimeoutInMillis, 15000);
+  assert.equal(template.Resources.FincodeWebhookFunction.Properties.Timeout, 15);
+  assert.equal(template.Resources.FincodeWebhookFunction.Properties.Environment.Variables.FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS, "14000");
+  assert.equal(template.Resources.FincodeOneTimeVoicePurchaseTable.DeletionPolicy, "Retain");
   const serialized = JSON.stringify(template.Resources.FincodeWebhookRole);
   assert.doesNotMatch(serialized, /dynamodb:Scan|dynamodb:BatchWriteItem|sqs:|bedrock:|iam:/u);
   assert.match(serialized, /secretsmanager:GetSecretValue/u);
+  const webhookStatements = template.Resources.FincodeWebhookRole.Properties.Policies[0].PolicyDocument.Statement;
+  const bySid = (sid) => webhookStatements.find((statement) => statement.Sid === sid);
+  assert.deepEqual(bySid("CompleteWebhookMembership"), {
+    Sid: "CompleteWebhookMembership", Effect: "Allow",
+    Action: ["dynamodb:ConditionCheckItem", "dynamodb:UpdateItem"],
+    Resource: { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] },
+  });
+  assert.deepEqual(bySid("CompleteWebhookLightQuota"), {
+    Sid: "CompleteWebhookLightQuota", Effect: "Allow",
+    Action: ["dynamodb:ConditionCheckItem", "dynamodb:PutItem"],
+    Resource: { "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] },
+  });
+  assert.deepEqual(bySid("CompleteOneTimeVoiceAtomically"), {
+    Sid: "CompleteOneTimeVoiceAtomically", Effect: "Allow", Action: "dynamodb:UpdateItem",
+    Resource: [{ "Fn::GetAtt": ["FincodeOneTimeVoicePurchaseTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }],
+  });
+  assert.doesNotMatch(serialized, /dynamodb:TransactWriteItems/u);
 });

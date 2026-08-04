@@ -28,7 +28,7 @@ const purchase = Object.freeze({
   state: "REGISTERED",
 });
 
-function store(sent, responses = []) {
+function store(sent, responses = [], diagnostics = []) {
   return new DynamoFincodeOneTimeVoicePurchaseStore({
     async send(command) {
       sent.push(command.input);
@@ -40,7 +40,7 @@ function store(sent, responses = []) {
     purchaseTableName: "FincodeOneTimeVoicePurchasesTest",
     usersTableName: "ShironeUsersTest",
     environment: "test",
-  });
+  }, (code) => diagnostics.push(code));
 }
 
 test("registered purchase intent is a conditional, payment-digest keyed write", async () => {
@@ -76,9 +76,11 @@ test("atomic grant updates the purchase ledger and extra voice together", async 
 test("a transaction failure returns no success and only an exact completed ledger can recover as duplicate", async () => {
   const cancellation = Object.assign(new Error("conditional"), { name: "TransactionCanceledException" });
   const sent = [];
-  const unavailable = await store(sent, [cancellation, { Item: undefined }])
+  const diagnostics = [];
+  const unavailable = await store(sent, [cancellation, { Item: undefined }], diagnostics)
     .grant({ purchase, completedAt: "2026-08-03T00:00:00.000Z" });
   assert.equal(unavailable, "RETRYABLE_FAILURE");
+  assert.deepEqual(diagnostics, ["VOICE_DDB_TRANSACTION_CANCELED"]);
 
   const completedItem = {
     payment_digest: { S: purchase.paymentDigest },
@@ -93,4 +95,19 @@ test("a transaction failure returns no success and only an exact completed ledge
   const duplicate = await store([], [cancellation, { Item: completedItem }])
     .grant({ purchase, completedAt: "2026-08-03T00:00:00.000Z" });
   assert.equal(duplicate, "ALREADY_COMPLETED");
+});
+
+test("Dynamo failures emit only fixed diagnostic codes", async () => {
+  for (const [name, expected] of [
+    ["ValidationException", "VOICE_DDB_VALIDATION"],
+    ["AccessDeniedException", "VOICE_DDB_ACCESS_DENIED"],
+    ["ThrottlingException", "VOICE_DDB_THROTTLED"],
+    ["InternalServerError", "VOICE_DDB_UNAVAILABLE"],
+  ]) {
+    const diagnostics = [];
+    const failure = Object.assign(new Error("raw provider detail"), { name });
+    assert.equal(await store([], [failure], diagnostics).grant({ purchase, completedAt: "2026-08-03T00:00:00.000Z" }), "RETRYABLE_FAILURE");
+    assert.deepEqual(diagnostics, [expected]);
+    assert.doesNotMatch(JSON.stringify(diagnostics), /raw provider detail/u);
+  }
 });

@@ -49,6 +49,19 @@ test("AWS config is explicit and mutation stays closed without both reviewed sch
   ]) assert.throws(() => api.readFincodeWebhookAwsConfig({ ...baseEnv, ...invalid }), /FINCODE_WEBHOOK_AWS_CONFIG_INVALID/);
 });
 
+test("AWS config accepts the deployed 14 second internal deadline and rejects values beyond it", () => {
+  assert.equal(api.readFincodeWebhookAwsConfig({
+    ...baseEnv,
+    FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS: "14000",
+  }).internalDeadlineMs, 14_000);
+  for (const invalid of ["14001", "15000", "0", "500.5", "-1", ""]) {
+    assert.throws(() => api.readFincodeWebhookAwsConfig({
+      ...baseEnv,
+      FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS: invalid,
+    }), /FINCODE_WEBHOOK_AWS_CONFIG_INVALID/);
+  }
+});
+
 test("ledger reserve writes digest-only item and classifies duplicates", async () => {
   const commands = [];
   const ledger = new api.DynamoFincodeWebhookLedger({ send: async (command) => { commands.push(command); return {}; } }, "ledger-staging", "staging", () => 1_700_000_000_000);

@@ -5,8 +5,11 @@ import type { FincodeMembershipPlan } from "./membershipSchema";
 export const FINCODE_PERIOD_SOURCE_RESULTS = ["RESOLVED", "NOT_AVAILABLE", "CONFLICT", "UNAVAILABLE"] as const;
 export type FincodeSubscriptionPeriodInput = {
   environment: FincodeEnvironment;
+  subscriptionReference: string;
   subscriptionDigest: string;
+  customerReference: string;
   customerDigest: string;
+  planReference: string;
   plan: Exclude<FincodeMembershipPlan, "free">;
   eventType: FincodeSubscriptionEventType;
   processDate: string;
@@ -16,7 +19,7 @@ export type FincodeResolvedSubscriptionPeriod = {
   periodId: string;
   periodStart: string;
   periodEnd: string;
-  source: "TRUSTED_MEMBERSHIP_SOURCE";
+  source: "TRUSTED_MEMBERSHIP_SOURCE" | "PROVISIONAL_FINCODE_TEST_ASIA_TOKYO";
   sourceVersion: string;
 };
 export type FincodeSubscriptionPeriodResult = FincodeResolvedSubscriptionPeriod |
@@ -56,7 +59,7 @@ export function validateFincodeSubscriptionPeriodResult(value: unknown): Fincode
   }
   if (input.status !== "RESOLVED" || Object.keys(input).sort().join(",") !== "periodEnd,periodId,periodStart,source,sourceVersion,status") return null;
   if (typeof input.periodStart !== "string" || typeof input.periodEnd !== "string" || typeof input.periodId !== "string" ||
-      input.source !== "TRUSTED_MEMBERSHIP_SOURCE" || typeof input.sourceVersion !== "string" || !VERSION.test(input.sourceVersion)) return null;
+      !["TRUSTED_MEMBERSHIP_SOURCE", "PROVISIONAL_FINCODE_TEST_ASIA_TOKYO"].includes(String(input.source)) || typeof input.sourceVersion !== "string" || !VERSION.test(input.sourceVersion)) return null;
   try {
     if (!DIGEST.test(input.periodId) || createFincodePeriodId(input.periodStart, input.periodEnd) !== input.periodId) return null;
   } catch { return null; }
@@ -66,9 +69,12 @@ export function validateFincodeSubscriptionPeriodResult(value: unknown): Fincode
 export function validateFincodeSubscriptionPeriodInput(value: unknown): value is FincodeSubscriptionPeriodInput {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const input = value as Record<string, unknown>;
-  return Object.keys(input).sort().join(",") === "customerDigest,environment,eventType,plan,processDate,subscriptionDigest" &&
+  return Object.keys(input).sort().join(",") === "customerDigest,customerReference,environment,eventType,plan,planReference,processDate,subscriptionDigest,subscriptionReference" &&
     ["staging", "production"].includes(String(input.environment)) && DIGEST.test(String(input.subscriptionDigest)) &&
     DIGEST.test(String(input.customerDigest)) && ["light", "premium"].includes(String(input.plan)) &&
+    typeof input.subscriptionReference === "string" && /^[A-Za-z0-9_-]{1,25}$/u.test(input.subscriptionReference) &&
+    typeof input.customerReference === "string" && /^[A-Za-z0-9_-]{1,60}$/u.test(input.customerReference) &&
+    typeof input.planReference === "string" && /^[A-Za-z0-9_-]{1,25}$/u.test(input.planReference) &&
     ["subscription.card.regist", "subscription.card.update", "subscription.card.delete"].includes(String(input.eventType)) &&
     typeof input.processDate === "string";
 }

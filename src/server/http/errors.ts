@@ -37,6 +37,8 @@ export type ServerErrorCode =
   | "READING_DEEP_QUOTA_UNAVAILABLE"
   | "READING_DEEP_RESERVATION_INCONSISTENT"
   | "READING_LIGHT_QUOTA_NOT_APPLICABLE"
+  | "READING_LIGHT_MONTHLY_LIMIT_REACHED"
+  | "READING_LIGHT_QUOTA_CONFIG_ERROR"
   | "READING_LIGHT_QUOTA_INCONSISTENT"
   | "READING_RATE_LIMIT_REACHED"
   | "READING_CONCURRENT_LIMIT_REACHED"
@@ -95,6 +97,8 @@ const DEFINITIONS: Record<ServerErrorCode, { status: number; message: string }> 
   READING_DEEP_QUOTA_UNAVAILABLE: { status: 503, message: "現在この鑑定を利用できません" },
   READING_DEEP_RESERVATION_INCONSISTENT: { status: 503, message: "現在この鑑定を利用できません" },
   READING_LIGHT_QUOTA_NOT_APPLICABLE: { status: 403, message: "この鑑定モードでは月間ライト鑑定枠を利用できません" },
+  READING_LIGHT_MONTHLY_LIMIT_REACHED: { status: 403, message: "今月のライト鑑定の利用回数に達しています" },
+  READING_LIGHT_QUOTA_CONFIG_ERROR: { status: 500, message: "現在この鑑定を利用できません" },
   READING_LIGHT_QUOTA_INCONSISTENT: { status: 503, message: "現在、ライト鑑定の利用枠を確認できません" },
   READING_RATE_LIMIT_REACHED: { status: 429, message: "短時間に利用が集中しています。しばらく待ってからお試しください" },
   READING_CONCURRENT_LIMIT_REACHED: { status: 429, message: "この鑑定は現在処理中です。完了後にもう一度お試しください" },

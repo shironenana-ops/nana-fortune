@@ -68,7 +68,7 @@ export async function executeReadingApi(
         resolvedMode: command.resolvedMode,
       },
       now,
-      ...(command.resolvedMode === "light" ? { membership: {
+      ...((command.resolvedMode === "light" || command.resolvedMode === "deep") ? { membership: {
         plan: membershipContext.entitlements.tier as "light" | "premium",
         subscriptionStatus: membershipContext.entitlements.subscriptionStatus as "active",
         currentPeriodStart: String(membershipContext.membership.current_period_start ?? ""),
@@ -81,7 +81,10 @@ export async function executeReadingApi(
   }
   let begun;
   try {
-    begun = await dependencies.persistence.begin({ requestRef, fingerprint, userId: session.user_id, membershipTier: membershipContext.entitlements.tier, resolvedMode: command.resolvedMode, readingDate, now });
+    begun = await dependencies.persistence.begin({
+      requestRef, fingerprint, userId: session.user_id, membershipTier: membershipContext.entitlements.tier,
+      resolvedMode: command.resolvedMode, readingDate, now,
+    });
   } catch (error) {
     if (error instanceof ServerFoundationError && error.code === "READING_RATE_LIMIT_REACHED") {
       auditEvent("reading_rate_limited", "denied", error.code);

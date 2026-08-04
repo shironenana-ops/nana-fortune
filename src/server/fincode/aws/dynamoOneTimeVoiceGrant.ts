@@ -7,6 +7,7 @@ import {
 } from "../oneTimeVoicePurchase";
 
 type Sender = { send(command: unknown): Promise<unknown> };
+type DiagnosticCode = "VOICE_DDB_TRANSACTION_CANCELED" | "VOICE_DDB_VALIDATION" | "VOICE_DDB_ACCESS_DENIED" | "VOICE_DDB_THROTTLED" | "VOICE_DDB_UNAVAILABLE";
 type Item = Record<string, AttributeValue>;
 const s = (value: string): AttributeValue => ({ S: value });
 const n = (value: number): AttributeValue => ({ N: String(value) });
@@ -38,7 +39,11 @@ function validConfig(config: FincodeOneTimeVoiceDynamoConfig): boolean {
 
 export class DynamoFincodeOneTimeVoicePurchaseStore
   implements FincodeOneTimeVoicePurchaseIntentPort, FincodeOneTimeVoiceAtomicGrantPort {
-  constructor(private readonly client: Sender, private readonly config: FincodeOneTimeVoiceDynamoConfig) {}
+  constructor(
+    private readonly client: Sender,
+    private readonly config: FincodeOneTimeVoiceDynamoConfig,
+    private readonly diagnosticSink?: (code: DiagnosticCode) => void,
+  ) {}
 
   async createRegistered(input: FincodeOneTimeVoicePurchaseIntent): Promise<"CREATED" | "CONFLICT" | "UNAVAILABLE"> {
     if (!validConfig(this.config) || input.environment !== this.config.environment || input.state !== "REGISTERED") return "UNAVAILABLE";
@@ -102,7 +107,17 @@ export class DynamoFincodeOneTimeVoicePurchaseStore
       }));
       return "COMPLETED";
     } catch (error) {
-      if (!transactionConflict(error)) return "RETRYABLE_FAILURE";
+      if (!transactionConflict(error)) {
+        const name = (error as { name?: unknown })?.name;
+        this.diagnosticSink?.(
+          name === "ValidationException" ? "VOICE_DDB_VALIDATION" :
+            name === "AccessDeniedException" ? "VOICE_DDB_ACCESS_DENIED" :
+              name === "ThrottlingException" || name === "ProvisionedThroughputExceededException" ? "VOICE_DDB_THROTTLED" :
+                "VOICE_DDB_UNAVAILABLE",
+        );
+        return "RETRYABLE_FAILURE";
+      }
+      this.diagnosticSink?.("VOICE_DDB_TRANSACTION_CANCELED");
       try {
         const stored = await this.findByPaymentDigest(input.purchase.paymentDigest);
         return stored?.state === "COMPLETED" && stored.payloadFingerprint === input.purchase.payloadFingerprint

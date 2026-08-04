@@ -20,8 +20,11 @@
     "WorkerEventSourceMappingsEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
     "FincodeWebhookEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
     "FincodePeriodSourceEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "FincodeProvisionalTestPeriodSourceEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "FincodeOneTimeVoiceWebhookEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
     "ReadingLightQuotaEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
     "FincodeWebhookSignatureSecretArn": { "Type": "String", "AllowedPattern": "^arn:aws:secretsmanager:ap-northeast-1:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$", "NoEcho": true },
+    "FincodeTestProviderSecretArn": { "Type": "String", "AllowedPattern": "^arn:aws:secretsmanager:ap-northeast-1:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$", "NoEcho": true },
     "FincodeCustomerReferencePrefix": { "Type": "String", "AllowedPattern": "^stg_[A-Za-z0-9_-]{1,20}$", "NoEcho": true },
     "FincodeAllowedShopDigests": { "Type": "String", "AllowedPattern": "^[0-9a-f]{64}(,[0-9a-f]{64})*$", "NoEcho": true },
     "FincodeAllowedPlanMapping": { "Type": "String", "MinLength": 1, "MaxLength": 512, "NoEcho": true },
@@ -185,6 +188,15 @@
         "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-light-quota" }, { "Key": "DataClassification", "Value": "internal" }, { "Key": "Owner", "Value": { "Ref": "Owner" } }, { "Key": "CostCenter", "Value": { "Ref": "CostCenter" } }, { "Key": "ManagedBy", "Value": "cloudformation" }]
       }
     },
+    "FincodeOneTimeVoicePurchaseTable": {
+      "Type": "AWS::DynamoDB::Table", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST", "AttributeDefinitions": [{ "AttributeName": "payment_digest", "AttributeType": "S" }],
+        "KeySchema": [{ "AttributeName": "payment_digest", "KeyType": "HASH" }], "DeletionProtectionEnabled": true,
+        "PointInTimeRecoverySpecification": { "PointInTimeRecoveryEnabled": true }, "SSESpecification": { "SSEEnabled": true },
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-one-time-voice-purchase" }, { "Key": "DataClassification", "Value": "internal" }, { "Key": "Owner", "Value": { "Ref": "Owner" } }, { "Key": "CostCenter", "Value": { "Ref": "CostCenter" } }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
     "LightDeadLetterQueue": {
       "Type": "AWS::SQS::Queue",
       "Properties": {
@@ -322,10 +334,13 @@
           "PolicyName": "fincode-webhook-staging-minimum",
           "PolicyDocument": { "Version": "2012-10-17", "Statement": [
             { "Sid": "OwnLogs", "Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": { "Fn::GetAtt": ["FincodeWebhookLogGroup", "Arn"] } },
-            { "Sid": "ReadWebhookState", "Effect": "Allow", "Action": "dynamodb:GetItem", "Resource": [{ "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] }, { "Fn::GetAtt": ["FincodeCustomerMappingTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }] },
+            { "Sid": "ReadWebhookState", "Effect": "Allow", "Action": "dynamodb:GetItem", "Resource": [{ "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] }, { "Fn::GetAtt": ["FincodeCustomerMappingTable", "Arn"] }, { "Fn::GetAtt": ["FincodeOneTimeVoicePurchaseTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }] },
             { "Sid": "ReserveWebhookEvent", "Effect": "Allow", "Action": ["dynamodb:PutItem", "dynamodb:UpdateItem"], "Resource": { "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] } },
-            { "Sid": "CompleteWebhookAtomically", "Effect": "Allow", "Action": "dynamodb:TransactWriteItems", "Resource": [{ "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }, { "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] }] },
-            { "Sid": "ReadSignatureOnly", "Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": { "Ref": "FincodeWebhookSignatureSecretArn" } }
+            { "Sid": "CompleteWebhookMembership", "Effect": "Allow", "Action": ["dynamodb:ConditionCheckItem", "dynamodb:UpdateItem"], "Resource": { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] } },
+            { "Sid": "CompleteWebhookLightQuota", "Effect": "Allow", "Action": ["dynamodb:ConditionCheckItem", "dynamodb:PutItem"], "Resource": { "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] } },
+            { "Sid": "WriteOneTimeVoiceIntent", "Effect": "Allow", "Action": "dynamodb:PutItem", "Resource": { "Fn::GetAtt": ["FincodeOneTimeVoicePurchaseTable", "Arn"] } },
+            { "Sid": "CompleteOneTimeVoiceAtomically", "Effect": "Allow", "Action": "dynamodb:UpdateItem", "Resource": [{ "Fn::GetAtt": ["FincodeOneTimeVoicePurchaseTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }] },
+            { "Sid": "ReadFincodeSecretsOnly", "Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": [{ "Ref": "FincodeWebhookSignatureSecretArn" }, { "Ref": "FincodeTestProviderSecretArn" }] }
           ] }
         }],
         "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-webhook-role" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
@@ -433,16 +448,18 @@
       "Type": "AWS::Lambda::Function", "DependsOn": ["FincodeWebhookLogGroup"],
       "Properties": {
         "FunctionName": { "Fn::Sub": "${AWS::StackName}-fincode-webhook" }, "Runtime": "nodejs22.x", "Handler": "index.handler",
-        "Timeout": 3, "MemorySize": 256, "ReservedConcurrentExecutions": 2, "Role": { "Fn::GetAtt": ["FincodeWebhookRole", "Arn"] },
+        "Timeout": 15, "MemorySize": 256, "ReservedConcurrentExecutions": 2, "Role": { "Fn::GetAtt": ["FincodeWebhookRole", "Arn"] },
         "Code": { "S3Bucket": { "Ref": "ArtifactBucketName" }, "S3Key": { "Ref": "FincodeWebhookArtifactKey" } },
         "Environment": { "Variables": {
           "FINCODE_WEBHOOK_ENABLED": { "Ref": "FincodeWebhookEnabled" }, "FINCODE_PERIOD_SOURCE_ENABLED": { "Ref": "FincodePeriodSourceEnabled" },
+          "FINCODE_PROVISIONAL_TEST_PERIOD_SOURCE_ENABLED": { "Ref": "FincodeProvisionalTestPeriodSourceEnabled" }, "FINCODE_ONE_TIME_VOICE_WEBHOOK_ENABLED": { "Ref": "FincodeOneTimeVoiceWebhookEnabled" },
           "FINCODE_WEBHOOK_ENVIRONMENT": { "Ref": "Environment" }, "FINCODE_WEBHOOK_SIGNATURE_SECRET_ENVIRONMENT": { "Ref": "Environment" },
           "FINCODE_WEBHOOK_LEDGER_TABLE": { "Ref": "FincodeWebhookLedgerTable" }, "FINCODE_CUSTOMER_MAPPING_TABLE": { "Ref": "FincodeCustomerMappingTable" },
           "FINCODE_LIGHT_QUOTA_TABLE": { "Ref": "FincodeLightQuotaTable" }, "USERS_TABLE_NAME": { "Ref": "ReadingUsersTable" }, "READING_DEEP_QUOTA_TABLE_NAME": { "Ref": "ReadingDeepQuotaTable" },
+          "FINCODE_ONE_TIME_VOICE_PURCHASE_TABLE": { "Ref": "FincodeOneTimeVoicePurchaseTable" }, "FINCODE_TEST_PROVIDER_SECRET_ID": { "Ref": "FincodeTestProviderSecretArn" },
           "FINCODE_WEBHOOK_SIGNATURE_SECRET_ID": { "Ref": "FincodeWebhookSignatureSecretArn" }, "FINCODE_WEBHOOK_LEDGER_RETENTION_DAYS": "180", "FINCODE_WEBHOOK_SECRET_CACHE_TTL_SECONDS": "300",
           "FINCODE_WEBHOOK_ALLOWED_SHOP_DIGESTS": { "Ref": "FincodeAllowedShopDigests" }, "FINCODE_WEBHOOK_ALLOWED_PLAN_MAPPING": { "Ref": "FincodeAllowedPlanMapping" },
-          "FINCODE_CUSTOMER_REFERENCE_PREFIX": { "Ref": "FincodeCustomerReferencePrefix" }, "FINCODE_USERS_MEMBERSHIP_SCHEMA_VERSION": "shirone-membership-v1", "FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS": "2500"
+          "FINCODE_CUSTOMER_REFERENCE_PREFIX": { "Ref": "FincodeCustomerReferencePrefix" }, "FINCODE_USERS_MEMBERSHIP_SCHEMA_VERSION": "shirone-membership-v1", "FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS": "14000"
         } },
         "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-webhook" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
       }
@@ -482,7 +499,7 @@
       "Type": "AWS::ApiGatewayV2::Integration",
       "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 10000, "IntegrationUri": { "Fn::GetAtt": ["ReadingStatusFunction", "Arn"] } }
     },
-    "FincodeWebhookIntegration": { "Type": "AWS::ApiGatewayV2::Integration", "Properties": { "ApiId": { "Ref": "FincodeWebhookHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 3000, "IntegrationUri": { "Fn::GetAtt": ["FincodeWebhookFunction", "Arn"] } } },
+    "FincodeWebhookIntegration": { "Type": "AWS::ApiGatewayV2::Integration", "Properties": { "ApiId": { "Ref": "FincodeWebhookHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 15000, "IntegrationUri": { "Fn::GetAtt": ["FincodeWebhookFunction", "Arn"] } } },
     "ReadingRequestRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "RouteKey": "POST /reading", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "ReadingRequestIntegration" }]] } } },
     "ReadingStatusRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "RouteKey": "GET /reading/status", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "ReadingStatusIntegration" }]] } } },
     "FincodeWebhookRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "FincodeWebhookHttpApi" }, "RouteKey": "POST /webhooks/fincode", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "FincodeWebhookIntegration" }]] } } },
