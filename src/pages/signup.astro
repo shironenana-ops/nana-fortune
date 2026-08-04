@@ -379,7 +379,12 @@ const localStaging = runtimeApi.stagingIndicator;
           const data = await res.json().catch(() => ({}));
 
           if (!res.ok) {
-            throw new Error(data?.message || data?.error || "新規登録に失敗しました。");
+            const safeErrorMessage =
+              (typeof data?.message === "string" && data.message.trim()) ||
+              (typeof data?.error?.message === "string" && data.error.message.trim()) ||
+              (typeof data?.error === "string" && data.error.trim()) ||
+              "新規登録に失敗しました。";
+            throw new Error(safeErrorMessage);
           }
 
           if (data?.email_verification_required === true) {
