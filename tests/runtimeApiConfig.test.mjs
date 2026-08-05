@@ -31,17 +31,42 @@ test("local-staging authは既定falseで、base欠落・prod path・別region�
 
 test("production endpointは環境設定だけから解決し、固定fallbackを持たない", () => {
   const empty = api.resolvePublicRuntimeApiConfig({ PUBLIC_RUNTIME_ENV: "production" });
+  assert.equal(empty.authEnabled, false);
   assert.equal(empty.loginUrl, null);
+  assert.equal(empty.signupUrl, null);
+  assert.equal(empty.membershipStatusUrl, null);
   assert.equal(empty.historyBaseUrl, null);
   const configured = api.resolvePublicRuntimeApiConfig({
     PUBLIC_RUNTIME_ENV: "production",
     PUBLIC_AUTH_API_BASE_URL: "https://auth.example.invalid",
+    PUBLIC_AUTH_ENABLED: "true",
     PUBLIC_READING_API_BASE_URL: "https://reading.example.invalid",
     PUBLIC_CANONICAL_MEMBERSHIP_STATUS_URL: "https://membership.example.invalid/status",
     PUBLIC_HISTORY_API_BASE_URL: "https://history.example.invalid",
   });
+  assert.equal(configured.authEnabled, true);
   assert.equal(configured.loginUrl, "https://auth.example.invalid/login");
+  assert.equal(configured.signupUrl, "https://auth.example.invalid/signup");
+  assert.equal(configured.membershipStatusUrl, "https://membership.example.invalid/status");
   assert.equal(configured.historyBaseUrl, "https://history.example.invalid");
+});
+
+test("login/signupはproductionとstagingで同じauth契約を使い、redirectとlogoutを安全に維持する", async () => {
+  const login = await readFile("src/pages/login.astro", "utf8");
+  const signup = await readFile("src/pages/signup.astro", "utf8");
+
+  for (const page of [login, signup]) {
+    assert.match(page, /const authEnabled = runtimeApi\.authEnabled/u);
+    assert.doesNotMatch(page, /stagingAuthEnabled/u);
+    assert.doesNotMatch(page, /execute-api\.ap-northeast-1\.amazonaws\.com/u);
+    assert.doesNotMatch(page, /console\.(?:log|info|debug)\([^)]*(?:password|token|email|data)/iu);
+  }
+
+  assert.match(login, /const redirect = params\.get\("redirect"\) \|\| "\/members"/u);
+  assert.match(login, /window\.location\.href = redirect \|\| "\/members"/u);
+  for (const key of ["token", "loginEmail", "userId", "user_id"]) {
+    assert.match(login, new RegExp(`localStorage\\.removeItem\\("${key}"\\)`, "u"));
+  }
 });
 
 test("frontendは固定execute-api URLを持たず単一runtime configを参照する", async () => {

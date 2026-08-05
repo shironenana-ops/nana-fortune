@@ -8,7 +8,7 @@ const pageTitle = `${siteTitle} | ログイン`;
 const pageDescription = "ログインして鑑定結果を記録する";
 const runtimeApi = resolvePublicRuntimeApiConfig(import.meta.env);
 const loginApiUrl = runtimeApi.loginUrl ?? "";
-const stagingAuthEnabled = runtimeApi.authEnabled;
+const authEnabled = runtimeApi.authEnabled;
 const localStaging = runtimeApi.stagingIndicator;
 ---
 
@@ -247,7 +247,7 @@ const localStaging = runtimeApi.stagingIndicator;
     </style>
 
 
-    <script define:vars={{ loginApiUrl, stagingAuthEnabled }}>
+    <script define:vars={{ loginApiUrl, authEnabled }}>
 
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
@@ -320,7 +320,7 @@ const localStaging = runtimeApi.stagingIndicator;
       const loginForm = document.getElementById("loginForm");
       const loginMessage = document.getElementById("loginMessage");
 
-      if (!stagingAuthEnabled || !loginApiUrl) {
+      if (!authEnabled || !loginApiUrl) {
         loginForm.querySelector("button[type='submit']").disabled = true;
         loginMessage.textContent = "この環境ではログイン機能をまだ有効化していません。";
       }
@@ -339,7 +339,7 @@ const localStaging = runtimeApi.stagingIndicator;
         }
 
         try {
-          if (!stagingAuthEnabled || !loginApiUrl) return;
+          if (!authEnabled || !loginApiUrl) return;
           const res = await fetch(loginApiUrl, {
             method: "POST",
             headers: {
