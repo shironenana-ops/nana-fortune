@@ -7,7 +7,7 @@ export const prerender = false;
 
 const pageTitle = "白音七 有料プラン｜より深く受け取りたい方へ";
 const pageDescription =
-  "白音七の有料プラン案内ページです。ライトプラン、プレミアムプラン、単発音声1回分の内容をご確認いただけます。";
+  "白音七のライト会員、プレミアム会員、音声鑑定1回分について、料金・利用枠・申込条件をご案内します。";
 ---
 
 <!DOCTYPE html>
@@ -81,9 +81,10 @@ const pageDescription =
 
     <script>
       import { getMembershipDisplayInfo } from "../lib/membership";
+      import { resolvePublicRuntimeApiConfig } from "../lib/runtimeApiConfig";
 
-      const USER_STATUS_ENDPOINT =
-        "https://zaebx82pyf.execute-" + "a" + "pi.ap-northeast-1.amazonaws.com/user/status";
+      const runtimeApi = resolvePublicRuntimeApiConfig(import.meta.env);
+      const USER_STATUS_ENDPOINT = runtimeApi.authEnabled ? (runtimeApi.membershipStatusUrl || "") : "";
 
       const authArea = document.getElementById("authArea");
       const premiumContent = document.getElementById("premiumContent");
@@ -146,7 +147,7 @@ const pageDescription =
         return `
           <article class="fortune-card" style="padding:24px; border-radius:22px;">
             <div style="display:inline-flex; margin-bottom:12px; padding:6px 12px; border-radius:999px; border:1px solid rgba(202,168,79,0.24); color:#f2dd9a; font-size:0.85rem;">
-              買い切り
+              買い切り・自動更新なし
             </div>
             <h3 style="margin:0 0 12px; color:#fff0bf;">音声鑑定1回分</h3>
             <p style="line-height:1.8; color:#dbc979;">
@@ -170,7 +171,7 @@ const pageDescription =
             </p>
             <ul style="margin:16px 0 20px; padding-left:1.2rem; line-height:1.9; color:#dbc979;">
               <li>ライト鑑定 月${escapeHtml(billingCatalog.light.monthlyLimit)}回</li>
-              <li>音声 月${escapeHtml(billingCatalog.light.voiceLimit)}枠</li>
+              <li>音声鑑定 月${escapeHtml(billingCatalog.light.voiceLimit)}回</li>
               <li>無料機能と鑑定履歴の保存・閲覧</li>
               <li>深掘り鑑定は利用できません</li>
             </ul>
@@ -184,7 +185,7 @@ const pageDescription =
         return `
           <article class="fortune-card" style="padding:24px; border-radius:22px; border:1px solid rgba(182,140,255,0.4); box-shadow:0 0 30px rgba(182,140,255,0.12);">
             <div style="display:inline-flex; margin-bottom:12px; padding:6px 12px; border-radius:999px; border:1px solid rgba(182,140,255,0.34); color:#d9c2ff; font-size:0.85rem;">
-              プレミアム
+              プレミアム・自動更新
             </div>
             <h3 style="margin:0 0 12px; color:#fff0bf;">プレミアム会員</h3>
             <p style="line-height:1.8; color:#dbc979;">
@@ -193,7 +194,7 @@ const pageDescription =
             <ul style="margin:16px 0 20px; padding-left:1.2rem; line-height:1.9; color:#dbc979;">
               <li>ライト鑑定 月${escapeHtml(billingCatalog.premium.lightLimit)}回</li>
               <li>深掘り鑑定 月${escapeHtml(billingCatalog.premium.deepLimit)}回</li>
-              <li>音声 月${escapeHtml(billingCatalog.premium.voiceLimit)}枠</li>
+              <li>音声鑑定 月${escapeHtml(billingCatalog.premium.voiceLimit)}回</li>
               <li>無料機能と鑑定履歴の保存・閲覧</li>
             </ul>
             <div style="margin-bottom:16px; color:#fff0bf; font-size:1.05rem; font-weight:700;">${escapeHtml(billingCatalog.premium.priceLabel)}・自動更新</div>
@@ -275,12 +276,11 @@ const pageDescription =
       }
 
       async function fetchUserStatus() {
-        const userId = getUserId();
-        if (!userId) {
+        if (!authSession || !USER_STATUS_ENDPOINT) {
           throw new Error("ログイン情報が見つかりません。");
         }
 
-        const res = await fetch(`${USER_STATUS_ENDPOINT}?user_id=${encodeURIComponent(userId)}`);
+        const res = await fetch(USER_STATUS_ENDPOINT, { headers: { Authorization: `Bearer ${authSession}` } });
         const data = await res.json();
 
         if (!res.ok) {
@@ -362,7 +362,7 @@ const pageDescription =
           };
         }
 
-        const preparationMessage = "現在はfincode本番環境の審査・準備中です。プラン内容と申込条件は確認できますが、本番カード決済はまだ開始していません。";
+        const preparationMessage = "サービス機能と3商品の申込条件は準備済みです。カード決済受付だけがfincode本番環境の審査待ちで、審査完了まではproduction決済を無効にしています。";
         billingMessage = billingMessage
           ? `${billingMessage}\n${preparationMessage}`
           : preparationMessage;
@@ -387,11 +387,11 @@ const pageDescription =
             </div>
             <h2 style="margin:0 0 10px; color:#fff0bf; font-size:2rem;">悩みに合わせて選ぶ特別鑑定</h2>
             <p style="margin:0 0 8px; color:#dbc979; line-height:1.9;">
-              今の会員状態に合わせて、選べる内容を表示しています。<br />
-              すでに選んでいる月額プランを大切にしながら、必要なものだけを追加できる形にしています。
+              今の会員状態に合わせて、ご案内できる内容を表示しています。<br />
+              ライト会員、プレミアム会員、音声鑑定1回分の3商品から確認できます。
             </p>
             <p style="margin:0 0 24px; color:#f2dd9a;">
-              プラン内容と価格を確認したうえで、必要なものをお選びいただけます。
+              月額プランは自動更新、音声鑑定1回分は買い切りです。カード受付はfincode本番審査完了まで停止しています。
             </p>
 
             <div id="billingMessage" style="display:${billingMessage ? "block" : "none"}; margin-bottom:18px; padding:14px 16px; border-radius:16px; border:1px solid rgba(202,168,79,0.35); background:rgba(202,168,79,0.08); color:#f5e8bf; line-height:1.8;">

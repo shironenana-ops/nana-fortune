@@ -56,7 +56,10 @@ export class DynamoFincodeAtomicCompletion implements FincodeWebhookAtomicComple
     };
     const sets = ["#version = :nextVersion", "last_membership_event_digest = :event", "membership_updated_at = :now"];
     let condition = "attribute_exists(user_id) AND #schema = :schema AND #version = :expectedVersion AND #plan = :expectedPlan AND #status = :expectedStatus AND #deep = :expectedDeep AND #voiceLimit = :expectedVoiceLimit";
-    if (plan.expectedMembership.currentPeriodStart === null) condition += " AND attribute_not_exists(#periodStart) AND attribute_not_exists(#periodEnd)";
+    if (plan.expectedMembership.currentPeriodStart === null) {
+      values[":nullType"] = s("NULL");
+      condition += " AND ((attribute_not_exists(#periodStart) AND attribute_not_exists(#periodEnd)) OR (attribute_type(#periodStart, :nullType) AND attribute_type(#periodEnd, :nullType)))";
+    }
     else {
       condition += " AND #periodStart = :expectedPeriodStart AND #periodEnd = :expectedPeriodEnd";
       values[":expectedPeriodStart"] = s(plan.expectedMembership.currentPeriodStart);

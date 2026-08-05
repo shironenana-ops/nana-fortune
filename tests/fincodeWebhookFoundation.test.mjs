@@ -157,6 +157,7 @@ test("semantic keyとfingerprintは決定的でevent、処理日、環境、内�
 
   const changedEvent = fincode.validateAndNormalizeFincodeWebhook(request({ rawBody: JSON.stringify(payload({ event: "subscription.card.update" })) }));
   const changedDate = fincode.validateAndNormalizeFincodeWebhook(request({ rawBody: JSON.stringify(payload({ process_date: "2026/07/30 09:10:12.123" })) }));
+  const changedOwner = fincode.validateAndNormalizeFincodeWebhook(request({ rawBody: JSON.stringify(payload({ customer_id: `stg_${"b".repeat(24)}` })) }));
   const production = fincode.normalizeFincodeSubscriptionEvent({
     environment: "production",
     payload: fincode.parseFincodeSubscriptionPayload(JSON.stringify(payload()), boundary()),
@@ -164,6 +165,8 @@ test("semantic keyとfingerprintは決定的でevent、処理日、環境、内�
   assert.notEqual(first.semanticEventKey, changedEvent.semanticEventKey);
   assert.notEqual(first.semanticEventKey, changedDate.semanticEventKey);
   assert.notEqual(first.semanticEventKey, production.semanticEventKey);
+  assert.equal(first.semanticEventKey, changedOwner.semanticEventKey);
+  assert.notEqual(first.payloadFingerprint, changedOwner.payloadFingerprint);
 });
 
 test("同一key＋同一fingerprintはduplicate、内容差はconflictでraw payloadをledgerへ残さない", () => {

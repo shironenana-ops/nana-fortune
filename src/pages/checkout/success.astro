@@ -1,12 +1,8 @@
 ---
 import SeoHead from "../../components/SeoHead.astro";
 
-const url = new URL(Astro.request.url);
-const sessionId = url.searchParams.get("session_id");
-const plan = url.searchParams.get("plan");
-
-const pageTitle = "決済完了 - 白音七";
-const pageDescription = "白音七の決済完了ページです。";
+const pageTitle = "決済状態の確認 - 白音七";
+const pageDescription = "URL情報だけでは決済完了を判定しない、安全な確認ページです。";
 ---
 
 <html lang="ja">
@@ -53,17 +49,9 @@ const pageDescription = "白音七の決済完了ページです。";
 
   <body>
     <div class="card">
-      <h1>✨ 決済が完了しました ✨</h1>
-
-      <p>ご利用ありがとうございます。</p>
-
-      <p>プラン: {plan}</p>
-
-      <p style="font-size: 12px; opacity: 0.6;">
-        セッションID: {sessionId}
-      </p>
-
-      <a href="/members" class="btn">会員ページへ</a>
+      <h1>決済状態を確認できません</h1>
+      <p>URLの値だけでは決済完了を判定しません。料金・プランページから、現在利用できる正式な手順をご確認ください。</p>
+      <a href="/join" class="btn">料金・プランへ戻る</a>
     </div>
   </body>
 </html>

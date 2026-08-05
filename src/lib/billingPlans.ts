@@ -38,7 +38,7 @@ export const BILLING_PLANS: Readonly<Record<BillingPlanId, BillingPlan>> = {
     price: 980,
     priceLabel: "月額980円（税込）",
     description: "無料機能に加え、ライト鑑定と音声枠を利用できる月額プランです。",
-    features: ["無料機能", "ライト鑑定 月5回", "音声 月3枠", "鑑定履歴の保存・閲覧"],
+    features: ["無料機能", "ライト鑑定 月5回", "音声鑑定 月3回", "鑑定履歴の保存・閲覧"],
     lightMonthlyLimit: 5,
     deepMonthlyLimit: 0,
     voiceMonthlyLimit: 3,
@@ -52,7 +52,7 @@ export const BILLING_PLANS: Readonly<Record<BillingPlanId, BillingPlan>> = {
     price: 2980,
     priceLabel: "月額2,980円（税込）",
     description: "ライト鑑定、深掘り鑑定、音声枠を利用できる月額プランです。",
-    features: ["無料機能", "ライト鑑定 月20回", "深掘り鑑定 月3回", "音声 月10枠", "鑑定履歴の保存・閲覧"],
+    features: ["無料機能", "ライト鑑定 月20回", "深掘り鑑定 月3回", "音声鑑定 月10回", "鑑定履歴の保存・閲覧"],
     lightMonthlyLimit: 20,
     deepMonthlyLimit: 3,
     voiceMonthlyLimit: 10,
@@ -78,6 +78,9 @@ export const BILLING_PLANS: Readonly<Record<BillingPlanId, BillingPlan>> = {
 export const PAID_BILLING_PLAN_IDS = ["light", "premium", "voice_single"] as const;
 export type PaidBillingPlanId = typeof PAID_BILLING_PLAN_IDS[number];
 
+export const PUBLIC_SALE_BILLING_PLAN_IDS = ["light", "premium", "voice_single"] as const;
+export type PublicSaleBillingPlanId = typeof PUBLIC_SALE_BILLING_PLAN_IDS[number];
+
 export function isBillingPlanId(value: unknown): value is BillingPlanId {
   return typeof value === "string" && Object.hasOwn(BILLING_PLANS, value);
 }
@@ -98,6 +101,47 @@ export function getCheckoutHref(planId: PaidBillingPlanId): string {
   return `/checkout?plan=${encodeURIComponent(planId)}`;
 }
 
+export function isPublicSaleBillingPlanId(value: unknown): value is PublicSaleBillingPlanId {
+  return typeof value === "string"
+    && (PUBLIC_SALE_BILLING_PLAN_IDS as readonly string[]).includes(value);
+}
+
+export function getPublicCheckoutHref(value: unknown): string | null {
+  return isPublicSaleBillingPlanId(value) ? getCheckoutHref(value) : null;
+}
+
 export function isFincodeCheckoutEnabled(value: unknown): boolean {
   return value === "true";
+}
+
+export function isFincodeTestCheckoutEnabled(input: {
+  enabled: unknown;
+  planId: unknown;
+  publicKey: unknown;
+}): boolean {
+  return input.enabled === "true"
+    && input.planId === "voice_single"
+    && typeof input.publicKey === "string"
+    && input.publicKey.startsWith("p_test_")
+    && input.publicKey.length > "p_test_".length;
+}
+
+export const FINCODE_TEST_LIGHT_BROWSER_E2E_PROFILE = "light-browser-e2e" as const;
+
+export function isFincodeTestLightCheckoutEnabled(input: {
+  enabled: unknown;
+  runtimeEnvironment: unknown;
+  publicProfile: unknown;
+  serverProfile: unknown;
+  planId: unknown;
+  publicKey: unknown;
+}): boolean {
+  return input.enabled === "true"
+    && input.runtimeEnvironment === "local-staging"
+    && input.publicProfile === FINCODE_TEST_LIGHT_BROWSER_E2E_PROFILE
+    && input.serverProfile === FINCODE_TEST_LIGHT_BROWSER_E2E_PROFILE
+    && input.planId === "light"
+    && typeof input.publicKey === "string"
+    && input.publicKey.startsWith("p_test_")
+    && input.publicKey.length > "p_test_".length;
 }

@@ -1,0 +1,43 @@
+---
+export const prerender = false;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>TEST申込確認 | 白音七</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0b0f1a; color: #fff; font-family: sans-serif; }
+      main { max-width: 42rem; margin: 1rem; padding: 2rem; border: 1px solid #8e7730; border-radius: 1.25rem; background: #10142b; text-align: center; }
+      h1, a { color: #ffe58f; }
+      p { line-height: 1.8; }
+      a { display: inline-block; margin-top: 0.5rem; }
+      [hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section data-light-complete hidden>
+        <h1>Light TEST申込を確認しました</h1>
+        <p>fincode TESTの月額980円Light subscriptionをサーバーから再確認しました。</p>
+        <p>権利はcallbackでは付与せず、検証済みsigned Webhookが処理した後に会員ページへ反映されます。</p>
+        <a href="/members">会員ページで状態を確認する</a>
+      </section>
+      <section data-voice-complete>
+        <h1>TEST決済完了</h1>
+        <p>fincode TEST環境で決済完了を確認しました。</p>
+        <p>この画面だけを根拠に白音七の権利付与は行いません。</p>
+        <a href="/premium/voice">音声鑑定ページを見る</a>
+      </section>
+    </main>
+    <script>
+      if (window.location.hash === "#light") {
+        document.querySelector<HTMLElement>("[data-light-complete]")?.removeAttribute("hidden");
+        document.querySelector<HTMLElement>("[data-voice-complete]")?.setAttribute("hidden", "");
+      }
+    </script>
+  </body>
+</html>

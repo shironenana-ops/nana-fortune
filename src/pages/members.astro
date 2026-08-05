@@ -161,6 +161,35 @@ const pageDescription =
     filter: grayscale(0.15);
   }
 
+  #planCards .plan-card--billing-notice {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    gap: 24px;
+    min-height: 0;
+  }
+
+  #planCards .plan-card--billing-notice .plan-card__copy {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  #planCards .plan-card--billing-notice h3 {
+    margin: 12px 0 8px;
+    font-size: clamp(1.35rem, 2vw, 1.7rem);
+  }
+
+  #planCards .plan-card--billing-notice p {
+    min-height: 0;
+    margin: 0;
+  }
+
+  #planCards .plan-card--billing-notice .plan-card__button {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 220px;
+  }
+
   @media (max-width: 980px) {
     #planCards.plan-grid {
       grid-template-columns: 1fr;
@@ -180,6 +209,17 @@ const pageDescription =
     #planCards .plan-card__button {
       min-height: 58px;
       font-size: 1rem;
+    }
+
+    #planCards .plan-card--billing-notice {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    #planCards .plan-card--billing-notice .plan-card__button {
+      width: 100%;
+      min-width: 0;
     }
   }
 
@@ -1291,7 +1331,7 @@ body.members-page-body {
           <strong>深掘り鑑定の案内</strong>
           <span id="readingDoorDeepText">プレミアム会員の方に向けた、多面的な鑑定です。</span>
           <small>数秘、星、今日の波、相談内容を重ねて読みます。</small>
-          <span class="reading-doorway-cta" id="readingDoorDeepCta">深掘り鑑定（準備中）</span>
+          <span class="reading-doorway-cta" id="readingDoorDeepCta">深掘り鑑定の案内へ</span>
         </div>
       </div>
     </section>
@@ -1359,9 +1399,9 @@ body.members-page-body {
 
     <section class="plan-area reveal">
       <div class="section-head">
-        <div class="section-chip">COMING SOON</div>
-        <h2>深い鑑定は準備中です</h2>
-        <p>現在は、今日の占いと履歴確認を中心にお使いいただけます。</p>
+        <div class="section-chip">MEMBER FEATURES</div>
+        <h2>会員権利に応じた鑑定と音声</h2>
+        <p>現在の会員プランと利用枠に応じて、利用できる内容をご案内します。</p>
       </div>
 
       <div class="plan-guide" aria-label="無料鑑定、深掘り鑑定、音声鑑定の違い">
@@ -1385,7 +1425,7 @@ body.members-page-body {
         </div>
 
         <p class="plan-guide__safe">
-          深い鑑定や音声での受け取りは、準備が整い次第ご案内します。
+          新しい鑑定と未生成音声は、現在の会員権利と利用枠に応じて利用できます。
         </p>
       </div>
 
@@ -1412,9 +1452,11 @@ body.members-page-body {
   <script>
     import { getMembershipDisplayInfo, normalizeMembershipTier } from "../lib/membership";
     import { getMembershipEntitlements } from "../lib/membershipEntitlements";
+    import { resolvePublicRuntimeApiConfig } from "../lib/runtimeApiConfig";
 
-    const USER_STATUS_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/user/status";
-    const CHANGE_PLAN_API = "https://zaebx82pyf.execute-api.ap-northeast-1.amazonaws.com/subscription/change-plan";
+    const runtimeApi = resolvePublicRuntimeApiConfig(import.meta.env);
+    const USER_STATUS_API = runtimeApi.authEnabled ? (runtimeApi.membershipStatusUrl || "") : "";
+    const authSession = localStorage.getItem("token") || "";
 
     const userId =
       localStorage.getItem("userId") ||
@@ -1478,10 +1520,10 @@ body.members-page-body {
       setText(
         "readingDoorDeepText",
         entitlements.canUseDeep
-          ? "深掘り鑑定の利用権があります。開始機能は現在準備中です。"
-          : "現在の会員状態では利用できません。開始機能も現在準備中です。"
+          ? "深掘り鑑定の利用権があります。プレミアム会員向けの案内を確認できます。"
+          : "現在の会員状態では利用できません。プレミアム会員の申込条件を確認できます。"
       );
-      setText("readingDoorDeepCta", "深掘り鑑定（準備中）");
+      setText("readingDoorDeepCta", "深掘り鑑定の案内へ");
     }
 
     function updateReadingTierBridge(entitlements, usedFallback = false) {
@@ -1605,10 +1647,12 @@ body.members-page-body {
 
     function buildBillingOffGuideCard() {
       return `
-        <article class="plan-card" data-plan-card="billing-off-guide">
-          <span class="plan-card__tag">本番決済審査中</span>
-          <h3>料金・プランを公開しています</h3>
-          <p>ライト会員、プレミアム会員、音声鑑定1回分の料金と申込条件をご確認いただけます。本番カード決済はまだ開始していません。</p>
+        <article class="plan-card plan-card--billing-notice" data-plan-card="billing-off-guide">
+          <div class="plan-card__copy">
+            <span class="plan-card__tag">本番決済審査中</span>
+            <h3>3商品の申込条件を公開しています</h3>
+            <p>ライト会員は月額980円・ライト鑑定月5回・音声鑑定月3回、プレミアム会員は月額2,980円・ライト鑑定月20回・深掘り鑑定月3回・音声鑑定月10回です。音声鑑定1回分は300円の買い切りです。サービス機能は準備済みで、カード決済受付だけがfincode本番審査待ちです。</p>
+          </div>
           <a class="plan-card__button" href="/join">料金・申込条件を見る</a>
         </article>
       `;
@@ -1617,12 +1661,10 @@ body.members-page-body {
     function buildExtraCard(sourcePath) {
       return `
         <article class="plan-card" data-plan-card="extra">
-          <span class="plan-card__tag">準備中</span>
-          <h3>単発音声占い</h3>
-          <p>音声鑑定1回分の料金と申込条件は、料金ページで公開しています。</p>
-          <button class="plan-card__button" data-plan="extra" data-source-path="${sourcePath}">
-            単発音声（準備中）
-          </button>
+          <span class="plan-card__tag">買い切り・自動更新なし</span>
+          <h3>音声鑑定1回分</h3>
+          <p>300円（税込）の買い切りで、音声鑑定を1回追加できます。</p>
+          <a class="plan-card__button" href="/checkout?plan=voice_single">申込内容を確認する</a>
         </article>
       `;
     }
@@ -1632,11 +1674,9 @@ body.members-page-body {
         <article class="plan-card" data-plan-card="normal">
           <span class="plan-card__tag">月額ライト会員</span>
           <h3>ライト会員</h3>
-          <p>ライト会員の料金と利用枠は、料金ページで公開しています。</p>
-          <div class="plan-card__price">料金・利用枠を公開中</div>
-          <button class="plan-card__button" data-plan="normal" data-source-path="${sourcePath}">
-            ライト会員（準備中）
-          </button>
+          <p>月額980円（税込）・自動更新。ライト鑑定月5回、音声鑑定月3回です。</p>
+          <div class="plan-card__price">月額980円（税込）</div>
+          <a class="plan-card__button" href="/checkout?plan=light">申込内容を確認する</a>
         </article>
       `;
     }
@@ -1644,13 +1684,11 @@ body.members-page-body {
     function buildPremiumCard(sourcePath) {
       return `
         <article class="plan-card plan-card--premium" data-plan-card="premium">
-          <span class="plan-card__tag">プレミアム</span>
+          <span class="plan-card__tag">月額プレミアム会員</span>
           <h3>プレミアム会員</h3>
-          <p>プレミアム会員の料金と利用枠は、料金ページで公開しています。</p>
-          <div class="plan-card__price">料金・利用枠を公開中</div>
-          <button class="plan-card__button" data-plan="premium" data-source-path="${sourcePath}">
-            Premium（準備中）
-          </button>
+          <p>月額2,980円（税込）・自動更新。ライト鑑定月20回、深掘り鑑定月3回、音声鑑定月10回です。</p>
+          <div class="plan-card__price">月額2,980円（税込）</div>
+          <a class="plan-card__button" href="/checkout?plan=premium">申込内容を確認する</a>
         </article>
       `;
     }
@@ -1660,10 +1698,10 @@ body.members-page-body {
         <article class="plan-card" data-plan-card="normal">
           <span class="plan-card__tag">次回更新から変更</span>
           <h3>ライト会員へ変更</h3>
-          <p>プラン変更のご案内は現在準備中です。正式なご案内時に、内容を確認できる形でお知らせします。</p>
+          <p>プラン変更は現在の契約状態を確認したうえで個別にご案内します。</p>
           <div class="plan-card__price">プラン変更は個別確認</div>
           <button class="plan-card__button" data-plan="normal">
-            プラン変更（準備中）
+            プラン変更を確認する
           </button>
         </article>
       `;
@@ -1677,7 +1715,7 @@ body.members-page-body {
         grid.innerHTML = buildBillingOffGuideCard();
         setBillingMessage(
           window.ShironeBilling?.getBillingPreparationInlineMessage?.() ||
-            "特別な鑑定への扉は、現在準備中です。すべての準備が整いましたら、内容を確認できる形でご案内します。"
+            "3商品のサービス機能と申込条件は準備済みです。カード決済受付だけがfincode本番審査待ちです。"
         );
         return;
       }
@@ -1727,14 +1765,14 @@ body.members-page-body {
       if (plan === "normal") {
         if (premiumBtn) {
           premiumBtn.disabled = false;
-          premiumBtn.textContent = "Premium（準備中）";
+          premiumBtn.textContent = "プレミアム会員の申込内容を確認する";
         }
       }
 
       if (plan === "premium") {
         if (normalBtn) {
           normalBtn.disabled = false;
-          normalBtn.textContent = "プラン変更（準備中）";
+          normalBtn.textContent = "プラン変更を確認する";
         }
 
         if (pendingPlan && normalizeMembershipTier(pendingPlan) === "light") {
@@ -1750,40 +1788,8 @@ body.members-page-body {
     }
 
     async function requestPlanChange(targetPlan) {
-      if (isSubmittingPlanChange) return;
-      isSubmittingPlanChange = true;
-
-      try {
-        const response = await fetch(CHANGE_PLAN_API, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            user_id: userId,
-            target_plan: targetPlan
-          })
-        });
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data?.message || data?.error || "プラン変更予約に失敗しました。");
-        }
-
-        currentPendingPlan = data.pending_plan || targetPlan;
-        currentPeriodEnd = data.effective_at || currentPeriodEnd;
-
-        showPlanChangeNotice(currentPlan, currentPendingPlan, currentPeriodEnd);
-        renderPlanCards(currentPlan, currentPendingPlan, currentPeriodEnd);
-
-        alert(
-          data?.message ||
-            `${planNames[targetPlan] || targetPlan} への変更を予約しました。`
-        );
-      } finally {
-        isSubmittingPlanChange = false;
-      }
+      void targetPlan;
+      throw new Error("プラン変更は安全な会員連携の準備完了まで利用できません。");
     }
 
     function bindPlanButtons() {
@@ -1835,16 +1841,18 @@ body.members-page-body {
       const errorBox = document.getElementById("statusError");
       const errorText = document.getElementById("statusErrorText");
 
-      if (!userId) {
+      if (!authSession || !USER_STATUS_API) {
         loading.hidden = true;
         errorBox.hidden = false;
-        errorText.textContent = "ユーザーIDが見つかりません。ログインし直してください。";
+        errorText.textContent = runtimeApi.stagingIndicator
+          ? "このstaging環境では会員照会をまだ有効化していません。"
+          : "ログイン情報が見つかりません。ログインし直してください。";
         updateReadingTierBridge(getMembershipEntitlements({ plan: "free" }), true);
         return;
       }
 
       try {
-        const res = await fetch(`${USER_STATUS_API}?user_id=${encodeURIComponent(userId)}`);
+        const res = await fetch(USER_STATUS_API, { headers: { Authorization: `Bearer ${authSession}` } });
         const data = await res.json();
 
         if (!res.ok) {

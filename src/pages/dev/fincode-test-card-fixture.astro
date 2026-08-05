@@ -1,0 +1,51 @@
+---
+if (!import.meta.env.DEV) {
+  return new Response("Not Found", { status: 404 });
+}
+
+const publicKey = import.meta.env.PUBLIC_FINCODE_TEST_PUBLIC_KEY;
+---
+<!doctype html>
+<html lang="ja">
+  <head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>fincode TEST fixture</title></head>
+  <body>
+    <main data-fixture-card data-public-key={publicKey ?? ""}>
+      <h1>fincode TEST fixture card registration</h1>
+      <label>Fixture
+        <select id="fixture"><option value="light">Light</option><option value="premium">Premium</option></select>
+      </label>
+      <div id="fixture-card-ui"><div id="fixture-card-ui-form"></div></div>
+      <button id="register" type="button">Register TEST card</button>
+      <p id="status" role="status" aria-live="polite">Ready</p>
+    </main>
+    <script>
+      import { initFincode, registerCard } from "@fincode/js";
+      const root = document.querySelector("[data-fixture-card]");
+      const status = document.getElementById("status");
+      const fixture = document.getElementById("fixture");
+      const button = document.getElementById("register");
+      const customerIds = {
+        light: "stg_customer_e2e_light_20260803_00001",
+        premium: "stg_customer_e2e_premium_20260803_001",
+      };
+      const publicKey = root?.dataset.publicKey ?? "";
+      if (!publicKey.startsWith("p_test_")) throw new Error("TEST_PUBLIC_KEY_REQUIRED");
+      const fincode = await initFincode({ publicKey, isLiveMode: false });
+      const ui = fincode.ui({ layout: "vertical", hidePayTimes: true });
+      ui.create("payment", { layout: "vertical", hidePayTimes: true });
+      ui.mount("fixture-card-ui", "400");
+      button?.addEventListener("click", async () => {
+        button.disabled = true;
+        status.textContent = "Registering";
+        try {
+          await registerCard({ fincode, ui, customerId: customerIds[fixture.value], useDefault: true });
+          status.textContent = "REGISTERED";
+        } catch {
+          status.textContent = "FAILED";
+        } finally {
+          button.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

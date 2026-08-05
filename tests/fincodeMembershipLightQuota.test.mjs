@@ -53,6 +53,40 @@ test("membership v1 accepts free, active light, and active premium policy", () =
   }
 });
 
+test("membership timestamps accept only UTC Z or +00:00 and canonicalize to Z", () => {
+  const canonical = fincode.parseFincodeMembershipRecordV1(membership("free", {
+    membership_updated_at: "2026-07-30T00:00:00+00:00",
+  }));
+  assert.equal(canonical.membershipUpdatedAt, "2026-07-30T00:00:00.000Z");
+  assert.equal(
+    fincode.parseFincodeMembershipRecordV1(membership("free", {
+      membership_updated_at: "2026-07-30T00:00:00.123456+00:00",
+    })).membershipUpdatedAt,
+    "2026-07-30T00:00:00.123456Z",
+  );
+  assert.equal(
+    fincode.parseFincodeMembershipRecordV1(membership("light", {
+      current_period_start: "2026-08-01T00:00:00+00:00",
+      current_period_end: "2026-09-01T00:00:00+00:00",
+    })).currentPeriodStart,
+    START,
+  );
+  for (const invalid of [
+    "2026-07-30T00:00:00",
+    "2026-07-30",
+    "2026-07-30T00:00:00+09:00",
+    "2026-02-30T00:00:00Z",
+    "2026-07-30T00:00:00.1Z",
+    "2026-07-30T00:00:00.1234Z",
+  ]) assert.equal(fincode.parseFincodeMembershipRecordV1(membership("free", { membership_updated_at: invalid })), null);
+});
+
+test("free inactive legacy NULL period is accepted while paid or mixed NULL period fails closed", () => {
+  assert.equal(fincode.parseFincodeMembershipRecordV1(membership("free")).currentPeriodStart, null);
+  assert.equal(fincode.parseFincodeMembershipRecordV1(membership("light", { current_period_start: null, current_period_end: null })), null);
+  assert.equal(fincode.parseFincodeMembershipRecordV1(membership("free", { current_period_start: START, current_period_end: null })), null);
+});
+
 test("membership v1 rejects unknown plan/status, invalid policy, and legacy shape", () => {
   assert.equal(fincode.parseFincodeMembershipRecordV1(membership("enterprise")), null);
   assert.equal(fincode.parseFincodeMembershipRecordV1(membership("light", { subscription_status: "unknown" })), null);
@@ -91,7 +125,8 @@ test("trusted period result requires exact canonical shape and matching period d
 
 test("static period source never derives a period from processDate or delivery time", async () => {
   const source = new fincode.StaticFincodeSubscriptionPeriodSource(new Map());
-  const input = { environment: "staging", subscriptionDigest: "c".repeat(64), customerDigest: "d".repeat(64), plan: "light",
+  const input = { environment: "staging", subscriptionReference: "subscription_fixture", subscriptionDigest: "c".repeat(64),
+    customerReference: "stg_customer_fixture_000000000000", customerDigest: "d".repeat(64), planReference: "plan_fixture", plan: "light",
     eventType: "subscription.card.regist", processDate: "2099/12/31 23:59:59.999" };
   assert.deepEqual(await source.resolve(input), { status: "NOT_AVAILABLE" });
 });

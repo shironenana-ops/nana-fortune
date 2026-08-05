@@ -16,7 +16,7 @@ export type BeginResult =
   | { kind: "in_progress" }
   | { kind: "conflict" };
 export interface ReadingPersistence {
-  begin(params: { requestRef: string; fingerprint: string; userId: string; membershipTier: MembershipTier; resolvedMode: Reservation["resolvedMode"]; readingDate: string; now: Date }): Promise<BeginResult>;
+  begin(params: { requestRef: string; fingerprint: string; userId: string; membershipTier: MembershipTier; resolvedMode: Reservation["resolvedMode"]; readingDate: string; now: Date; membership?: { plan: "premium"; subscriptionStatus: "active"; currentPeriodStart: string; currentPeriodEnd: string; version: number } }): Promise<BeginResult>;
   complete(params: { reservation: Reservation; userId: string; response: PublicReadingResponse; now: Date }): Promise<StoredReading>;
   fail(params: { reservation: Reservation; now: Date; category: string }): Promise<void>;
 }

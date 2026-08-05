@@ -7,7 +7,7 @@ import { BILLING_PLANS } from "../../lib/billingPlans";
 
 const pageTitle = "音声鑑定 | 白音七";
 const pageDescription =
-  "白音七の音声鑑定と、会員向け月間枠・音声鑑定1回分の料金をご案内します。";
+  "白音七の音声鑑定と、会員向け月間枠・音声鑑定1回分の買い切り料金をご案内します。";
 const lightPlan = BILLING_PLANS.light;
 const premiumPlan = BILLING_PLANS.premium;
 const voicePlan = BILLING_PLANS.voice_single;
@@ -66,17 +66,17 @@ const voicePlan = BILLING_PLANS.voice_single;
           <section class="voice-coming-soon-notice" aria-label="音声鑑定の料金と利用枠">
             <h2>音声鑑定の利用枠</h2>
             <p>
-              ライト会員：月{lightPlan.voiceMonthlyLimit}枠<br />
-              プレミアム会員：月{premiumPlan.voiceMonthlyLimit}枠<br />
-              音声鑑定1回分：{voicePlan.priceLabel}
+              ライト会員：月{lightPlan.voiceMonthlyLimit}回<br />
+              プレミアム会員：月{premiumPlan.voiceMonthlyLimit}回<br />
+              音声鑑定1回分：{voicePlan.priceLabel}・買い切り・自動更新なし
             </p>
             <p>
               既に生成された音声は履歴として保持します。未生成の新規音声は、現在の利用権で制御します。<br />
-              現在はfincode本番決済の利用開始準備中です。
+              音声鑑定のサービス機能と申込条件は準備済みです。カード決済受付だけがfincode本番環境の審査待ちです。
             </p>
 
             <div class="voice-coming-soon-actions">
-              <a class="fortune-btn violet big" href="/join#voice_single">料金・申込条件を見る</a>
+              <a class="fortune-btn violet big" href="/checkout?plan=voice_single">音声鑑定1回分の申込内容を確認する</a>
               <a href="/premium" class="fortune-btn secondary">会員限定鑑定へ戻る</a>
               <a href="/history" class="fortune-btn secondary">履歴を見る</a>
             </div>

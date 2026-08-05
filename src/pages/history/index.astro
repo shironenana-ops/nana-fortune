@@ -1,10 +1,14 @@
 ﻿---
 import SeoHead from "../../components/SeoHead.astro";
+import { resolvePublicRuntimeApiConfig } from "../../lib/runtimeApiConfig";
 
 const pageTitle = "鑑定履歴 | 白音七";
 const pageDescription = "白音七の鑑定履歴一覧";
 
 export const prerender = false;
+const runtimeApi = resolvePublicRuntimeApiConfig(import.meta.env);
+const historyApiBase = runtimeApi.historyBaseUrl ?? "";
+const localStaging = runtimeApi.stagingIndicator;
 ---
 
 <!DOCTYPE html>
@@ -856,9 +860,8 @@ export const prerender = false;
       </div>
     </footer>
 
-    <script is:inline>
-      const API_BASE = "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod";
-      const HISTORY_API_BASE = API_BASE;
+    <script define:vars={{ historyApiBase, localStaging }}>
+      const HISTORY_API_BASE = historyApiBase;
       const DEBUG_HISTORY = false;
       const HISTORY_PAGE_SIZE = 5;
       let allHistoryItems = [];
@@ -1352,22 +1355,23 @@ export const prerender = false;
         return `
           <article class="menu-card">
             <h3>ライト会員</h3>
-            <p>ライト鑑定と音声枠を利用できる月額プランです。</p>
-            <div class="price">料金・利用枠を公開中</div>
-            <a class="btn btn-gold" href="/join#light">料金・申込条件を見る</a>
+            <p>月額980円（税込）・自動更新。ライト鑑定月5回、音声鑑定月3回です。</p>
+            <div class="price">月額980円（税込）</div>
+            <a class="btn btn-gold" href="/checkout?plan=light">申込内容を確認する</a>
           </article>
 
           <article class="menu-card featured">
             <h3>プレミアム会員</h3>
-            <p>ライト鑑定、深掘り鑑定、音声枠を利用できる月額プランです。</p>
-            <div class="price">料金・利用枠を公開中</div>
-            <a class="btn btn-violet" href="/join#premium">料金・申込条件を見る</a>
+            <p>月額2,980円（税込）・自動更新。ライト鑑定月20回、深掘り鑑定月3回、音声鑑定月10回です。</p>
+            <div class="price">月額2,980円（税込）</div>
+            <a class="btn btn-violet" href="/checkout?plan=premium">申込内容を確認する</a>
           </article>
 
           <article class="menu-card">
-            <h3>単発音声占い</h3>
-            <p>月額契約なしで、音声鑑定1回分の利用権を追加する商品です。</p>
-            <a class="btn btn-secondary" href="/join#voice_single">料金・申込条件を見る</a>
+            <h3>音声鑑定1回分</h3>
+            <p>300円（税込）の買い切りです。自動更新はありません。</p>
+            <div class="plan-note">音声鑑定 1回分</div>
+            <a class="btn btn-secondary" href="/checkout?plan=voice_single">申込内容を確認する</a>
           </article>
         `;
       }
@@ -1393,10 +1397,10 @@ export const prerender = false;
           </article>
 
           <article class="menu-card">
-            <h3>単発音声占い</h3>
-            <p>月額契約なしで、音声鑑定1回分の利用権を追加する商品です。</p>
-            <a class="btn btn-secondary" href="/join#voice_single">料金・申込条件を見る</a>
-            <div class="plan-note">本番カード決済は現在利用開始準備中です。</div>
+            <h3>音声鑑定1回分</h3>
+            <p>300円（税込）の買い切りです。自動更新はありません。</p>
+            <div class="plan-note">音声鑑定 1回分</div>
+            <a class="btn btn-secondary" href="/checkout?plan=voice_single">申込内容を確認する</a>
           </article>
         `;
       }
@@ -1776,6 +1780,15 @@ export const prerender = false;
         setupHistoryDeleteHandler();
         setupHistoryMoreHandler();
 
+        if (!HISTORY_API_BASE) {
+          const list = document.getElementById("historyList");
+          if (list) list.innerHTML = '<div class="empty-card">現在このテスト環境では鑑定履歴を利用できません。</div>';
+          showNotice(localStaging ? "staging環境では履歴APIへ接続しません" : "履歴機能は現在利用できません", false);
+          const reload = document.getElementById("reloadHistoryButton");
+          if (reload) reload.disabled = true;
+          return;
+        }
+
         const reloadButton = document.getElementById("reloadHistoryButton");
         if (reloadButton) {
           reloadButton.addEventListener("click", function () {
@@ -1783,7 +1796,7 @@ export const prerender = false;
             loadUserStatus();
           });
         }
-loadUserStatus();
+        loadUserStatus();
         loadHistory();
       });
     </script>

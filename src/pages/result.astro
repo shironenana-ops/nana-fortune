@@ -159,6 +159,7 @@ const pageDescription = "白音七の鑑定結果ページ";
       import { buildDailyFortune } from "../lib/fortuneEngine";
       import { runShironeEngine } from "../lib/shironeEngine";
       import { shironeIconMap } from "../lib/shironeIconMap";
+      import { resolvePublicRuntimeApiConfig } from "../lib/runtimeApiConfig";
       import {
         getShironePhaseDetail,
         getShironeTypeByBirthDate,
@@ -195,8 +196,8 @@ const pageDescription = "白音七の鑑定結果ページ";
       const saveMessage = document.getElementById("saveMessage");
       const resultActions = document.getElementById("resultActions");
       const premiumBtn = document.getElementById("premiumBtn");
-      const HISTORY_SAVE_API =
-        "https://mydmaywesh.execute-api.ap-northeast-1.amazonaws.com/prod/history";
+      const historyBaseUrl = resolvePublicRuntimeApiConfig(import.meta.env).historyBaseUrl;
+      const HISTORY_SAVE_API = historyBaseUrl ? `${historyBaseUrl}/history` : "";
 
       function escapeHtml(value) {
         return String(value)
@@ -1030,6 +1031,11 @@ const pageDescription = "白音七の鑑定結果ページ";
         }
 
         saveBtn?.addEventListener("click", async () => {
+          if (!HISTORY_SAVE_API) {
+            saveMessage.textContent = "現在このテスト環境では鑑定履歴を保存できません。";
+            saveBtn.disabled = true;
+            return;
+          }
           if (saveMessage) saveMessage.textContent = "";
 
           const token = String(localStorage.getItem("token") || "").trim();

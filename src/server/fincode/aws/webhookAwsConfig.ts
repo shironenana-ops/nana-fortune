@@ -21,6 +21,10 @@ export type FincodeWebhookAwsConfig = {
   usersMembershipSchemaVersion?: typeof FINCODE_MEMBERSHIP_SCHEMA_VERSION;
   mutationAvailable: boolean;
   periodSourceEnabled: boolean;
+  provisionalTestPeriodSourceEnabled: boolean;
+  oneTimeVoiceEnabled: boolean;
+  testProviderSecretId?: string;
+  oneTimeVoicePurchaseTableName?: string;
   customerReferencePrefix: string;
   internalDeadlineMs: number;
 };
@@ -93,6 +97,13 @@ export function readFincodeWebhookAwsConfig(
   if (usersMembershipSchemaVersion !== undefined && usersMembershipSchemaVersion !== FINCODE_MEMBERSHIP_SCHEMA_VERSION) return fail();
   const enabled = exactBoolean(env.FINCODE_WEBHOOK_ENABLED);
   const periodSourceEnabled = exactBoolean(env.FINCODE_PERIOD_SOURCE_ENABLED);
+  const provisionalTestPeriodSourceEnabled = exactBoolean(env.FINCODE_PROVISIONAL_TEST_PERIOD_SOURCE_ENABLED ?? "false");
+  const oneTimeVoiceEnabled = exactBoolean(env.FINCODE_ONE_TIME_VOICE_WEBHOOK_ENABLED ?? "false");
+  if ((provisionalTestPeriodSourceEnabled || oneTimeVoiceEnabled) && resolvedEnvironment !== "staging") return fail();
+  const testProviderSecretId = env.FINCODE_TEST_PROVIDER_SECRET_ID ? required(env, "FINCODE_TEST_PROVIDER_SECRET_ID") : undefined;
+  const oneTimeVoicePurchaseTableName = optionalTable(env, "FINCODE_ONE_TIME_VOICE_PURCHASE_TABLE");
+  if ((provisionalTestPeriodSourceEnabled || oneTimeVoiceEnabled) && !testProviderSecretId) return fail();
+  if (oneTimeVoiceEnabled && !oneTimeVoicePurchaseTableName) return fail();
   return {
     enabled,
     environment: resolvedEnvironment,
@@ -110,7 +121,12 @@ export function readFincodeWebhookAwsConfig(
     ...(usersMembershipSchemaVersion ? { usersMembershipSchemaVersion } : {}),
     mutationAvailable: enabled && !!lightQuotaTableName && usersMembershipSchemaVersion === FINCODE_MEMBERSHIP_SCHEMA_VERSION,
     periodSourceEnabled,
+    provisionalTestPeriodSourceEnabled,
+    oneTimeVoiceEnabled,
+    ...(testProviderSecretId ? { testProviderSecretId } : {}),
+    ...(oneTimeVoicePurchaseTableName ? { oneTimeVoicePurchaseTableName } : {}),
     customerReferencePrefix: required(env, "FINCODE_CUSTOMER_REFERENCE_PREFIX"),
-    internalDeadlineMs: integer(env, "FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS", 500, 2900),
+    // Keep a bounded safety margin below the 15 second Lambda/API integration timeout.
+    internalDeadlineMs: integer(env, "FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS", 500, 14_000),
   };
 }

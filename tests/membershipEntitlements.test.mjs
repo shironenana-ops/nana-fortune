@@ -27,7 +27,7 @@ const premiumActive = {
   plan: "premium",
   subscription_status: "active",
   deep_enabled: true,
-  monthly_voice_limit: 20,
+  monthly_voice_limit: 10,
   monthly_voice_used: 4,
   extra_voice_remaining: 0,
 };
@@ -42,9 +42,9 @@ test("premiumかつactiveかつdeep_enabledの場合だけ深掘り可能", () =
 
 test("premiumの有効契約だけが月間音声枠を利用できる", () => {
   const available = getMembershipEntitlements(premiumActive);
-  assert.equal(available.monthlyVoiceRemaining, 16);
+  assert.equal(available.monthlyVoiceRemaining, 6);
   assert.equal(available.canUseMonthlyVoice, true);
-  assert.equal(getMembershipEntitlements({ ...premiumActive, monthly_voice_used: 20 }).canUseMonthlyVoice, false);
+  assert.equal(getMembershipEntitlements({ ...premiumActive, monthly_voice_used: 10 }).canUseMonthlyVoice, false);
   assert.equal(getMembershipEntitlements({ ...premiumActive, subscription_status: "inactive" }).canUseMonthlyVoice, false);
 });
 
@@ -59,7 +59,7 @@ test("freeとlightも単発残数があれば音声利用権を持つ", () => {
 
 test("月間枠と単発枠を混同せず、全体の音声利用権を返す", () => {
   const result = getMembershipEntitlements({ ...premiumActive, extra_voice_remaining: 3 });
-  assert.equal(result.monthlyVoiceRemaining, 16);
+  assert.equal(result.monthlyVoiceRemaining, 6);
   assert.equal(result.extraVoiceRemaining, 3);
   assert.equal(result.canUseMonthlyVoice, true);
   assert.equal(result.canUseExtraVoice, true);

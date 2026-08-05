@@ -27,10 +27,23 @@ function integer(value: unknown): number | null {
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
+const UTC_TIMESTAMP = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d{3}|\.\d{6})?(Z|\+00:00)$/u;
+
+export function canonicalizeFincodeUtcTimestamp(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const match = UTC_TIMESTAMP.exec(value);
+  if (!match) return null;
+  const fraction = match[2] ?? ".000";
+  const millisecondCanonical = `${match[1]}${fraction.slice(0, 4)}Z`;
+  const parsed = new Date(millisecondCanonical);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString() === millisecondCanonical
+    ? `${match[1]}${fraction}Z`
+    : null;
+}
+
 function timestamp(value: unknown): string | null | undefined {
   if (value === null || value === undefined) return null;
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(value) || !Number.isFinite(Date.parse(value))) return undefined;
-  return new Date(value).toISOString();
+  return canonicalizeFincodeUtcTimestamp(value) ?? undefined;
 }
 
 export function parseFincodeMembershipRecordV1(value: unknown): FincodeMembershipRecordV1 | null {

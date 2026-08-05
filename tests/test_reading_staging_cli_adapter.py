@@ -325,7 +325,7 @@ class AdapterBoundaryTests(unittest.TestCase):
         template = json.loads((ROOT / "infrastructure" / "reading-staging" / "template.json").read_text(encoding="utf-8"))
         actual = {logical_id: resource["Type"] for logical_id, resource in template["Resources"].items()}
         self.assertEqual(actual, HARNESS.EXPECTED_RESOURCE_TYPES)
-        self.assertEqual(len(actual), 43)
+        self.assertEqual(len(actual), len(HARNESS.EXPECTED_RESOURCE_TYPES))
 
     def test_aws_client_error_output_is_allow_listed_and_identifier_free(self):
         state = base_state()

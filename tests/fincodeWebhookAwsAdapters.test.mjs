@@ -49,12 +49,25 @@ test("AWS config is explicit and mutation stays closed without both reviewed sch
   ]) assert.throws(() => api.readFincodeWebhookAwsConfig({ ...baseEnv, ...invalid }), /FINCODE_WEBHOOK_AWS_CONFIG_INVALID/);
 });
 
+test("AWS config accepts the deployed 14 second internal deadline and rejects values beyond it", () => {
+  assert.equal(api.readFincodeWebhookAwsConfig({
+    ...baseEnv,
+    FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS: "14000",
+  }).internalDeadlineMs, 14_000);
+  for (const invalid of ["14001", "15000", "0", "500.5", "-1", ""]) {
+    assert.throws(() => api.readFincodeWebhookAwsConfig({
+      ...baseEnv,
+      FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS: invalid,
+    }), /FINCODE_WEBHOOK_AWS_CONFIG_INVALID/);
+  }
+});
+
 test("ledger reserve writes digest-only item and classifies duplicates", async () => {
   const commands = [];
   const ledger = new api.DynamoFincodeWebhookLedger({ send: async (command) => { commands.push(command); return {}; } }, "ledger-staging", "staging", () => 1_700_000_000_000);
   assert.equal(await ledger.reserve({ semanticEventKey: DIGEST_A, payloadFingerprint: DIGEST_B, ttlSeconds: 3600 }), "RESERVED");
   assert.equal(commands[0].constructor.name, "PutItemCommand");
-  assert.deepEqual(Object.keys(commands[0].input.Item).sort(), ["attempt_count", "created_at", "environment", "event_digest", "expires_at", "payload_fingerprint", "processing_state", "result_code", "updated_at", "version"]);
+  assert.deepEqual(Object.keys(commands[0].input.Item).sort(), ["attempt_count", "created_at", "environment", "event_digest", "expires_at", "payload_fingerprint", "processing_state", "reservation_expires_at", "result_code", "updated_at", "version"]);
   assert.match(commands[0].input.ConditionExpression, /attribute_not_exists/);
 
   let count = 0;
@@ -63,6 +76,42 @@ test("ledger reserve writes digest-only item and classifies duplicates", async (
     return { Item: { event_digest: { S: DIGEST_A }, payload_fingerprint: { S: DIGEST_B }, environment: { S: "staging" }, processing_state: { S: "COMPLETED" } } };
   } }, "ledger-staging", "staging");
   assert.equal(await duplicate.reserve({ semanticEventKey: DIGEST_A, payloadFingerprint: DIGEST_B, ttlSeconds: 60 }), "DUPLICATE_COMPLETED");
+});
+
+test("ledger safely reclaims only a stale exact RESERVED reservation", async () => {
+  const now = Date.parse("2026-08-04T12:00:00.000Z");
+  const commands = [];
+  const ledger = new api.DynamoFincodeWebhookLedger({ send: async (command) => {
+    commands.push(command);
+    if (commands.length === 1) { const error = new Error("hidden"); error.name = "ConditionalCheckFailedException"; throw error; }
+    if (commands.length === 2) return { Item: {
+      payload_fingerprint: { S: DIGEST_B }, environment: { S: "staging" }, processing_state: { S: "RESERVED" },
+      result_code: { S: "RESERVED" }, updated_at: { S: "2026-08-04T11:50:00.000Z" }, attempt_count: { N: "1" }, version: { N: "1" },
+    } };
+    return {};
+  } }, "ledger-staging", "staging", () => now);
+  assert.equal(await ledger.reserve({ semanticEventKey: DIGEST_A, payloadFingerprint: DIGEST_B, ttlSeconds: 3600 }), "RESERVED");
+  assert.equal(commands[2].constructor.name, "UpdateItemCommand");
+  assert.match(commands[2].input.ConditionExpression, /updated_at = :previousUpdatedAt/u);
+  assert.match(commands[2].input.ConditionExpression, /attribute_not_exists\(completed_at\)/u);
+  assert.match(commands[2].input.UpdateExpression, /reservation_expires_at/u);
+});
+
+test("ledger does not reclaim active, conflicting, or partially completed reservations", async () => {
+  const now = Date.parse("2026-08-04T12:00:00.000Z");
+  for (const [item, expected] of [
+    [{ payload_fingerprint: { S: DIGEST_B }, environment: { S: "staging" }, processing_state: { S: "RESERVED" }, result_code: { S: "RESERVED" }, reservation_expires_at: { N: String(Math.floor(now / 1000) + 60) } }, "DUPLICATE_IN_PROGRESS"],
+    [{ payload_fingerprint: { S: "f".repeat(64) }, environment: { S: "staging" }, processing_state: { S: "RESERVED" }, result_code: { S: "RESERVED" }, updated_at: { S: "2026-08-04T11:00:00.000Z" } }, "CONFLICT"],
+    [{ payload_fingerprint: { S: DIGEST_B }, environment: { S: "staging" }, processing_state: { S: "RESERVED" }, result_code: { S: "RESERVED" }, updated_at: { S: "2026-08-04T11:00:00.000Z" }, completed_at: { S: "2026-08-04T11:01:00.000Z" } }, "DUPLICATE_IN_PROGRESS"],
+  ]) {
+    let count = 0;
+    const ledger = new api.DynamoFincodeWebhookLedger({ send: async () => {
+      if (count++ === 0) { const error = new Error("hidden"); error.name = "ConditionalCheckFailedException"; throw error; }
+      return { Item: item };
+    } }, "ledger-staging", "staging", () => now);
+    assert.equal(await ledger.reserve({ semanticEventKey: DIGEST_A, payloadFingerprint: DIGEST_B, ttlSeconds: 3600 }), expected);
+    assert.equal(count, 2);
+  }
 });
 
 test("ledger retryable failure is conditional and uses only a fixed safe error", async () => {
@@ -181,7 +230,19 @@ test("atomic completion emits exactly one bounded transaction with all three con
   assert.equal(serialized.includes("monthly_voice_used"), false);
   assert.equal(serialized.includes("extra_voice_remaining"), false);
   assert.match(serialized, /attribute_not_exists\(quota_ref\)/);
+  const userMutation = command.input.TransactItems.find((item) => item.Update?.TableName === "users-staging").Update;
+  assert.match(userMutation.ConditionExpression, /attribute_type\(#periodStart, :nullType\)/u);
+  assert.match(userMutation.ConditionExpression, /attribute_not_exists\(#periodStart\)/u);
+  assert.equal(userMutation.ExpressionAttributeValues[":nullType"].S, "NULL");
   assert.equal(command.input.ClientRequestToken.length, 36);
+});
+
+test("atomic completion accepts canonical email user references without weakening other request validation", () => {
+  const request = completionRequest();
+  request.userReference = "shirone-ui-light-20260804-v2@staging.invalid";
+  assert.equal(api.isFincodeWebhookAtomicCompletionRequest(request), true);
+  request.userReference = "bad ref";
+  assert.equal(api.isFincodeWebhookAtomicCompletionRequest(request), false);
 });
 
 test("same-period atomic completion condition-checks membership and quota without resetting usage or limit", async () => {

@@ -9,6 +9,9 @@
     "LightWorkerArtifactKey": { "Type": "String", "MinLength": 1, "MaxLength": 1024 },
     "DeepWorkerArtifactKey": { "Type": "String", "MinLength": 1, "MaxLength": 1024 },
     "FincodeWebhookArtifactKey": { "Type": "String", "MinLength": 1, "MaxLength": 1024 },
+    "StagingLoginArtifactKey": { "Type": "String", "MinLength": 1, "MaxLength": 1024 },
+    "StagingSignupArtifactKey": { "Type": "String", "MinLength": 1, "MaxLength": 1024 },
+    "StagingMembershipStatusArtifactKey": { "Type": "String", "MinLength": 1, "MaxLength": 1024 },
     "AllowedOrigins": { "Type": "CommaDelimitedList", "Description": "Exact staging origins; wildcard is not allowed" },
     "RuntimeSecretsArn": { "Type": "String", "AllowedPattern": "^arn:aws:secretsmanager:ap-northeast-1:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$", "NoEcho": true },
     "Owner": { "Type": "String", "MinLength": 1, "MaxLength": 64 },
@@ -20,8 +23,14 @@
     "WorkerEventSourceMappingsEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
     "FincodeWebhookEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
     "FincodePeriodSourceEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "FincodeProvisionalTestPeriodSourceEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "FincodeOneTimeVoiceWebhookEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
     "ReadingLightQuotaEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "StagingLoginEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "StagingSignupEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
+    "StagingMembershipStatusEnabled": { "Type": "String", "Default": "false", "AllowedValues": ["false", "true"] },
     "FincodeWebhookSignatureSecretArn": { "Type": "String", "AllowedPattern": "^arn:aws:secretsmanager:ap-northeast-1:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$", "NoEcho": true },
+    "FincodeTestProviderSecretArn": { "Type": "String", "AllowedPattern": "^arn:aws:secretsmanager:ap-northeast-1:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$", "NoEcho": true },
     "FincodeCustomerReferencePrefix": { "Type": "String", "AllowedPattern": "^stg_[A-Za-z0-9_-]{1,20}$", "NoEcho": true },
     "FincodeAllowedShopDigests": { "Type": "String", "AllowedPattern": "^[0-9a-f]{64}(,[0-9a-f]{64})*$", "NoEcho": true },
     "FincodeAllowedPlanMapping": { "Type": "String", "MinLength": 1, "MaxLength": 512, "NoEcho": true },
@@ -185,6 +194,33 @@
         "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-light-quota" }, { "Key": "DataClassification", "Value": "internal" }, { "Key": "Owner", "Value": { "Ref": "Owner" } }, { "Key": "CostCenter", "Value": { "Ref": "CostCenter" } }, { "Key": "ManagedBy", "Value": "cloudformation" }]
       }
     },
+    "FincodeOneTimeVoicePurchaseTable": {
+      "Type": "AWS::DynamoDB::Table", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST", "AttributeDefinitions": [{ "AttributeName": "payment_digest", "AttributeType": "S" }],
+        "KeySchema": [{ "AttributeName": "payment_digest", "KeyType": "HASH" }], "DeletionProtectionEnabled": true,
+        "PointInTimeRecoverySpecification": { "PointInTimeRecoveryEnabled": true }, "SSESpecification": { "SSEEnabled": true },
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-one-time-voice-purchase" }, { "Key": "DataClassification", "Value": "internal" }, { "Key": "Owner", "Value": { "Ref": "Owner" } }, { "Key": "CostCenter", "Value": { "Ref": "CostCenter" } }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
+    "StagingAuthAttemptTable": {
+      "Type": "AWS::DynamoDB::Table", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [{ "AttributeName": "security_ref", "AttributeType": "S" }],
+        "KeySchema": [{ "AttributeName": "security_ref", "KeyType": "HASH" }],
+        "TimeToLiveSpecification": { "AttributeName": "expires_at", "Enabled": true },
+        "DeletionProtectionEnabled": true,
+        "PointInTimeRecoverySpecification": { "PointInTimeRecoveryEnabled": true },
+        "SSESpecification": { "SSEEnabled": true },
+        "Tags": [
+          { "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } },
+          { "Key": "Component", "Value": "staging-auth-attempt-control" }, { "Key": "DataClassification", "Value": "confidential" },
+          { "Key": "Owner", "Value": { "Ref": "Owner" } }, { "Key": "CostCenter", "Value": { "Ref": "CostCenter" } },
+          { "Key": "ManagedBy", "Value": "cloudformation" }
+        ]
+      }
+    },
     "LightDeadLetterQueue": {
       "Type": "AWS::SQS::Queue",
       "Properties": {
@@ -226,6 +262,54 @@
     "LightWorkerLogGroup": { "Type": "AWS::Logs::LogGroup", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-reading-light-worker" }, "RetentionInDays": 30 } },
     "DeepWorkerLogGroup": { "Type": "AWS::Logs::LogGroup", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-reading-deep-worker" }, "RetentionInDays": 30 } },
     "FincodeWebhookLogGroup": { "Type": "AWS::Logs::LogGroup", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-fincode-webhook" }, "RetentionInDays": 30 } },
+    "StagingLoginLogGroup": { "Type": "AWS::Logs::LogGroup", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-staging-login" }, "RetentionInDays": 30 } },
+    "StagingSignupLogGroup": { "Type": "AWS::Logs::LogGroup", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-staging-signup" }, "RetentionInDays": 30 } },
+    "StagingMembershipStatusLogGroup": { "Type": "AWS::Logs::LogGroup", "DeletionPolicy": "Retain", "UpdateReplacePolicy": "Retain", "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-staging-membership-status" }, "RetentionInDays": 30 } },
+    "StagingLoginRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": { "Version": "2012-10-17", "Statement": [{ "Effect": "Allow", "Principal": { "Service": "lambda.amazonaws.com" }, "Action": "sts:AssumeRole" }] },
+        "Policies": [{
+          "PolicyName": "staging-login-minimum",
+          "PolicyDocument": { "Version": "2012-10-17", "Statement": [
+            { "Sid": "OwnLogs", "Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": { "Fn::GetAtt": ["StagingLoginLogGroup", "Arn"] } },
+            { "Sid": "ReadAndUpdateOwnUser", "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:UpdateItem"], "Resource": { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] } },
+            { "Sid": "ControlAuthAttempts", "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem"], "Resource": { "Fn::GetAtt": ["StagingAuthAttemptTable", "Arn"] } },
+            { "Sid": "ReadRuntimeSecret", "Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": { "Ref": "RuntimeSecretsArn" } }
+          ] }
+        }],
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "staging-login-role" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
+    "StagingSignupRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": { "Version": "2012-10-17", "Statement": [{ "Effect": "Allow", "Principal": { "Service": "lambda.amazonaws.com" }, "Action": "sts:AssumeRole" }] },
+        "Policies": [{
+          "PolicyName": "staging-signup-minimum",
+          "PolicyDocument": { "Version": "2012-10-17", "Statement": [
+            { "Sid": "OwnLogs", "Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": { "Fn::GetAtt": ["StagingSignupLogGroup", "Arn"] } },
+            { "Sid": "CreateOwnUserConditionally", "Effect": "Allow", "Action": "dynamodb:PutItem", "Resource": { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] } }
+          ] }
+        }],
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "staging-signup-role" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
+    "StagingMembershipStatusRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": { "Version": "2012-10-17", "Statement": [{ "Effect": "Allow", "Principal": { "Service": "lambda.amazonaws.com" }, "Action": "sts:AssumeRole" }] },
+        "Policies": [{
+          "PolicyName": "staging-membership-status-read-only",
+          "PolicyDocument": { "Version": "2012-10-17", "Statement": [
+            { "Sid": "OwnLogs", "Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": { "Fn::GetAtt": ["StagingMembershipStatusLogGroup", "Arn"] } },
+            { "Sid": "ReadOwnMembership", "Effect": "Allow", "Action": "dynamodb:GetItem", "Resource": { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] } },
+            { "Sid": "ReadRuntimeSecret", "Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": { "Ref": "RuntimeSecretsArn" } }
+          ] }
+        }],
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "staging-membership-status-role" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
     "ReadingRequestRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
@@ -322,13 +406,60 @@
           "PolicyName": "fincode-webhook-staging-minimum",
           "PolicyDocument": { "Version": "2012-10-17", "Statement": [
             { "Sid": "OwnLogs", "Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": { "Fn::GetAtt": ["FincodeWebhookLogGroup", "Arn"] } },
-            { "Sid": "ReadWebhookState", "Effect": "Allow", "Action": "dynamodb:GetItem", "Resource": [{ "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] }, { "Fn::GetAtt": ["FincodeCustomerMappingTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }] },
+            { "Sid": "ReadWebhookState", "Effect": "Allow", "Action": "dynamodb:GetItem", "Resource": [{ "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] }, { "Fn::GetAtt": ["FincodeCustomerMappingTable", "Arn"] }, { "Fn::GetAtt": ["FincodeOneTimeVoicePurchaseTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }] },
             { "Sid": "ReserveWebhookEvent", "Effect": "Allow", "Action": ["dynamodb:PutItem", "dynamodb:UpdateItem"], "Resource": { "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] } },
-            { "Sid": "CompleteWebhookAtomically", "Effect": "Allow", "Action": "dynamodb:TransactWriteItems", "Resource": [{ "Fn::GetAtt": ["FincodeWebhookLedgerTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }, { "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] }] },
-            { "Sid": "ReadSignatureOnly", "Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": { "Ref": "FincodeWebhookSignatureSecretArn" } }
+            { "Sid": "CompleteWebhookMembership", "Effect": "Allow", "Action": ["dynamodb:ConditionCheckItem", "dynamodb:UpdateItem"], "Resource": { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] } },
+            { "Sid": "CompleteWebhookLightQuota", "Effect": "Allow", "Action": ["dynamodb:ConditionCheckItem", "dynamodb:PutItem"], "Resource": { "Fn::GetAtt": ["FincodeLightQuotaTable", "Arn"] } },
+            { "Sid": "WriteOneTimeVoiceIntent", "Effect": "Allow", "Action": "dynamodb:PutItem", "Resource": { "Fn::GetAtt": ["FincodeOneTimeVoicePurchaseTable", "Arn"] } },
+            { "Sid": "CompleteOneTimeVoiceAtomically", "Effect": "Allow", "Action": "dynamodb:UpdateItem", "Resource": [{ "Fn::GetAtt": ["FincodeOneTimeVoicePurchaseTable", "Arn"] }, { "Fn::GetAtt": ["ReadingUsersTable", "Arn"] }] },
+            { "Sid": "ReadFincodeSecretsOnly", "Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": [{ "Ref": "FincodeWebhookSignatureSecretArn" }, { "Ref": "FincodeTestProviderSecretArn" }] }
           ] }
         }],
         "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-webhook-role" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
+    "StagingLoginFunction": {
+      "Type": "AWS::Lambda::Function", "DependsOn": ["StagingLoginLogGroup"],
+      "Properties": {
+        "FunctionName": { "Fn::Sub": "${AWS::StackName}-staging-login" }, "Runtime": "python3.12", "Handler": "index.lambda_handler",
+        "Timeout": 10, "MemorySize": 256, "ReservedConcurrentExecutions": 2, "Role": { "Fn::GetAtt": ["StagingLoginRole", "Arn"] },
+        "Code": { "S3Bucket": { "Ref": "ArtifactBucketName" }, "S3Key": { "Ref": "StagingLoginArtifactKey" } },
+        "Environment": { "Variables": {
+          "STAGING_ENVIRONMENT": { "Ref": "Environment" }, "STAGING_LOGIN_ENABLED": { "Ref": "StagingLoginEnabled" },
+          "ALLOWED_ORIGINS": { "Fn::Join": [",", { "Ref": "AllowedOrigins" }] }, "USERS_TABLE_NAME": { "Ref": "ReadingUsersTable" },
+          "AUTH_SECURITY_ENABLED": "true", "AUTH_SECURITY_TABLE_NAME": { "Ref": "StagingAuthAttemptTable" }, "RUNTIME_SECRETS_ARN": { "Ref": "RuntimeSecretsArn" },
+          "AUTH_ACCOUNT_FAILURE_LIMIT": "5", "AUTH_ACCOUNT_WINDOW_SECONDS": "900", "AUTH_ACCOUNT_LOCK_SECONDS": "900",
+          "AUTH_IP_FAILURE_LIMIT": "20", "AUTH_IP_WINDOW_SECONDS": "900", "EMAIL_VERIFICATION_ENABLED": "false"
+        } },
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "staging-login" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
+    "StagingSignupFunction": {
+      "Type": "AWS::Lambda::Function", "DependsOn": ["StagingSignupLogGroup"],
+      "Properties": {
+        "FunctionName": { "Fn::Sub": "${AWS::StackName}-staging-signup" }, "Runtime": "python3.12", "Handler": "index.lambda_handler",
+        "Timeout": 10, "MemorySize": 256, "ReservedConcurrentExecutions": 2, "Role": { "Fn::GetAtt": ["StagingSignupRole", "Arn"] },
+        "Code": { "S3Bucket": { "Ref": "ArtifactBucketName" }, "S3Key": { "Ref": "StagingSignupArtifactKey" } },
+        "Environment": { "Variables": {
+          "STAGING_ENVIRONMENT": { "Ref": "Environment" }, "STAGING_SIGNUP_ENABLED": { "Ref": "StagingSignupEnabled" },
+          "ALLOWED_ORIGINS": { "Fn::Join": [",", { "Ref": "AllowedOrigins" }] }, "USERS_TABLE_NAME": { "Ref": "ReadingUsersTable" },
+          "EMAIL_VERIFICATION_ENABLED": "false"
+        } },
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "staging-signup" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
+      }
+    },
+    "StagingMembershipStatusFunction": {
+      "Type": "AWS::Lambda::Function", "DependsOn": ["StagingMembershipStatusLogGroup"],
+      "Properties": {
+        "FunctionName": { "Fn::Sub": "${AWS::StackName}-staging-membership-status" }, "Runtime": "nodejs22.x", "Handler": "index.handler",
+        "Timeout": 10, "MemorySize": 256, "ReservedConcurrentExecutions": 2, "Role": { "Fn::GetAtt": ["StagingMembershipStatusRole", "Arn"] },
+        "Code": { "S3Bucket": { "Ref": "ArtifactBucketName" }, "S3Key": { "Ref": "StagingMembershipStatusArtifactKey" } },
+        "Environment": { "Variables": {
+          "STAGING_ENVIRONMENT": { "Ref": "Environment" }, "STAGING_MEMBERSHIP_STATUS_ENABLED": { "Ref": "StagingMembershipStatusEnabled" },
+          "ALLOWED_ORIGINS": { "Fn::Join": [",", { "Ref": "AllowedOrigins" }] }, "USERS_TABLE_NAME": { "Ref": "ReadingUsersTable" },
+          "RUNTIME_SECRETS_ARN": { "Ref": "RuntimeSecretsArn" }
+        } },
+        "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "staging-membership-status" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
       }
     },
     "ReadingRequestFunction": {
@@ -433,16 +564,18 @@
       "Type": "AWS::Lambda::Function", "DependsOn": ["FincodeWebhookLogGroup"],
       "Properties": {
         "FunctionName": { "Fn::Sub": "${AWS::StackName}-fincode-webhook" }, "Runtime": "nodejs22.x", "Handler": "index.handler",
-        "Timeout": 3, "MemorySize": 256, "ReservedConcurrentExecutions": 2, "Role": { "Fn::GetAtt": ["FincodeWebhookRole", "Arn"] },
+        "Timeout": 15, "MemorySize": 256, "ReservedConcurrentExecutions": 2, "Role": { "Fn::GetAtt": ["FincodeWebhookRole", "Arn"] },
         "Code": { "S3Bucket": { "Ref": "ArtifactBucketName" }, "S3Key": { "Ref": "FincodeWebhookArtifactKey" } },
         "Environment": { "Variables": {
           "FINCODE_WEBHOOK_ENABLED": { "Ref": "FincodeWebhookEnabled" }, "FINCODE_PERIOD_SOURCE_ENABLED": { "Ref": "FincodePeriodSourceEnabled" },
+          "FINCODE_PROVISIONAL_TEST_PERIOD_SOURCE_ENABLED": { "Ref": "FincodeProvisionalTestPeriodSourceEnabled" }, "FINCODE_ONE_TIME_VOICE_WEBHOOK_ENABLED": { "Ref": "FincodeOneTimeVoiceWebhookEnabled" },
           "FINCODE_WEBHOOK_ENVIRONMENT": { "Ref": "Environment" }, "FINCODE_WEBHOOK_SIGNATURE_SECRET_ENVIRONMENT": { "Ref": "Environment" },
           "FINCODE_WEBHOOK_LEDGER_TABLE": { "Ref": "FincodeWebhookLedgerTable" }, "FINCODE_CUSTOMER_MAPPING_TABLE": { "Ref": "FincodeCustomerMappingTable" },
           "FINCODE_LIGHT_QUOTA_TABLE": { "Ref": "FincodeLightQuotaTable" }, "USERS_TABLE_NAME": { "Ref": "ReadingUsersTable" }, "READING_DEEP_QUOTA_TABLE_NAME": { "Ref": "ReadingDeepQuotaTable" },
+          "FINCODE_ONE_TIME_VOICE_PURCHASE_TABLE": { "Ref": "FincodeOneTimeVoicePurchaseTable" }, "FINCODE_TEST_PROVIDER_SECRET_ID": { "Ref": "FincodeTestProviderSecretArn" },
           "FINCODE_WEBHOOK_SIGNATURE_SECRET_ID": { "Ref": "FincodeWebhookSignatureSecretArn" }, "FINCODE_WEBHOOK_LEDGER_RETENTION_DAYS": "180", "FINCODE_WEBHOOK_SECRET_CACHE_TTL_SECONDS": "300",
           "FINCODE_WEBHOOK_ALLOWED_SHOP_DIGESTS": { "Ref": "FincodeAllowedShopDigests" }, "FINCODE_WEBHOOK_ALLOWED_PLAN_MAPPING": { "Ref": "FincodeAllowedPlanMapping" },
-          "FINCODE_CUSTOMER_REFERENCE_PREFIX": { "Ref": "FincodeCustomerReferencePrefix" }, "FINCODE_USERS_MEMBERSHIP_SCHEMA_VERSION": "shirone-membership-v1", "FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS": "2500"
+          "FINCODE_CUSTOMER_REFERENCE_PREFIX": { "Ref": "FincodeCustomerReferencePrefix" }, "FINCODE_USERS_MEMBERSHIP_SCHEMA_VERSION": "shirone-membership-v1", "FINCODE_WEBHOOK_INTERNAL_DEADLINE_MS": "14000"
         } },
         "Tags": [{ "Key": "Project", "Value": "nana-fortune" }, { "Key": "Environment", "Value": { "Ref": "Environment" } }, { "Key": "Component", "Value": "fincode-webhook" }, { "Key": "ManagedBy", "Value": "cloudformation" }]
       }
@@ -482,14 +615,23 @@
       "Type": "AWS::ApiGatewayV2::Integration",
       "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 10000, "IntegrationUri": { "Fn::GetAtt": ["ReadingStatusFunction", "Arn"] } }
     },
-    "FincodeWebhookIntegration": { "Type": "AWS::ApiGatewayV2::Integration", "Properties": { "ApiId": { "Ref": "FincodeWebhookHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 3000, "IntegrationUri": { "Fn::GetAtt": ["FincodeWebhookFunction", "Arn"] } } },
+    "StagingLoginIntegration": { "Type": "AWS::ApiGatewayV2::Integration", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 10000, "IntegrationUri": { "Fn::GetAtt": ["StagingLoginFunction", "Arn"] } } },
+    "StagingSignupIntegration": { "Type": "AWS::ApiGatewayV2::Integration", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 10000, "IntegrationUri": { "Fn::GetAtt": ["StagingSignupFunction", "Arn"] } } },
+    "StagingMembershipStatusIntegration": { "Type": "AWS::ApiGatewayV2::Integration", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 10000, "IntegrationUri": { "Fn::GetAtt": ["StagingMembershipStatusFunction", "Arn"] } } },
+    "FincodeWebhookIntegration": { "Type": "AWS::ApiGatewayV2::Integration", "Properties": { "ApiId": { "Ref": "FincodeWebhookHttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationMethod": "POST", "PayloadFormatVersion": "2.0", "TimeoutInMillis": 15000, "IntegrationUri": { "Fn::GetAtt": ["FincodeWebhookFunction", "Arn"] } } },
     "ReadingRequestRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "RouteKey": "POST /reading", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "ReadingRequestIntegration" }]] } } },
     "ReadingStatusRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "RouteKey": "GET /reading/status", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "ReadingStatusIntegration" }]] } } },
+    "StagingLoginRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "RouteKey": "POST /login", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "StagingLoginIntegration" }]] } } },
+    "StagingSignupRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "RouteKey": "POST /signup", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "StagingSignupIntegration" }]] } } },
+    "StagingMembershipStatusRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "RouteKey": "GET /membership/status", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "StagingMembershipStatusIntegration" }]] } } },
     "FincodeWebhookRoute": { "Type": "AWS::ApiGatewayV2::Route", "Properties": { "ApiId": { "Ref": "FincodeWebhookHttpApi" }, "RouteKey": "POST /webhooks/fincode", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "FincodeWebhookIntegration" }]] } } },
     "ReadingApiStage": { "Type": "AWS::ApiGatewayV2::Stage", "Properties": { "ApiId": { "Ref": "ReadingHttpApi" }, "StageName": { "Ref": "Environment" }, "AutoDeploy": true, "Tags": { "Project": "nana-fortune", "Environment": { "Ref": "Environment" }, "Component": "reading-http-api-stage", "ManagedBy": "cloudformation" } } },
     "FincodeWebhookApiStage": { "Type": "AWS::ApiGatewayV2::Stage", "Properties": { "ApiId": { "Ref": "FincodeWebhookHttpApi" }, "StageName": { "Ref": "Environment" }, "AutoDeploy": true, "Tags": { "Project": "nana-fortune", "Environment": { "Ref": "Environment" }, "Component": "fincode-webhook-http-api-stage", "ManagedBy": "cloudformation" } } },
     "ReadingRequestInvokePermission": { "Type": "AWS::Lambda::Permission", "Properties": { "Action": "lambda:InvokeFunction", "FunctionName": { "Ref": "ReadingRequestFunction" }, "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/POST/reading" } } },
     "ReadingStatusInvokePermission": { "Type": "AWS::Lambda::Permission", "Properties": { "Action": "lambda:InvokeFunction", "FunctionName": { "Ref": "ReadingStatusFunction" }, "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/GET/reading/status" } } },
+    "StagingLoginInvokePermission": { "Type": "AWS::Lambda::Permission", "Properties": { "Action": "lambda:InvokeFunction", "FunctionName": { "Ref": "StagingLoginFunction" }, "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/POST/login" } } },
+    "StagingSignupInvokePermission": { "Type": "AWS::Lambda::Permission", "Properties": { "Action": "lambda:InvokeFunction", "FunctionName": { "Ref": "StagingSignupFunction" }, "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/POST/signup" } } },
+    "StagingMembershipStatusInvokePermission": { "Type": "AWS::Lambda::Permission", "Properties": { "Action": "lambda:InvokeFunction", "FunctionName": { "Ref": "StagingMembershipStatusFunction" }, "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/GET/membership/status" } } },
     "FincodeWebhookInvokePermission": { "Type": "AWS::Lambda::Permission", "Properties": { "Action": "lambda:InvokeFunction", "FunctionName": { "Ref": "FincodeWebhookFunction" }, "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${FincodeWebhookHttpApi}/${Environment}/POST/webhooks/fincode" } } }
   },
   "Outputs": {

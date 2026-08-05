@@ -51,11 +51,17 @@ EXPECTED_PARAMETERS = {
     "WorkerEventSourceMappingsEnabled": "false",
     "FincodeWebhookEnabled": "false",
     "FincodePeriodSourceEnabled": "false",
+    "FincodeProvisionalTestPeriodSourceEnabled": "false",
+    "FincodeOneTimeVoiceWebhookEnabled": "false",
     "ReadingLightQuotaEnabled": "false",
+    "StagingLoginEnabled": "false",
+    "StagingSignupEnabled": "false",
+    "StagingMembershipStatusEnabled": "false",
 }
 EXPECTED_RESOURCE_TYPES = {
     "FincodeCustomerMappingTable": "AWS::DynamoDB::Table",
     "FincodeLightQuotaTable": "AWS::DynamoDB::Table",
+    "FincodeOneTimeVoicePurchaseTable": "AWS::DynamoDB::Table",
     "FincodeWebhookFunction": "AWS::Lambda::Function",
     "FincodeWebhookHttpApi": "AWS::ApiGatewayV2::Api",
     "FincodeWebhookApiStage": "AWS::ApiGatewayV2::Stage",
@@ -97,6 +103,25 @@ EXPECTED_RESOURCE_TYPES = {
     "ReadingStatusRole": "AWS::IAM::Role",
     "ReadingStatusRoute": "AWS::ApiGatewayV2::Route",
     "ReadingUsersTable": "AWS::DynamoDB::Table",
+    "StagingAuthAttemptTable": "AWS::DynamoDB::Table",
+    "StagingLoginFunction": "AWS::Lambda::Function",
+    "StagingLoginIntegration": "AWS::ApiGatewayV2::Integration",
+    "StagingLoginInvokePermission": "AWS::Lambda::Permission",
+    "StagingLoginLogGroup": "AWS::Logs::LogGroup",
+    "StagingLoginRole": "AWS::IAM::Role",
+    "StagingLoginRoute": "AWS::ApiGatewayV2::Route",
+    "StagingMembershipStatusFunction": "AWS::Lambda::Function",
+    "StagingMembershipStatusIntegration": "AWS::ApiGatewayV2::Integration",
+    "StagingMembershipStatusInvokePermission": "AWS::Lambda::Permission",
+    "StagingMembershipStatusLogGroup": "AWS::Logs::LogGroup",
+    "StagingMembershipStatusRole": "AWS::IAM::Role",
+    "StagingMembershipStatusRoute": "AWS::ApiGatewayV2::Route",
+    "StagingSignupFunction": "AWS::Lambda::Function",
+    "StagingSignupIntegration": "AWS::ApiGatewayV2::Integration",
+    "StagingSignupInvokePermission": "AWS::Lambda::Permission",
+    "StagingSignupLogGroup": "AWS::Logs::LogGroup",
+    "StagingSignupRole": "AWS::IAM::Role",
+    "StagingSignupRoute": "AWS::ApiGatewayV2::Route",
 }
 TABLE_LOGICAL_IDS = (
     "ReadingUsersTable",
@@ -108,6 +133,7 @@ TABLE_LOGICAL_IDS = (
     "FincodeWebhookLedgerTable",
     "FincodeCustomerMappingTable",
     "FincodeLightQuotaTable",
+    "FincodeOneTimeVoicePurchaseTable",
 )
 QUEUE_LOGICAL_IDS = ("LightQueue", "DeepQueue", "LightDeadLetterQueue", "DeepDeadLetterQueue")
 ESM_LOGICAL_IDS = ("LightEventSourceMapping", "DeepEventSourceMapping")

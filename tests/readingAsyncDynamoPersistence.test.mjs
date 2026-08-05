@@ -50,12 +50,15 @@ test("worker claim acquires concurrency and transitions only the expected job ve
 });
 
 test("deep acceptance reserves the monthly quota atomically without taking concurrency", async () => {
+  const start = "2026-07-01T00:00:00.000Z";
+  const end = "2026-08-01T00:00:00.000Z";
   const sender = new Sender();
   const store = new api.DynamoAsyncReadingPersistence(sender, deepConfig, () => "deep-reservation-fixture");
   const deepInput = {
     ...input,
     membershipTier: "premium",
     mode: "deep",
+    membership: { plan: "premium", subscriptionStatus: "active", currentPeriodStart: start, currentPeriodEnd: end, version: 3 },
     canonicalInput: { ...input.canonicalInput, resolvedMode: "deep" },
   };
   assert.equal(await store.accept(deepInput), "accepted");
@@ -125,7 +128,7 @@ test("expired IN_PROGRESS claim uses a conditional takeover and a new owned conc
   assert.equal(jobUpdate.ExpressionAttributeValues[":version"].N, "7");
 });
 
-function terminalSender(quotaRef) {
+function terminalSender(quotaRef, periodKey) {
   return {
     transactions: [],
     async send(command) {
@@ -152,7 +155,7 @@ function terminalSender(quotaRef) {
           return { Item: {
             quota_ref: { S: quotaRef },
             schema_version: { S: "shirone-deep-quota-v1" },
-            period_key: { S: "2026-07" },
+            period_key: { S: periodKey },
             limit: { N: "3" },
             used: { N: "0" },
             reservations: { L: [{ M: {
@@ -176,7 +179,7 @@ function terminalSender(quotaRef) {
   };
 }
 
-function terminalJob(quotaRef) {
+function terminalJob(quotaRef, periodKey) {
   return {
     jobRef: input.jobRef,
     historyId: input.historyId,
@@ -199,7 +202,7 @@ function terminalJob(quotaRef) {
     concurrencyExpiresAt: Math.floor(input.now.getTime() / 1000) + 180,
     deepReservation: {
       quotaRef,
-      periodKey: "2026-07",
+      periodKey,
       reservationId: "deep-reservation",
       reservationExpiresAt: Math.floor(input.now.getTime() / 1000) + 600,
     },
@@ -213,19 +216,20 @@ function terminalJob(quotaRef) {
 }
 
 test("deep terminal transactions consume or release quota and release owned concurrency exactly once", async () => {
-  const quotaRef = api.createDeepQuotaRef({ userId: input.userId, periodKey: "2026-07", secret: deepConfig.deepQuota.hashSecret });
-  const completedSender = terminalSender(quotaRef);
+  const periodKey = api.createDeepContractPeriodKey("2026-07-01T00:00:00.000Z", "2026-08-01T00:00:00.000Z");
+  const quotaRef = api.createDeepQuotaRef({ userId: input.userId, periodKey, secret: deepConfig.deepQuota.hashSecret });
+  const completedSender = terminalSender(quotaRef, periodKey);
   const completedStore = new api.DynamoAsyncReadingPersistence(completedSender, deepConfig);
-  await completedStore.complete({ job: terminalJob(quotaRef), now: input.now });
+  await completedStore.complete({ job: terminalJob(quotaRef, periodKey), now: input.now });
   const completed = JSON.stringify(completedSender.transactions[0]);
   assert.match(completed, /COMPLETED/);
   assert.match(completed, /"used":{"N":"1"}/);
   assert.match(completed, /"reservations":{"L":\[\]}/);
   assert.match(completed, /concurrency-reservation/);
 
-  const failedSender = terminalSender(quotaRef);
+  const failedSender = terminalSender(quotaRef, periodKey);
   const failedStore = new api.DynamoAsyncReadingPersistence(failedSender, deepConfig);
-  await failedStore.fail({ job: terminalJob(quotaRef), category: "generation_failed", now: input.now });
+  await failedStore.fail({ job: terminalJob(quotaRef, periodKey), category: "generation_failed", now: input.now });
   const failed = JSON.stringify(failedSender.transactions[0]);
   assert.match(failed, /FAILED/);
   assert.match(failed, /"used":{"N":"0"}/);

@@ -10,7 +10,7 @@ import {
 import { ServerFoundationError } from "../http/errors";
 import { createFincodePeriodId } from "../fincode/subscriptionPeriodSource";
 import type { PublicReadingResponse } from "../readingApi/readingApiTypes";
-import { calculateDeepRemaining, createDeepQuotaRef, DEEP_QUOTA_SCHEMA_VERSION, getJstPeriodKey, PREMIUM_DEEP_MONTHLY_LIMIT } from "../readingPersistence/deepQuota";
+import { calculateDeepRemaining, createDeepContractPeriodKey, createDeepQuotaRef, DEEP_QUOTA_SCHEMA_VERSION, PREMIUM_DEEP_MONTHLY_LIMIT } from "../readingPersistence/deepQuota";
 import type { ReadingPersistenceConfig } from "../readingPersistence/persistenceConfig";
 import { completeLightQuota, createLightQuotaRef, LIGHT_QUOTA_SCHEMA_VERSION, releaseLightQuota, reserveLightQuota, validateLightQuotaRecord, type LightQuotaRecord } from "../readingPersistence/lightQuota";
 import { fingerprintsEqual } from "../readingPersistence/requestFingerprint";
@@ -148,11 +148,10 @@ export class DynamoAsyncReadingPersistence implements AsyncReadingPersistence {
     throw new ServerFoundationError("READING_JOB_INCONSISTENT");
   }
 
-  private async readQuota(userId: string, now: Date, expected?: { quotaRef: string; periodKey: string }): Promise<Quota | undefined> {
+  private async readQuota(userId: string, expected: { quotaRef: string; periodKey: string }): Promise<Quota | undefined> {
     const deep = this.config.deepQuota;
     if (!deep) throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
-    const periodKey = expected?.periodKey ?? getJstPeriodKey(now);
-    const quotaRef = expected?.quotaRef ?? createDeepQuotaRef({ userId, periodKey, secret: deep.hashSecret });
+    const { periodKey, quotaRef } = expected;
     if (createDeepQuotaRef({ userId, periodKey, secret: deep.hashSecret }) !== quotaRef) throw new ServerFoundationError("READING_DEEP_RESERVATION_INCONSISTENT");
     const item = await this.get(deep.tableName, { quota_ref: S(quotaRef) });
     if (!item) return undefined;
@@ -189,12 +188,18 @@ export class DynamoAsyncReadingPersistence implements AsyncReadingPersistence {
     if (params.mode === "deep") {
       const deep = this.config.deepQuota;
       if (!deep) throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
-      const previous = await this.readQuota(params.userId, params.now);
+      if (!params.membership || params.membership.plan !== "premium" || params.membership.subscriptionStatus !== "active" ||
+          !Number.isSafeInteger(params.membership.version) || params.membership.version < 0) {
+        throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
+      }
+      const periodKey = createDeepContractPeriodKey(params.membership.currentPeriodStart, params.membership.currentPeriodEnd);
+      const quotaRef = createDeepQuotaRef({ userId: params.userId, periodKey, secret: deep.hashSecret });
+      const previous = await this.readQuota(params.userId, { quotaRef, periodKey });
       const active = previous?.reservations.filter((entry) => entry.expiresAt > nowEpoch) ?? [];
       if (calculateDeepRemaining({ used: previous?.used ?? 0, activeReservations: active.length }) <= 0) throw new ServerFoundationError("READING_DEEP_MONTHLY_LIMIT_REACHED");
-      deepReservation = { quotaRef: previous?.quotaRef ?? createDeepQuotaRef({ userId: params.userId, periodKey: getJstPeriodKey(params.now), secret: deep.hashSecret }), periodKey: previous?.periodKey ?? getJstPeriodKey(params.now), reservationId: this.uuid(), reservationExpiresAt: nowEpoch + deep.reservationSeconds };
+      deepReservation = { quotaRef: previous?.quotaRef ?? quotaRef, periodKey: previous?.periodKey ?? periodKey, reservationId: this.uuid(), reservationExpiresAt: nowEpoch + deep.reservationSeconds };
       const next: Quota = { quotaRef: deepReservation.quotaRef, periodKey: deepReservation.periodKey, used: previous?.used ?? 0, reservations: [...active, { reservationId: deepReservation.reservationId, requestRef: params.requestRef, historyId: params.historyId, reservedAt: params.now.toISOString(), expiresAt: deepReservation.reservationExpiresAt }], version: (previous?.version ?? 0) + 1, createdAt: previous?.createdAt ?? params.now.toISOString() };
-      actions.push({ ConditionCheck: { TableName: deep.usersTableName, Key: { user_id: S(params.userId) }, ConditionExpression: "#plan=:premium AND subscription_status=:active AND deep_enabled=:enabled", ExpressionAttributeNames: { "#plan": "plan" }, ExpressionAttributeValues: { ":premium": S("premium"), ":active": S("active"), ":enabled": B(true) } } });
+      actions.push({ ConditionCheck: { TableName: deep.usersTableName, Key: { user_id: S(params.userId) }, ConditionExpression: "#plan=:premium AND subscription_status=:active AND deep_enabled=:enabled AND membership_version=:membershipVersion AND current_period_start=:periodStart AND current_period_end=:periodEnd", ExpressionAttributeNames: { "#plan": "plan" }, ExpressionAttributeValues: { ":premium": S("premium"), ":active": S("active"), ":enabled": B(true), ":membershipVersion": N(params.membership.version), ":periodStart": S(params.membership.currentPeriodStart), ":periodEnd": S(params.membership.currentPeriodEnd) } } });
       actions.push(quotaItem(deep.tableName, previous, next, params.now));
     }
     const job: Item = {
@@ -271,7 +276,7 @@ export class DynamoAsyncReadingPersistence implements AsyncReadingPersistence {
   private async addDeepTerminalActions(actions: TransactWriteItem[], job: ReadingJob, now: Date, consume: boolean) {
     const deep = this.config.deepQuota; const reservation = job.deepReservation;
     if (!deep || !reservation) throw new ServerFoundationError("READING_DEEP_RESERVATION_INCONSISTENT");
-    const previous = await this.readQuota(job.ownerUserId, now, { quotaRef: reservation.quotaRef, periodKey: reservation.periodKey });
+    const previous = await this.readQuota(job.ownerUserId, { quotaRef: reservation.quotaRef, periodKey: reservation.periodKey });
     if (!previous) throw new ServerFoundationError("READING_DEEP_RESERVATION_INCONSISTENT");
     const match = previous.reservations.find((entry) => entry.reservationId === reservation.reservationId && entry.requestRef === job.requestRef);
     if (!match || (consume && previous.used >= PREMIUM_DEEP_MONTHLY_LIMIT)) throw new ServerFoundationError("READING_DEEP_RESERVATION_INCONSISTENT");

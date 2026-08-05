@@ -13,4 +13,8 @@ export * from "./membershipSchema";
 export * from "./subscriptionPeriodSource";
 export * from "./fincodeWebhookLambda";
 export * from "./membershipMigration";
+export * from "./canonicalMigration";
+export * from "./oneTimeVoicePurchase";
+export * from "./provisionalFincodeTestPeriodSource";
+export * from "./fincodeOneTimeVoiceWebhook";
 export * from "./aws";

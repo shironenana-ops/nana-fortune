@@ -1,6 +1,6 @@
 // @ts-check
 
-import { defineConfig } from "astro/config";
+import { defineConfig, envField } from "astro/config";
 import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import vercel from "@astrojs/vercel";
@@ -9,12 +9,30 @@ export default defineConfig({
   site: "https://www.nana-fortune.com",
   output: "server",
   adapter: vercel({}),
+  security: {
+    // fincode TEST returns by cross-site POST to localhost. In dev only,
+    // src/middleware.ts applies the normal origin check with one narrow exception.
+    checkOrigin: process.env.NODE_ENV !== "development",
+  },
+  env: {
+    schema: {
+      FINCODE_TEST_PAYMENT_ENABLED: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_API_BASE: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_SECRET_KEY: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_SHOP_ID: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_BROWSER_E2E_PROFILE: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_LIGHT_START_DATE: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_AWS_REGION: envField.string({ context: "server", access: "secret", optional: true }),
+      FINCODE_TEST_CUSTOMER_MAPPING_TABLE: envField.string({ context: "server", access: "secret", optional: true }),
+    },
+  },
   integrations: [
     mdx(),
     sitemap({
       filter: (page) => {
         const excludedPaths = [
           "/checkout/success",
+          "/fincode/test/result",
           "/history",
           "/login",
           "/members",

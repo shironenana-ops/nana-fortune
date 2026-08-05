@@ -70,8 +70,8 @@ const premiumPlan = BILLING_PLANS.premium;
             <section class="reading-door-panel">
               <h2>対象プラン</h2>
               <p>
-                プレミアム会員<br />
-                {premiumPlan.priceLabel}・自動更新
+                プレミアム会員：{premiumPlan.priceLabel}・自動更新<br />
+                深掘り鑑定 月{premiumPlan.deepMonthlyLimit}回
               </p>
             </section>
 
@@ -86,16 +86,16 @@ const premiumPlan = BILLING_PLANS.premium;
 
           <section class="reading-input-shell" aria-label="深掘り鑑定の利用開始準備案内">
             <div class="reading-input-head">
-              <span>本番決済審査中</span>
-              <strong>deep</strong>
+              <span>本番カード受付審査中</span>
+              <strong>深掘り鑑定</strong>
             </div>
 
             <p class="reading-input-message">
-              プラン内容と料金は公開していますが、本番カード決済はまだ開始していません。
+              深掘り鑑定はプレミアム会員向けに準備済みです。プレミアム会員は月額2,980円（税込）・自動更新で、ライト鑑定月20回、深掘り鑑定月3回、音声鑑定月10回を利用できます。カード決済受付だけがfincode本番環境の審査待ちです。
             </p>
 
             <div class="reading-preparing-actions">
-              <a class="fortune-btn violet" href="/join#premium">料金・申込条件を見る</a>
+              <a class="fortune-btn violet" href="/checkout?plan=premium">申込内容を確認する</a>
               <a href="/premium" class="fortune-btn secondary">会員限定鑑定へ戻る</a>
               <a href="/members" class="fortune-btn secondary">会員ページへ</a>
             </div>

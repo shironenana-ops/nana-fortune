@@ -208,7 +208,11 @@ test("deep begins with membership, monthly quota, rate, concurrency, and idempot
     leaseSeconds: 120, ttlSeconds: 3600, rateLimit: config,
     deepQuota: { tableName: "fixture-deep", usersTableName: "fixture-users", hashSecret: SECRET, reservationSeconds: 600 },
   }, () => `uuid-${++value}`);
-  const result = await persistence.begin({ requestRef, fingerprint: "f".repeat(64), userId: "raw-deep-user", membershipTier: "premium", resolvedMode: "deep", readingDate: "2026-07-23", now: NOW });
+  const result = await persistence.begin({
+    requestRef, fingerprint: "f".repeat(64), userId: "raw-deep-user", membershipTier: "premium", resolvedMode: "deep", readingDate: "2026-07-23",
+    membership: { plan: "premium", subscriptionStatus: "active", currentPeriodStart: "2026-07-01T00:00:00.000Z", currentPeriodEnd: "2026-08-01T00:00:00.000Z", version: 2 },
+    now: NOW,
+  });
   assert.equal(result.kind, "acquired");
   const transaction = commands.find((command) => command.constructor.name === "TransactWriteItemsCommand").input.TransactItems;
   assert.equal(transaction.length, 5);

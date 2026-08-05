@@ -13,7 +13,7 @@ import {
   calculateDeepRemaining,
   createDeepQuotaRef,
   DEEP_QUOTA_SCHEMA_VERSION,
-  getJstPeriodKey,
+  createDeepContractPeriodKey,
   PREMIUM_DEEP_MONTHLY_LIMIT,
 } from "./deepQuota";
 import { fingerprintsEqual } from "./requestFingerprint";
@@ -278,39 +278,41 @@ export class DynamoReadingPersistence implements ReadingPersistence {
     }
   }
 
-  private usersCondition(userId: string): TransactWriteItem {
+  private usersCondition(userId: string, membership: { currentPeriodStart: string; currentPeriodEnd: string; version: number }): TransactWriteItem {
     const deep = this.config.deepQuota;
     if (!deep) throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
     return { ConditionCheck: {
       TableName: deep.usersTableName,
       Key: { user_id: S(userId) },
-      ConditionExpression: "#plan=:premium AND subscription_status=:active AND deep_enabled=:enabled",
+      ConditionExpression: "#plan=:premium AND subscription_status=:active AND deep_enabled=:enabled AND membership_version=:membershipVersion AND current_period_start=:periodStart AND current_period_end=:periodEnd",
       ExpressionAttributeNames: { "#plan": "plan" },
-      ExpressionAttributeValues: { ":premium": S("premium"), ":active": S("active"), ":enabled": B(true) },
+      ExpressionAttributeValues: { ":premium": S("premium"), ":active": S("active"), ":enabled": B(true), ":membershipVersion": N(membership.version), ":periodStart": S(membership.currentPeriodStart), ":periodEnd": S(membership.currentPeriodEnd) },
     } };
   }
 
-  private async isStillDeepEntitled(userId: string): Promise<boolean> {
+  private async isStillDeepEntitled(userId: string, membership: { currentPeriodStart: string; currentPeriodEnd: string; version: number }): Promise<boolean> {
     const deep = this.config.deepQuota;
     if (!deep) throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
     try {
       const result = await this.sender.send(new GetItemCommand({
         TableName: deep.usersTableName,
         Key: { user_id: S(userId) },
-        ProjectionExpression: "#plan, subscription_status, deep_enabled",
+        ProjectionExpression: "#plan, subscription_status, deep_enabled, membership_version, current_period_start, current_period_end",
         ExpressionAttributeNames: { "#plan": "plan" },
         ConsistentRead: true,
       }));
-      return result.Item?.plan?.S === "premium" && result.Item?.subscription_status?.S === "active" && result.Item?.deep_enabled?.BOOL === true;
+      return result.Item?.plan?.S === "premium" && result.Item?.subscription_status?.S === "active" && result.Item?.deep_enabled?.BOOL === true &&
+        Number(result.Item?.membership_version?.N) === membership.version && result.Item?.current_period_start?.S === membership.currentPeriodStart &&
+        result.Item?.current_period_end?.S === membership.currentPeriodEnd;
     } catch (error) {
       throw new ServerFoundationError("READING_DEEP_QUOTA_UNAVAILABLE", { cause: error });
     }
   }
 
-  private deepReservation(reservation: Reservation, userId: string, now: Date): DeepReservation {
+  private deepReservation(reservation: Reservation, userId: string, now: Date, membership: { currentPeriodStart: string; currentPeriodEnd: string }): DeepReservation {
     const deep = this.config.deepQuota;
     if (!deep) throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
-    const periodKey = getJstPeriodKey(now);
+    const periodKey = createDeepContractPeriodKey(membership.currentPeriodStart, membership.currentPeriodEnd);
     return {
       quotaRef: createDeepQuotaRef({ userId, periodKey, secret: deep.hashSecret }),
       periodKey,
@@ -324,11 +326,12 @@ export class DynamoReadingPersistence implements ReadingPersistence {
     userId: string;
     membershipTier: MembershipTier;
     now: Date;
+    membership: { plan: "premium"; subscriptionStatus: "active"; currentPeriodStart: string; currentPeriodEnd: string; version: number };
     existing?: Item;
   }): Promise<BeginResult> {
     const deep = this.config.deepQuota;
     if (!deep) throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
-    const baseDeep = this.deepReservation(params.reservation, params.userId, params.now);
+    const baseDeep = this.deepReservation(params.reservation, params.userId, params.now, params.membership);
     const reservation = { ...params.reservation, deep: baseDeep };
     const nowEpoch = Math.floor(params.now.getTime() / 1000);
 
@@ -352,7 +355,7 @@ export class DynamoReadingPersistence implements ReadingPersistence {
         if (acquired) reservation.rateControl = acquired.reservation;
         try {
           await this.sender.send(new TransactWriteItemsCommand({ TransactItems: [
-            this.usersCondition(params.userId),
+            this.usersCondition(params.userId, params.membership),
             ...(acquired?.actions ?? []),
             { ConditionCheck: {
               TableName: deep.tableName,
@@ -366,7 +369,7 @@ export class DynamoReadingPersistence implements ReadingPersistence {
           return { kind: "acquired", reservation, takeover: true };
         } catch (error) {
           if (!conditional(error)) throw new ServerFoundationError("READING_DEEP_QUOTA_UNAVAILABLE", { cause: error });
-          if (transactionReason(error, 0) === "ConditionalCheckFailed" || !(await this.isStillDeepEntitled(params.userId))) throw new ServerFoundationError("READING_DEEP_NOT_ENTITLED");
+          if (transactionReason(error, 0) === "ConditionalCheckFailed" || !(await this.isStillDeepEntitled(params.userId, params.membership))) throw new ServerFoundationError("READING_DEEP_NOT_ENTITLED");
           continue;
         }
       }
@@ -420,13 +423,13 @@ export class DynamoReadingPersistence implements ReadingPersistence {
         : { Put: { TableName: this.config.idempotencyTable, Item: this.idempotencyItem(reservation, params.now), ConditionExpression: "attribute_not_exists(request_ref)" } };
       try {
         await this.sender.send(new TransactWriteItemsCommand({
-          TransactItems: [this.usersCondition(params.userId), ...(acquired?.actions ?? []), quotaPut(deep.tableName, previous, next, params.now), ...expiredUpdates, idempotencyAction],
+          TransactItems: [this.usersCondition(params.userId, params.membership), ...(acquired?.actions ?? []), quotaPut(deep.tableName, previous, next, params.now), ...expiredUpdates, idempotencyAction],
           ClientRequestToken: phaseToken(params.existing ? "deep-retry" : "deep-reserve", reservation, String(previous?.version ?? 0)),
         }));
         return { kind: "acquired", reservation, takeover: !!params.existing };
       } catch (error) {
         if (!conditional(error)) throw new ServerFoundationError("READING_DEEP_QUOTA_UNAVAILABLE", { cause: error });
-        if (transactionReason(error, 0) === "ConditionalCheckFailed" || !(await this.isStillDeepEntitled(params.userId))) throw new ServerFoundationError("READING_DEEP_NOT_ENTITLED");
+        if (transactionReason(error, 0) === "ConditionalCheckFailed" || !(await this.isStillDeepEntitled(params.userId, params.membership))) throw new ServerFoundationError("READING_DEEP_NOT_ENTITLED");
         const concurrent = await this.readIdempotency(reservation.requestRef);
         if (concurrent) {
           const classified = await this.classifyExisting({ existing: concurrent, requestRef: reservation.requestRef, fingerprint: reservation.fingerprint, userId: params.userId, now: params.now });
@@ -490,15 +493,19 @@ export class DynamoReadingPersistence implements ReadingPersistence {
     };
   }
 
-  async begin(params: { requestRef: string; fingerprint: string; userId: string; membershipTier: MembershipTier; resolvedMode: Reservation["resolvedMode"]; readingDate: string; now: Date }): Promise<BeginResult> {
+  async begin(params: { requestRef: string; fingerprint: string; userId: string; membershipTier: MembershipTier; resolvedMode: Reservation["resolvedMode"]; readingDate: string; now: Date; membership?: { plan: "premium"; subscriptionStatus: "active"; currentPeriodStart: string; currentPeriodEnd: string; version: number } }): Promise<BeginResult> {
     const reservation = this.reservation(params);
     if (params.resolvedMode === "deep") {
+      if (!params.membership || params.membership.plan !== "premium" || params.membership.subscriptionStatus !== "active" ||
+          !Number.isSafeInteger(params.membership.version) || params.membership.version < 0) {
+        throw new ServerFoundationError("READING_DEEP_QUOTA_CONFIG_ERROR");
+      }
       const existing = await this.readIdempotency(params.requestRef);
       if (existing) {
         const classified = await this.classifyExisting({ existing, ...params });
         if (classified !== "reclaim") return classified;
       }
-      return this.reserveDeep({ reservation: existing ? { ...reservation, historyId: text(existing, "history_id") || reservation.historyId, createdAt: text(existing, "created_at") || reservation.createdAt } : reservation, userId: params.userId, membershipTier: params.membershipTier, now: params.now, existing });
+      return this.reserveDeep({ reservation: existing ? { ...reservation, historyId: text(existing, "history_id") || reservation.historyId, createdAt: text(existing, "created_at") || reservation.createdAt } : reservation, userId: params.userId, membershipTier: params.membershipTier, membership: params.membership, now: params.now, existing });
     }
 
     // Direct repository tests and migration tooling may intentionally omit the

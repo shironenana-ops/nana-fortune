@@ -3,15 +3,14 @@ import "../styles/global.css";
 import SeoHead from "../components/SeoHead.astro";
 import {
   BILLING_PLANS,
-  getCheckoutHref,
-  isPaidBillingPlanId,
+  getPublicCheckoutHref,
   type BillingPlan,
 } from "../lib/billingPlans";
 
 export const prerender = false;
 
 const pageTitle = "白音七の料金・プラン";
-const pageDescription = "白音七の無料機能と、ライト会員・プレミアム会員・音声鑑定1回分の料金、利用枠、申込条件をご案内します。";
+const pageDescription = "白音七のライト会員、プレミアム会員、音声鑑定1回分について、価格・利用枠・支払・解約・返金条件をご案内します。";
 const plans = Object.values(BILLING_PLANS);
 
 const ctaLabels: Record<BillingPlan["id"], string> = {
@@ -43,14 +42,15 @@ const ctaLabels: Record<BillingPlan["id"], string> = {
         <div class="billing-frame">
           <div class="fortune-kicker">SHIRONE7 PRICING</div>
           <h1>白音七の料金・プラン</h1>
-          <p>無料で使える機能と、ライト会員・プレミアム会員・音声鑑定1回分の内容をご案内します。</p>
+          <p>無料機能と、fincode再申請対象である3商品の契約内容をご案内します。</p>
           <div class="billing-safety-note">
             <strong>白音七はカード番号を取得・保存しません</strong>
             <span>有料サービスのカード決済にはfincode byGMOを利用します。</span>
           </div>
           <div class="billing-review-note" role="status">
-            現在、fincode本番環境の利用開始に向けた審査・準備を行っています。<br />
-            プラン内容と申込条件はご確認いただけますが、本番カード決済はまだ開始していません。
+            <strong>サービス機能は準備済みです。</strong><br />
+            ライト会員、プレミアム会員、音声鑑定1回分の価格・利用枠・申込条件を確認できます。<br />
+            カード決済受付だけがfincode本番環境の審査待ちであり、審査完了までは決済ボタンを無効にしています。
           </div>
         </div>
       </section>
@@ -58,11 +58,11 @@ const ctaLabels: Record<BillingPlan["id"], string> = {
       <section class="fortune-container" id="plans">
         <div class="billing-plan-grid">
           {plans.map((plan) => {
-            const checkoutHref = isPaidBillingPlanId(plan.id) ? getCheckoutHref(plan.id) : null;
+            const checkoutHref = getPublicCheckoutHref(plan.id);
             return (
               <article id={plan.id} class:list={["billing-plan-card", `billing-plan-card--${plan.id}`]}>
                 <div class="billing-plan-type">
-                  {plan.billingType === "subscription" ? "月額・自動更新" : plan.billingType === "one_time" ? "買い切り" : "無料"}
+                  {plan.billingType === "subscription" ? "月額・自動更新" : plan.billingType === "one_time" ? "買い切り・自動更新なし" : "無料"}
                 </div>
                 <h2>{plan.displayName}</h2>
                 <div class="billing-plan-price">{plan.priceLabel}</div>
@@ -72,9 +72,7 @@ const ctaLabels: Record<BillingPlan["id"], string> = {
                   <a class="fortune-btn secondary" href="/diagnosis">{ctaLabels.free}</a>
                 ) : checkoutHref ? (
                   <a class="fortune-btn gold" href={checkoutHref}>{ctaLabels[plan.id]}</a>
-                ) : (
-                  <span class="billing-plan-unavailable">申込内容を確認できません</span>
-                )}
+                ) : null}
               </article>
             );
           })}
@@ -85,12 +83,12 @@ const ctaLabels: Record<BillingPlan["id"], string> = {
         <div class="billing-frame">
           <h2>お申し込み前にご確認ください</h2>
           <ol>
-            <li>有料商品のボタンから、商品・価格・利用枠・契約条件をご確認ください。</li>
+            <li>各商品のボタンから、価格・契約種別・利用枠・支払・提供・解約・返金条件をご確認ください。</li>
             <li>本番カード決済の開始後は、決済完了と白音七での確認を経て利用権へ反映します。</li>
-            <li>月額プランは自動更新です。いつでも解約手続きができ、現在の契約期間末まで利用できます。</li>
+            <li>ライト会員とプレミアム会員は自動更新です。音声鑑定1回分は買い切りで、自動更新はありません。</li>
           </ol>
           <p>一度お届けした鑑定本文と生成済み音声は、会員ランクの変更や解約後も本人の履歴として保持します。新しい有料鑑定と未生成音声は、現在の会員権利と利用枠で制御します。</p>
-          <p>現在は本番決済審査中です。申込内容確認ページから先のカード入力や決済は行えません。</p>
+          <p>サービス機能は準備済みです。現在は3商品のカード決済受付だけがfincode本番審査待ちで、申込内容確認ページから先のカード入力や決済は行えません。</p>
           <div class="billing-guide-actions"><a class="fortune-btn primary" href="/signup?redirect=/join">白音七へ会員登録</a><a class="fortune-btn secondary" href="/login?redirect=/join">ログイン</a></div>
         </div>
       </section>

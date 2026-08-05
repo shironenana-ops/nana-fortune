@@ -1,10 +1,15 @@
 ---
 import "../styles/global.css";
 import SeoHead from "../components/SeoHead.astro";
+import { resolvePublicRuntimeApiConfig } from "../lib/runtimeApiConfig";
 
 const siteTitle = "白音七";
 const pageTitle = `${siteTitle} | 新規登録`;
 const pageDescription = "白音七の新規登録";
+const runtimeApi = resolvePublicRuntimeApiConfig(import.meta.env);
+const signupApiUrl = runtimeApi.signupUrl ?? "";
+const stagingAuthEnabled = runtimeApi.authEnabled;
+const localStaging = runtimeApi.stagingIndicator;
 ---
 
 <!DOCTYPE html>
@@ -16,6 +21,7 @@ const pageDescription = "白音七の新規登録";
   </head>
 
   <body class="fortune-body">
+    {localStaging && <p class="fortune-container" role="status">staging接続モードです。認証機能は現在停止中です。</p>}
     <header class="fortune-header">
       <div class="fortune-container fortune-header-inner">
         <a href="/" class="fortune-logo">
@@ -53,7 +59,7 @@ const pageDescription = "白音七の新規登録";
           <p>白音七の占いをはじめて使う方のための登録画面です</p>
 
           <p class="fortune-login-lead">
-            アカウントを作成すると、鑑定履歴の保存や会員プランの利用ができるようになります。<br />
+            アカウントを作成すると、鑑定履歴の保存や会員プランへの申込みができるようになります。<br />
             まずは登録して、必要に応じて会員化や追加へ進めます。
           </p>
 
@@ -256,9 +262,7 @@ const pageDescription = "白音七の新規登録";
     </style>
 
 
-    <script is:inline>
-      const API_BASE = "https://i3fn2xgcrl.execute-api.ap-northeast-1.amazonaws.com";
-      const SIGNUP_API = `${API_BASE}/signup`;
+    <script define:vars={{ signupApiUrl, stagingAuthEnabled }}>
 
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
@@ -331,6 +335,11 @@ const pageDescription = "白音七の新規登録";
       const signupForm = document.getElementById("signupForm");
       const signupMessage = document.getElementById("signupMessage");
 
+      if (!stagingAuthEnabled || !signupApiUrl) {
+        signupForm.querySelector("button[type='submit']").disabled = true;
+        signupMessage.textContent = "この環境では新規登録機能をまだ有効化していません。";
+      }
+
       signupForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         signupMessage.textContent = "";
@@ -355,7 +364,8 @@ const pageDescription = "白音七の新規登録";
         }
 
         try {
-          const res = await fetch(SIGNUP_API, {
+          if (!stagingAuthEnabled || !signupApiUrl) return;
+          const res = await fetch(signupApiUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
@@ -369,7 +379,12 @@ const pageDescription = "白音七の新規登録";
           const data = await res.json().catch(() => ({}));
 
           if (!res.ok) {
-            throw new Error(data?.message || data?.error || "新規登録に失敗しました。");
+            const safeErrorMessage =
+              (typeof data?.message === "string" && data.message.trim()) ||
+              (typeof data?.error?.message === "string" && data.error.message.trim()) ||
+              (typeof data?.error === "string" && data.error.trim()) ||
+              "新規登録に失敗しました。";
+            throw new Error(safeErrorMessage);
           }
 
           if (data?.email_verification_required === true) {
