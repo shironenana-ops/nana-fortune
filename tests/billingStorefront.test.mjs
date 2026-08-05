@@ -194,6 +194,17 @@ test("公開ページはdirect fincode表記へ統一し、旧導線と旧準備
   assert.match(combined, /shirone\.nana\.fortune@gmail\.com/u);
 });
 
+test("LightとPremiumの鑑定機能は提供準備済みで、停止対象を本番カード申込受付に限定する", () => {
+  for (const path of ["src/pages/premium/light.astro", "src/pages/premium/deep.astro"]) {
+    const page = source(path);
+    assert.match(page, /提供準備済み/u);
+    assert.match(page, /fincode本番審査中/u);
+    assert.match(page, /カード決済によるお申し込み受付を停止しています/u);
+    assert.match(page, /審査完了後に受付を開始します/u);
+    assert.doesNotMatch(page, /鑑定として準備しています|機能準備中|今後提供予定|有料機能は準備中|料金は発生しません/u);
+  }
+});
+
 test("法務3文書は決済・提供時期・解約・返金・履歴の扱いで整合する", () => {
   const terms = source("src/pages/terms.astro");
   const privacy = source("src/pages/privacy.astro");
