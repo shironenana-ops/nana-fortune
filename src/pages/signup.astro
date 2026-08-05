@@ -8,7 +8,7 @@ const pageTitle = `${siteTitle} | 新規登録`;
 const pageDescription = "白音七の新規登録";
 const runtimeApi = resolvePublicRuntimeApiConfig(import.meta.env);
 const signupApiUrl = runtimeApi.signupUrl ?? "";
-const stagingAuthEnabled = runtimeApi.authEnabled;
+const authEnabled = runtimeApi.authEnabled;
 const localStaging = runtimeApi.stagingIndicator;
 ---
 
@@ -262,7 +262,7 @@ const localStaging = runtimeApi.stagingIndicator;
     </style>
 
 
-    <script define:vars={{ signupApiUrl, stagingAuthEnabled }}>
+    <script define:vars={{ signupApiUrl, authEnabled }}>
 
       const authArea = document.getElementById("authArea");
       const token = localStorage.getItem("token");
@@ -335,7 +335,7 @@ const localStaging = runtimeApi.stagingIndicator;
       const signupForm = document.getElementById("signupForm");
       const signupMessage = document.getElementById("signupMessage");
 
-      if (!stagingAuthEnabled || !signupApiUrl) {
+      if (!authEnabled || !signupApiUrl) {
         signupForm.querySelector("button[type='submit']").disabled = true;
         signupMessage.textContent = "この環境では新規登録機能をまだ有効化していません。";
       }
@@ -364,7 +364,7 @@ const localStaging = runtimeApi.stagingIndicator;
         }
 
         try {
-          if (!stagingAuthEnabled || !signupApiUrl) return;
+          if (!authEnabled || !signupApiUrl) return;
           const res = await fetch(signupApiUrl, {
             method: "POST",
             headers: {
