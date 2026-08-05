@@ -69,7 +69,7 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
               <div class="checkout-review-state" role="status">
                 {testCheckoutEnabled
                   ? "現在はfincode TEST環境で決済動作を確認しています。本番カード決済はまだ開始していません。"
-                  : "現在はfincode本番環境の審査・準備中です。申込条件は確認できますが、本番カード決済はまだ開始していません。"}
+                  : "サービス機能と申込条件は準備済みです。カード決済受付だけがfincode本番環境の審査待ちで、審査完了までは決済できません。"}
               </div>
 
               <dl class="checkout-review-list">
@@ -82,8 +82,8 @@ const paymentTiming = selectedPlan?.billingType === "subscription"
                 <div><dt>支払方法</dt><dd>fincode byGMOを利用したクレジットカード決済</dd></div>
                 <div><dt>支払時期</dt><dd>{paymentTiming}</dd></div>
                 <div><dt>サービス提供時期</dt><dd>決済完了および白音七での決済確認後、原則として直ちに利用権へ反映します。処理に時間を要する場合は、決済完了から24時間以内を目安に反映します。</dd></div>
-                <div><dt>解約方法</dt><dd>月額プランは、お問い合わせ先へのご連絡によりいつでも解約手続きが可能です。現在の契約期間末まで利用でき、次回以降の自動更新を停止します。</dd></div>
-                <div><dt>返金・キャンセル</dt><dd>お客様都合による決済完了後のキャンセル・返金は原則として受け付けません。重複請求、サービス未提供、白音七側のシステム不具合等は、決済記録と利用状況を確認のうえ個別に対応します。月額プランの残期間に対する日割り返金は行いません。</dd></div>
+                <div><dt>解約方法</dt><dd>{selectedPlan.billingType === "subscription" ? "お問い合わせ先へのご連絡によりいつでも解約手続きが可能です。現在の契約期間末まで利用でき、次回以降の自動更新を停止します。" : "買い切り商品のため、自動更新と解約手続きはありません。"}</dd></div>
+                <div><dt>返金・キャンセル</dt><dd>{selectedPlan.billingType === "subscription" ? "お客様都合による決済完了後のキャンセル・返金は原則として受け付けません。重複請求、サービス未提供、白音七側のシステム不具合等は、決済記録と利用状況を確認のうえ個別に対応します。月額プランの残期間に対する日割り返金は行いません。" : "お客様都合による決済完了後のキャンセル・返金は原則として受け付けません。重複請求、サービス未提供、白音七側のシステム不具合等は、決済記録と利用状況を確認のうえ個別に対応します。"}</dd></div>
               </dl>
 
               <div class="checkout-legal-links" aria-label="申込条件に関する文書">

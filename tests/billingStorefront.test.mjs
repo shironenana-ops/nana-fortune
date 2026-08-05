@@ -4,9 +4,11 @@ import { readFileSync } from "node:fs";
 import {
   BILLING_PLANS,
   FINCODE_TEST_LIGHT_BROWSER_E2E_PROFILE,
+  PUBLIC_SALE_BILLING_PLAN_IDS,
   getBillingPlan,
   getCheckoutHref,
   getPaidBillingPlan,
+  getPublicCheckoutHref,
   isFincodeCheckoutEnabled,
   isFincodeTestCheckoutEnabled,
   isFincodeTestLightCheckoutEnabled,
@@ -72,6 +74,30 @@ test("申込対象は固定allow-listだけを受け付け、queryの価格や�
   assert.equal(getCheckoutHref("light"), "/checkout?plan=light");
   assert.equal(getCheckoutHref("premium"), "/checkout?plan=premium");
   assert.equal(getCheckoutHref("voice_single"), "/checkout?plan=voice_single");
+
+  assert.deepEqual(PUBLIC_SALE_BILLING_PLAN_IDS, ["light", "premium", "voice_single"]);
+  assert.equal(getPublicCheckoutHref("light"), "/checkout?plan=light");
+  assert.equal(getPublicCheckoutHref("premium"), "/checkout?plan=premium");
+  assert.equal(getPublicCheckoutHref("voice_single"), "/checkout?plan=voice_single");
+  assert.equal(getPublicCheckoutHref("unknown"), null);
+  assert.deepEqual(BILLING_PLANS.light.features, [
+    "無料機能",
+    "ライト鑑定 月5回",
+    "音声鑑定 月3回",
+    "鑑定履歴の保存・閲覧",
+  ]);
+  assert.deepEqual(BILLING_PLANS.premium.features, [
+    "無料機能",
+    "ライト鑑定 月20回",
+    "深掘り鑑定 月3回",
+    "音声鑑定 月10回",
+    "鑑定履歴の保存・閲覧",
+  ]);
+  assert.deepEqual(BILLING_PLANS.voice_single.features, [
+    "音声鑑定1回分",
+    "月額契約なし",
+    "買い切り",
+  ]);
 });
 
 test("fincode checkout flagは文字列trueの明示指定時だけON", () => {
@@ -118,13 +144,15 @@ test("Light TEST checkoutはlocal-stagingとBrowser E2E profileの完全一致�
   }
 });
 
-test("料金ページは4商品と確認画面への導線をCatalogから描画する", () => {
+test("料金ページは3商品すべての申込内容確認導線を公開する", () => {
   const join = source("src/pages/join.astro");
   assert.match(join, /BILLING_PLANS/);
-  assert.match(join, /getCheckoutHref/);
+  assert.match(join, /getPublicCheckoutHref/);
   assert.match(join, /fincode byGMO/);
-  assert.match(join, /本番カード決済はまだ開始していません/);
+  assert.match(join, /カード決済受付だけがfincode本番環境の審査待ち/u);
   assert.match(join, /申込内容を確認する/);
+  assert.match(join, /getPublicCheckoutHref/u);
+  assert.doesNotMatch(join, /今後提供予定|機能準備中|現在申込不可/u);
   assert.doesNotMatch(join, /target="_blank"|data-checkout-plan/i);
 });
 
@@ -140,6 +168,9 @@ test("checkoutは通常時の決済停止を維持し、Light Browser E2Eとvoic
   }
   assert.match(checkout, /PUBLIC_FINCODE_CHECKOUT_ENABLED/);
   assert.match(checkout, /type="button" disabled aria-disabled="true"/);
+  assert.doesNotMatch(checkout, /futureOnlyPlan|今後提供予定|機能準備中|現在申込不可/u);
+  assert.match(checkout, /買い切り商品のため、自動更新と解約手続きはありません/u);
+  assert.match(checkout, /selectedPlan\.billingType === "subscription"/u);
   assert.match(checkout, /PUBLIC_FINCODE_TEST_PAYMENT_ENABLED/);
   assert.match(checkout, /isFincodeTestCheckoutEnabled/);
   assert.match(checkout, /fetch\("\/api\/billing\/fincode\/test\/register"/);
@@ -158,6 +189,7 @@ test("公開ページはdirect fincode表記へ統一し、旧導線と旧準備
   const combined = publicBillingFiles.map(source).join("\n");
   assert.doesNotMatch(combined, /MOSH|mosh\.jp|PUBLIC_MOSH_BILLING_ENABLED/i);
   assert.doesNotMatch(combined, /料金は準備中|料金が発生することはありません|自動反映ではありません/u);
+  assert.doesNotMatch(combined, /今後提供予定|機能準備中|現在申込不可|決済準備中|Stripe/u);
   assert.match(combined, /fincode byGMO/u);
   assert.match(combined, /shirone\.nana\.fortune@gmail\.com/u);
 });
@@ -178,4 +210,48 @@ test("法務3文書は決済・提供時期・解約・返金・履歴の扱い�
   assert.match(commerce, /24時間以内/u);
   assert.match(commerce, /重複請求/u);
   assert.match(privacy, /決済結果、契約状態/u);
+});
+
+test("公開販売契約はLight・Premium・音声鑑定1回分へ統一される", () => {
+  const index = source("src/pages/index.astro");
+  const join = source("src/pages/join.astro");
+  const checkout = source("src/pages/checkout.astro");
+  const terms = source("src/pages/terms.astro");
+  const commerce = source("src/pages/commercial-transactions.astro");
+  const contact = source("src/pages/contact.astro");
+  const members = source("src/pages/members.astro");
+
+  for (const document of [index, join, terms, commerce, contact, members]) {
+    assert.match(document, /ライト会員/u);
+    assert.match(document, /プレミアム会員/u);
+    assert.match(document, /音声鑑定1回分/u);
+  }
+  assert.match(checkout, /getPaidBillingPlan/u);
+  assert.match(checkout, /selectedPlan\.displayName/u);
+  for (const document of [terms, contact, members]) {
+    assert.match(document, /980円/u);
+    assert.match(document, /2,980円/u);
+    assert.match(document, /300円/u);
+    assert.match(document, /自動更新/u);
+  }
+  assert.match(index, /lightPlan\.priceLabel/u);
+  assert.match(index, /自動更新/u);
+  assert.match(commerce, /BILLING_PLANS\.light\.priceLabel/u);
+  assert.match(commerce, /自動更新/u);
+  for (const document of [terms, contact, members]) {
+    assert.match(document, /ライト鑑定(?:月| 月)5回/u);
+    assert.match(document, /音声鑑定(?:月| 月)3回/u);
+    assert.match(document, /ライト鑑定(?:月| 月)20回/u);
+    assert.match(document, /深掘り鑑定(?:月| 月)3回/u);
+    assert.match(document, /音声鑑定(?:月| 月)10回/u);
+  }
+  assert.match(index, /lightPlan\.priceLabel/u);
+  assert.match(index, /premiumPlan\.priceLabel/u);
+  assert.match(index, /voicePlan\.priceLabel/u);
+  assert.match(commerce, /BILLING_PLANS\.light\.lightMonthlyLimit/u);
+  assert.match(commerce, /BILLING_PLANS\.light\.voiceMonthlyLimit/u);
+  assert.match(join, /getPublicCheckoutHref/u);
+  assert.match(members, /checkout\?plan=premium/u);
+  assert.match(members, /checkout\?plan=voice_single/u);
+  assert.doesNotMatch(terms, /\blight鑑定\b|\bdeep鑑定\b/u);
 });

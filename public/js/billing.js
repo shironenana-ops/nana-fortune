@@ -1,7 +1,7 @@
 // Legacy billing UI compatibility shim.
 // 本番決済は開通させず、申込条件の確認導線だけを提供する。
 const BILLING_PREPARATION_MESSAGE =
-  "本番カード決済は現在準備中です。\n申込内容確認ページをご確認ください。";
+  "3商品のサービス機能と申込条件は準備済みです。\nカード決済受付だけがfincode本番環境の審査待ちです。";
 
 function findMessageBox() {
   return document.getElementById("billingMessage") || document.getElementById("joinBillingMessage");
@@ -17,10 +17,10 @@ function showBillingPreparationMessage() {
 
 function getPreparationButtonLabel(button) {
   const plan = button?.getAttribute("data-checkout-plan") || "";
-  if (plan === "extra") return "音声単体はプラン案内へ";
-  if (plan === "normal" || plan === "light") return "ライト会員はプラン案内へ";
-  if (plan === "premium") return "プレミアム会員はプラン案内へ";
-  return "プラン案内へ";
+  if (plan === "extra") return "音声鑑定1回分の申込内容確認へ";
+  if (plan === "normal" || plan === "light") return "ライト会員の申込内容確認へ";
+  if (plan === "premium") return "プレミアム会員の申込内容確認へ";
+  return "申込内容確認へ";
 }
 
 function prepareBillingButton(button) {
