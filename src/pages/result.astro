@@ -1032,7 +1032,7 @@ const pageDescription = "白音七の鑑定結果ページ";
 
         saveBtn?.addEventListener("click", async () => {
           if (!HISTORY_SAVE_API) {
-            saveMessage.textContent = "現在このテスト環境では鑑定履歴を保存できません。";
+            saveMessage.textContent = "現在、鑑定履歴を保存できません。しばらくしてからもう一度お試しください。";
             saveBtn.disabled = true;
             return;
           }

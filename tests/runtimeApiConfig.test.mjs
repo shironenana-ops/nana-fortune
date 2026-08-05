@@ -77,5 +77,19 @@ test("frontendは固定execute-api URLを持たず単一runtime configを参照�
   const source = (await Promise.all(files.map((file) => readFile(file, "utf8")))).join("\n");
   assert.doesNotMatch(source, /[a-z0-9]+\.execute-api\.ap-northeast-1\.amazonaws\.com/u);
   assert.match(source, /runtimeApiConfig/u);
-  assert.match(source, /現在このテスト環境では鑑定履歴/u);
+  assert.doesNotMatch(source, /現在このテスト環境では鑑定履歴/u);
+});
+
+test("履歴の保存・一覧・詳細はproduction設定とBearer認証だけを使用する", async () => {
+  const result = await readFile("src/pages/result.astro", "utf8");
+  const list = await readFile("src/pages/history/index.astro", "utf8");
+  const detail = await readFile("src/pages/history/[id].astro", "utf8");
+  const source = [result, list, detail].join("\n");
+
+  assert.match(result, /historyBaseUrl \? `\$\{historyBaseUrl\}\/history` : ""/u);
+  assert.match(list, /Authorization: "Bearer " \+ token/u);
+  assert.match(detail, /Authorization: "Bearer " \+ token/u);
+  assert.doesNotMatch(source, /[?&]user_id=/u);
+  assert.doesNotMatch(source, /\/user\/status/u);
+  assert.doesNotMatch(source, /PUBLIC_STAGING_API_BASE_URL/u);
 });
