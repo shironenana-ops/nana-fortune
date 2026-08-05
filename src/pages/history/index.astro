@@ -1782,7 +1782,7 @@ const localStaging = runtimeApi.stagingIndicator;
 
         if (!HISTORY_API_BASE) {
           const list = document.getElementById("historyList");
-          if (list) list.innerHTML = '<div class="empty-card">現在このテスト環境では鑑定履歴を利用できません。</div>';
+          if (list) list.innerHTML = '<div class="empty-card">現在、鑑定履歴を利用できません。しばらくしてからもう一度お試しください。</div>';
           showNotice(localStaging ? "staging環境では履歴APIへ接続しません" : "履歴機能は現在利用できません", false);
           const reload = document.getElementById("reloadHistoryButton");
           if (reload) reload.disabled = true;
