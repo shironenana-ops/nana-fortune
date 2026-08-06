@@ -1,0 +1,234 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CallerBoundary",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    },
+    {
+      "Sid": "ValidateTemplateOnlyInTokyo",
+      "Effect": "Allow",
+      "Action": "cloudformation:ValidateTemplate",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-northeast-1"
+        }
+      }
+    },
+    {
+      "Sid": "CreateReleaseBChangeSetWithExactRoleAndTypes",
+      "Effect": "Allow",
+      "Action": "cloudformation:CreateChangeSet",
+      "Resource": "arn:aws:cloudformation:ap-northeast-1:388811589005:stack/nana-reading-production/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-northeast-1",
+          "cloudformation:RoleArn": "arn:aws:iam::388811589005:role/NanaProductionCanonicalRuntimeExecutionRole",
+          "cloudformation:TemplateUrl": "https://nana-prod-artifacts-388811589005-apne1.s3.ap-northeast-1.amazonaws.com/nana-reading-production/release-b/20260806/template-789cc9711056.json",
+          "aws:RequestTag/Project": "nana-fortune",
+          "aws:RequestTag/Environment": "production",
+          "aws:RequestTag/Component": "canonical-reading-runtime",
+          "aws:RequestTag/ManagedBy": "cloudformation"
+        },
+        "StringLike": {
+          "cloudformation:ChangeSetName": "nana-reading-production-*"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Environment",
+            "Component",
+            "ManagedBy"
+          ]
+        },
+        "Null": {
+          "cloudformation:RoleArn": "false",
+          "cloudformation:TemplateUrl": "false"
+        }
+      }
+    },
+    {
+      "Sid": "OperateOnlyReleaseBStack",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:DeleteStack",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DetectStackDrift",
+        "cloudformation:DescribeStackDriftDetectionStatus",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:GetTemplate"
+      ],
+      "Resource": "arn:aws:cloudformation:ap-northeast-1:388811589005:stack/nana-reading-production/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-northeast-1"
+        }
+      }
+    },
+    {
+      "Sid": "PassExactExecutionRoleToCloudFormationOnly",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::388811589005:role/NanaProductionCanonicalRuntimeExecutionRole",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "cloudformation.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "ReadExactExecutionRole",
+      "Effect": "Allow",
+      "Action": "iam:GetRole",
+      "Resource": "arn:aws:iam::388811589005:role/NanaProductionCanonicalRuntimeExecutionRole"
+    },
+    {
+      "Sid": "ReadArtifactBucketRegion",
+      "Effect": "Allow",
+      "Action": "s3:GetBucketLocation",
+      "Resource": "arn:aws:s3:::nana-prod-artifacts-388811589005-apne1"
+    },
+    {
+      "Sid": "ListOnlyReleaseBArtifactPrefix",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::nana-prod-artifacts-388811589005-apne1",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "nana-reading-production/release-b/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "ReadWriteOnlyReleaseBArtifacts",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::nana-prod-artifacts-388811589005-apne1/nana-reading-production/release-b/*"
+    },
+    {
+      "Sid": "ReadLegacyMigrationSources",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:ap-northeast-1:388811589005:table/shirone7_users",
+        "arn:aws:dynamodb:ap-northeast-1:388811589005:table/shirone7_history"
+      ]
+    },
+    {
+      "Sid": "ApplyConditionalCanonicalMembershipUpdate",
+      "Effect": "Allow",
+      "Action": "dynamodb:UpdateItem",
+      "Resource": "arn:aws:dynamodb:ap-northeast-1:388811589005:table/shirone7_users",
+      "Condition": {
+        "StringEquals": {
+          "dynamodb:EnclosingOperation": "TransactWriteItems"
+        }
+      }
+    },
+    {
+      "Sid": "ApplyConditionalCanonicalQuotaCreates",
+      "Effect": "Allow",
+      "Action": "dynamodb:PutItem",
+      "Resource": [
+        "arn:aws:dynamodb:ap-northeast-1:388811589005:table/nana-reading-production-FincodeLightQuotaTable-*",
+        "arn:aws:dynamodb:ap-northeast-1:388811589005:table/nana-reading-production-ReadingDeepQuotaTable-*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "dynamodb:EnclosingOperation": "TransactWriteItems"
+        }
+      }
+    },
+    {
+      "Sid": "ReadCanonicalMigrationTargets",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": "arn:aws:dynamodb:ap-northeast-1:388811589005:table/nana-reading-production-*"
+    },
+    {
+      "Sid": "RuntimeSecretExactArnAfterCreation",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:PutSecretValue"
+      ],
+      "Resource": "arn:aws:secretsmanager:ap-northeast-1:388811589005:secret:shirone7/production/runtime-h4BVT3"
+    },
+    {
+      "Sid": "ReadReleaseBFunctions",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration"
+      ],
+      "Resource": "arn:aws:lambda:ap-northeast-1:388811589005:function:nana-reading-production-*"
+    },
+    {
+      "Sid": "ListEventSourcesInTokyo",
+      "Effect": "Allow",
+      "Action": "lambda:ListEventSourceMappings",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-northeast-1"
+        }
+      }
+    },
+    {
+      "Sid": "ReadReleaseBEventSources",
+      "Effect": "Allow",
+      "Action": "lambda:GetEventSourceMapping",
+      "Resource": "arn:aws:lambda:ap-northeast-1:388811589005:event-source-mapping:*"
+    },
+    {
+      "Sid": "ReadReleaseBLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogStreams",
+        "logs:FilterLogEvents"
+      ],
+      "Resource": "arn:aws:logs:ap-northeast-1:388811589005:log-group:/aws/lambda/nana-reading-production-*:*"
+    },
+    {
+      "Sid": "ReadReleaseBQueues",
+      "Effect": "Allow",
+      "Action": "sqs:GetQueueAttributes",
+      "Resource": "arn:aws:sqs:ap-northeast-1:388811589005:nana-reading-production-*"
+    },
+    {
+      "Sid": "ReadReleaseBApiGateway",
+      "Effect": "Allow",
+      "Action": "apigateway:GET",
+      "Resource": "arn:aws:apigateway:ap-northeast-1::/apis*"
+    },
+    {
+      "Sid": "ReadReleaseBAlarms",
+      "Effect": "Allow",
+      "Action": "cloudwatch:DescribeAlarms",
+      "Resource": "arn:aws:cloudwatch:ap-northeast-1:388811589005:alarm:nana-reading-production-*"
+    }
+  ]
+}

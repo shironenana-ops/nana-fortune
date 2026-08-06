@@ -10,6 +10,8 @@ export type TrustedMembershipRecord = {
   current_period_start?: unknown;
   membership_version?: unknown;
   membership_schema_version?: unknown;
+  membership_source?: unknown;
+  membership_updated_at?: unknown;
 };
 
 export interface UserRepository {

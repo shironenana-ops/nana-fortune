@@ -1,6 +1,7 @@
 ---
 import "../../styles/global.css";
 import SeoHead from "../../components/SeoHead.astro";
+import PaidReadingForm from "../../components/PaidReadingForm.astro";
 import { BILLING_PLANS } from "../../lib/billingPlans";
 
 const pageTitle = "深掘り鑑定 | 白音七";
@@ -100,6 +101,8 @@ const premiumPlan = BILLING_PLANS.premium;
               <a href="/members" class="fortune-btn secondary">会員ページへ</a>
             </div>
           </section>
+
+          <PaidReadingForm mode="deep" title="深掘り鑑定を始める" />
 
           <p class="reading-door-note">
             一度届けられた鑑定本文は、その人の大切な履歴として残ります。<br />

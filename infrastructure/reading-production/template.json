@@ -1,0 +1,2554 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Shirone canonical paid reading production infrastructure (disabled by default)",
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "Default": "production",
+      "AllowedValues": [
+        "production"
+      ]
+    },
+    "ArtifactBucketName": {
+      "Type": "String",
+      "MinLength": 3,
+      "MaxLength": 63,
+      "AllowedPattern": "^[a-z0-9][a-z0-9.-]+[a-z0-9]$"
+    },
+    "ReadingRequestArtifactKey": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 1024
+    },
+    "ReadingStatusArtifactKey": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 1024
+    },
+    "LightWorkerArtifactKey": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 1024
+    },
+    "DeepWorkerArtifactKey": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 1024
+    },
+    "AllowedOrigins": {
+      "Type": "CommaDelimitedList",
+      "Default": "https://www.nana-fortune.com",
+      "Description": "Exact production origin; wildcard is not allowed"
+    },
+    "RuntimeSecretsArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:secretsmanager:ap-northeast-1:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$",
+      "NoEcho": true
+    },
+    "Owner": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 64
+    },
+    "CostCenter": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 64
+    },
+    "ReadingGenerateApiEnabled": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ]
+    },
+    "ReadingAsyncPaidEnabled": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ]
+    },
+    "ReadingStatusApiEnabled": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ]
+    },
+    "ReadingBedrockEnabled": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ]
+    },
+    "WorkerEventSourceMappingsEnabled": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ]
+    },
+    "ReadingLightQuotaEnabled": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ]
+    },
+    "LightModelId": {
+      "Type": "String",
+      "AllowedPattern": "^jp\\.[A-Za-z0-9._:-]+$"
+    },
+    "LightModelAlias": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 128
+    },
+    "DeepModelId": {
+      "Type": "String",
+      "AllowedPattern": "^jp\\.[A-Za-z0-9._:-]+$"
+    },
+    "DeepModelAlias": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 128
+    },
+    "LightInferenceProfileArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:bedrock:ap-northeast-1:[0-9]{12}:inference-profile/jp\\.[A-Za-z0-9._:-]+$"
+    },
+    "LightTokyoFoundationModelArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:bedrock:ap-northeast-1::foundation-model/[A-Za-z0-9._:-]+$"
+    },
+    "LightOsakaFoundationModelArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:bedrock:ap-northeast-3::foundation-model/[A-Za-z0-9._:-]+$"
+    },
+    "DeepInferenceProfileArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:bedrock:ap-northeast-1:[0-9]{12}:inference-profile/jp\\.[A-Za-z0-9._:-]+$"
+    },
+    "DeepTokyoFoundationModelArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:bedrock:ap-northeast-1::foundation-model/[A-Za-z0-9._:-]+$"
+    },
+    "DeepOsakaFoundationModelArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:bedrock:ap-northeast-3::foundation-model/[A-Za-z0-9._:-]+$"
+    },
+    "MembershipStatusArtifactKey": {
+      "Type": "String",
+      "MinLength": 1,
+      "MaxLength": 1024
+    },
+    "MembershipStatusApiEnabled": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "false",
+        "true"
+      ]
+    },
+    "UsersTableName": {
+      "Type": "String",
+      "Default": "shirone7_users",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{3,255}$"
+    },
+    "UsersTableArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:dynamodb:ap-northeast-1:[0-9]{12}:table/shirone7_users$"
+    },
+    "HistoryTableName": {
+      "Type": "String",
+      "Default": "shirone7_history",
+      "AllowedPattern": "^[A-Za-z0-9_.-]{3,255}$"
+    },
+    "HistoryTableArn": {
+      "Type": "String",
+      "AllowedPattern": "^arn:aws:dynamodb:ap-northeast-1:[0-9]{12}:table/shirone7_history$"
+    }
+  },
+  "Conditions": {
+    "WorkersEnabled": {
+      "Fn::Equals": [
+        {
+          "Ref": "WorkerEventSourceMappingsEnabled"
+        },
+        "true"
+      ]
+    }
+  },
+  "Resources": {
+    "ReadingIdempotencyTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "request_ref",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "request_ref",
+            "KeyType": "HASH"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "expires_at",
+          "Enabled": true
+        },
+        "DeletionProtectionEnabled": true,
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-idempotency"
+          },
+          {
+            "Key": "DataClassification",
+            "Value": "internal"
+          },
+          {
+            "Key": "Owner",
+            "Value": {
+              "Ref": "Owner"
+            }
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "CostCenter"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "ReadingRateLimitTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "rate_limit_ref",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "rate_limit_ref",
+            "KeyType": "HASH"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "expires_at",
+          "Enabled": true
+        },
+        "DeletionProtectionEnabled": true,
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-rate-limit"
+          },
+          {
+            "Key": "DataClassification",
+            "Value": "internal"
+          },
+          {
+            "Key": "Owner",
+            "Value": {
+              "Ref": "Owner"
+            }
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "CostCenter"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "ReadingDeepQuotaTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "quota_ref",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "quota_ref",
+            "KeyType": "HASH"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "expires_at",
+          "Enabled": true
+        },
+        "DeletionProtectionEnabled": true,
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-deep-quota"
+          },
+          {
+            "Key": "DataClassification",
+            "Value": "internal"
+          },
+          {
+            "Key": "Owner",
+            "Value": {
+              "Ref": "Owner"
+            }
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "CostCenter"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "ReadingJobsTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "job_ref",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "job_ref",
+            "KeyType": "HASH"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "expires_at",
+          "Enabled": true
+        },
+        "DeletionProtectionEnabled": true,
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": false
+        },
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-jobs"
+          },
+          {
+            "Key": "DataClassification",
+            "Value": "confidential"
+          },
+          {
+            "Key": "Owner",
+            "Value": {
+              "Ref": "Owner"
+            }
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "CostCenter"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "FincodeLightQuotaTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "quota_ref",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "quota_ref",
+            "KeyType": "HASH"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "expires_at",
+          "Enabled": true
+        },
+        "DeletionProtectionEnabled": true,
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "fincode-light-quota"
+          },
+          {
+            "Key": "DataClassification",
+            "Value": "internal"
+          },
+          {
+            "Key": "Owner",
+            "Value": {
+              "Ref": "Owner"
+            }
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "CostCenter"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "LightDeadLetterQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "MessageRetentionPeriod": 1209600,
+        "SqsManagedSseEnabled": true,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-light-dlq"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "DeepDeadLetterQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "MessageRetentionPeriod": 1209600,
+        "SqsManagedSseEnabled": true,
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-deep-dlq"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "LightQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "VisibilityTimeout": 720,
+        "MessageRetentionPeriod": 86400,
+        "SqsManagedSseEnabled": true,
+        "RedrivePolicy": {
+          "deadLetterTargetArn": {
+            "Fn::GetAtt": [
+              "LightDeadLetterQueue",
+              "Arn"
+            ]
+          },
+          "maxReceiveCount": 5
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-light-queue"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "DeepQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "VisibilityTimeout": 1440,
+        "MessageRetentionPeriod": 86400,
+        "SqsManagedSseEnabled": true,
+        "RedrivePolicy": {
+          "deadLetterTargetArn": {
+            "Fn::GetAtt": [
+              "DeepDeadLetterQueue",
+              "Arn"
+            ]
+          },
+          "maxReceiveCount": 5
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-deep-queue"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "ReadingRequestLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-reading-request"
+        },
+        "RetentionInDays": 30
+      }
+    },
+    "ReadingStatusLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-reading-status"
+        },
+        "RetentionInDays": 30
+      }
+    },
+    "LightWorkerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-reading-light-worker"
+        },
+        "RetentionInDays": 30
+      }
+    },
+    "DeepWorkerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-reading-deep-worker"
+        },
+        "RetentionInDays": 30
+      }
+    },
+    "ReadingRequestRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "reading-request-production-minimum",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "OwnLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "ReadingRequestLogGroup",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "ReadState",
+                  "Effect": "Allow",
+                  "Action": "dynamodb:GetItem",
+                  "Resource": [
+                    {
+                      "Ref": "UsersTableArn"
+                    },
+                    {
+                      "Ref": "HistoryTableArn"
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingIdempotencyTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingRateLimitTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingDeepQuotaTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "FincodeLightQuotaTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingJobsTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "WriteStateItems",
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Resource": [
+                    {
+                      "Ref": "HistoryTableArn"
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingIdempotencyTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingRateLimitTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingDeepQuotaTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingJobsTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "WriteStateTransactions",
+                  "Effect": "Allow",
+                  "Action": "dynamodb:TransactWriteItems",
+                  "Resource": [
+                    {
+                      "Ref": "UsersTableArn"
+                    },
+                    {
+                      "Ref": "HistoryTableArn"
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingIdempotencyTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingRateLimitTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingDeepQuotaTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "FincodeLightQuotaTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingJobsTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "EnqueuePaidJobs",
+                  "Effect": "Allow",
+                  "Action": "sqs:SendMessage",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "LightQueue",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "DeepQueue",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-request-role"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "ReadingStatusRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "reading-status-production-read-only",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "OwnLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "ReadingStatusLogGroup",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "ReadOwnedStatus",
+                  "Effect": "Allow",
+                  "Action": "dynamodb:GetItem",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingJobsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Ref": "HistoryTableArn"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-status-role"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "LightWorkerRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "reading-light-worker-production-minimum",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "OwnLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "LightWorkerLogGroup",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "ConsumeLightOnly",
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:ReceiveMessage",
+                    "sqs:DeleteMessage",
+                    "sqs:ChangeMessageVisibility",
+                    "sqs:GetQueueAttributes"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "LightQueue",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "ReadLightState",
+                  "Effect": "Allow",
+                  "Action": "dynamodb:GetItem",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingJobsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Ref": "HistoryTableArn"
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingIdempotencyTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingRateLimitTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "FincodeLightQuotaTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "UpdateLightJob",
+                  "Effect": "Allow",
+                  "Action": "dynamodb:UpdateItem",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "ReadingJobsTable",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "WriteLightTransactions",
+                  "Effect": "Allow",
+                  "Action": "dynamodb:TransactWriteItems",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingJobsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Ref": "HistoryTableArn"
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingIdempotencyTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingRateLimitTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "FincodeLightQuotaTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "InvokeLightProfile",
+                  "Effect": "Allow",
+                  "Action": "bedrock:InvokeModel",
+                  "Resource": {
+                    "Ref": "LightInferenceProfileArn"
+                  }
+                },
+                {
+                  "Sid": "InvokeLightModelsThroughProfile",
+                  "Effect": "Allow",
+                  "Action": "bedrock:InvokeModel",
+                  "Resource": [
+                    {
+                      "Ref": "LightTokyoFoundationModelArn"
+                    },
+                    {
+                      "Ref": "LightOsakaFoundationModelArn"
+                    }
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "bedrock:InferenceProfileArn": {
+                        "Ref": "LightInferenceProfileArn"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-light-worker-role"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "DeepWorkerRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "reading-deep-worker-production-minimum",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "OwnLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DeepWorkerLogGroup",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "ConsumeDeepOnly",
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:ReceiveMessage",
+                    "sqs:DeleteMessage",
+                    "sqs:ChangeMessageVisibility",
+                    "sqs:GetQueueAttributes"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "DeepQueue",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "ReadDeepState",
+                  "Effect": "Allow",
+                  "Action": "dynamodb:GetItem",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingJobsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Ref": "HistoryTableArn"
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingIdempotencyTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingRateLimitTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingDeepQuotaTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "UpdateDeepJob",
+                  "Effect": "Allow",
+                  "Action": "dynamodb:UpdateItem",
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "ReadingJobsTable",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "WriteDeepTransactions",
+                  "Effect": "Allow",
+                  "Action": "dynamodb:TransactWriteItems",
+                  "Resource": [
+                    {
+                      "Ref": "UsersTableArn"
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingJobsTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Ref": "HistoryTableArn"
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingIdempotencyTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingRateLimitTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingDeepQuotaTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "InvokeDeepProfile",
+                  "Effect": "Allow",
+                  "Action": "bedrock:InvokeModel",
+                  "Resource": {
+                    "Ref": "DeepInferenceProfileArn"
+                  }
+                },
+                {
+                  "Sid": "InvokeDeepModelsThroughProfile",
+                  "Effect": "Allow",
+                  "Action": "bedrock:InvokeModel",
+                  "Resource": [
+                    {
+                      "Ref": "DeepTokyoFoundationModelArn"
+                    },
+                    {
+                      "Ref": "DeepOsakaFoundationModelArn"
+                    }
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "bedrock:InferenceProfileArn": {
+                        "Ref": "DeepInferenceProfileArn"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-deep-worker-role"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "ReadingRequestFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "ReadingRequestLogGroup"
+      ],
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-reading-request"
+        },
+        "Runtime": "nodejs22.x",
+        "Handler": "index.handler",
+        "Timeout": 15,
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "ReadingRequestRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ArtifactBucketName"
+          },
+          "S3Key": {
+            "Ref": "ReadingRequestArtifactKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "READING_GENERATE_API_ENABLED": {
+              "Ref": "ReadingGenerateApiEnabled"
+            },
+            "READING_ASYNC_PAID_ENABLED": {
+              "Ref": "ReadingAsyncPaidEnabled"
+            },
+            "READING_LIGHT_QUOTA_ENABLED": {
+              "Ref": "ReadingLightQuotaEnabled"
+            },
+            "ALLOWED_ORIGINS": {
+              "Fn::Join": [
+                ",",
+                {
+                  "Ref": "AllowedOrigins"
+                }
+              ]
+            },
+            "USERS_TABLE_NAME": {
+              "Ref": "UsersTableName"
+            },
+            "READING_HISTORY_TABLE_NAME": {
+              "Ref": "HistoryTableName"
+            },
+            "READING_IDEMPOTENCY_TABLE_NAME": {
+              "Ref": "ReadingIdempotencyTable"
+            },
+            "READING_RATE_LIMIT_TABLE_NAME": {
+              "Ref": "ReadingRateLimitTable"
+            },
+            "READING_DEEP_QUOTA_TABLE_NAME": {
+              "Ref": "ReadingDeepQuotaTable"
+            },
+            "FINCODE_MEMBERSHIP_QUOTA_TABLE": {
+              "Ref": "FincodeLightQuotaTable"
+            },
+            "READING_JOBS_TABLE_NAME": {
+              "Ref": "ReadingJobsTable"
+            },
+            "READING_LIGHT_QUEUE_URL": {
+              "Ref": "LightQueue"
+            },
+            "READING_DEEP_QUEUE_URL": {
+              "Ref": "DeepQueue"
+            },
+            "SESSION_TOKEN_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:session_token_secret}}"
+            },
+            "AUDIT_HASH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:audit_hash_secret}}"
+            },
+            "READING_IDEMPOTENCY_HASH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:reading_idempotency_hash_secret}}"
+            },
+            "READING_DEEP_QUOTA_HASH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:reading_deep_quota_hash_secret}}"
+            },
+            "READING_IDEMPOTENCY_LEASE_SECONDS": "120",
+            "READING_IDEMPOTENCY_TTL_SECONDS": "604800",
+            "READING_JOB_TTL_SECONDS": "604800",
+            "READING_LIGHT_JOB_LEASE_SECONDS": "180",
+            "READING_DEEP_JOB_LEASE_SECONDS": "360",
+            "READING_JOB_ORPHAN_GRACE_SECONDS": "60",
+            "READING_DEEP_RESERVATION_SECONDS": "600",
+            "READING_RATE_LIMIT_FREE_FREE_MAX": "10",
+            "READING_RATE_LIMIT_FREE_FREE_WINDOW_SECONDS": "600",
+            "READING_RATE_LIMIT_LIGHT_FREE_MAX": "10",
+            "READING_RATE_LIMIT_LIGHT_FREE_WINDOW_SECONDS": "600",
+            "READING_RATE_LIMIT_LIGHT_LIGHT_MAX": "3",
+            "READING_RATE_LIMIT_LIGHT_LIGHT_WINDOW_SECONDS": "900",
+            "READING_RATE_LIMIT_PREMIUM_FREE_MAX": "10",
+            "READING_RATE_LIMIT_PREMIUM_FREE_WINDOW_SECONDS": "600",
+            "READING_RATE_LIMIT_PREMIUM_LIGHT_MAX": "5",
+            "READING_RATE_LIMIT_PREMIUM_LIGHT_WINDOW_SECONDS": "900",
+            "READING_RATE_LIMIT_PREMIUM_DEEP_MAX": "2",
+            "READING_RATE_LIMIT_PREMIUM_DEEP_WINDOW_SECONDS": "1800",
+            "READING_CONCURRENCY_LIGHT_LIMIT": "1",
+            "READING_CONCURRENCY_DEEP_LIMIT": "1",
+            "READING_CONCURRENCY_LEASE_SECONDS": "360",
+            "RUNTIME_ENVIRONMENT": {
+              "Ref": "Environment"
+            }
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-request"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "ReadingStatusFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "ReadingStatusLogGroup"
+      ],
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-reading-status"
+        },
+        "Runtime": "nodejs22.x",
+        "Handler": "index.handler",
+        "Timeout": 10,
+        "MemorySize": 256,
+        "Role": {
+          "Fn::GetAtt": [
+            "ReadingStatusRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ArtifactBucketName"
+          },
+          "S3Key": {
+            "Ref": "ReadingStatusArtifactKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "READING_STATUS_API_ENABLED": {
+              "Ref": "ReadingStatusApiEnabled"
+            },
+            "ALLOWED_ORIGINS": {
+              "Fn::Join": [
+                ",",
+                {
+                  "Ref": "AllowedOrigins"
+                }
+              ]
+            },
+            "READING_JOBS_TABLE_NAME": {
+              "Ref": "ReadingJobsTable"
+            },
+            "READING_HISTORY_TABLE_NAME": {
+              "Ref": "HistoryTableName"
+            },
+            "SESSION_TOKEN_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:session_token_secret}}"
+            },
+            "AUDIT_HASH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:audit_hash_secret}}"
+            },
+            "RUNTIME_ENVIRONMENT": {
+              "Ref": "Environment"
+            }
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-status"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "LightWorkerFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "LightWorkerLogGroup"
+      ],
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-reading-light-worker"
+        },
+        "Runtime": "nodejs22.x",
+        "Handler": "index.handler",
+        "Timeout": 120,
+        "MemorySize": 1024,
+        "Role": {
+          "Fn::GetAtt": [
+            "LightWorkerRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ArtifactBucketName"
+          },
+          "S3Key": {
+            "Ref": "LightWorkerArtifactKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "READING_BEDROCK_ENABLED": {
+              "Ref": "ReadingBedrockEnabled"
+            },
+            "READING_LIGHT_QUOTA_ENABLED": {
+              "Ref": "ReadingLightQuotaEnabled"
+            },
+            "READING_BEDROCK_TIMEOUT_MS": "90000",
+            "BEDROCK_LIGHT_MODEL_ID": {
+              "Ref": "LightModelId"
+            },
+            "BEDROCK_LIGHT_MODEL_ALIAS": {
+              "Ref": "LightModelAlias"
+            },
+            "BEDROCK_DEEP_MODEL_ID": {
+              "Ref": "DeepModelId"
+            },
+            "BEDROCK_DEEP_MODEL_ALIAS": {
+              "Ref": "DeepModelAlias"
+            },
+            "READING_HISTORY_TABLE_NAME": {
+              "Ref": "HistoryTableName"
+            },
+            "READING_IDEMPOTENCY_TABLE_NAME": {
+              "Ref": "ReadingIdempotencyTable"
+            },
+            "READING_RATE_LIMIT_TABLE_NAME": {
+              "Ref": "ReadingRateLimitTable"
+            },
+            "FINCODE_MEMBERSHIP_QUOTA_TABLE": {
+              "Ref": "FincodeLightQuotaTable"
+            },
+            "READING_JOBS_TABLE_NAME": {
+              "Ref": "ReadingJobsTable"
+            },
+            "AUDIT_HASH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:audit_hash_secret}}"
+            },
+            "READING_IDEMPOTENCY_HASH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:reading_idempotency_hash_secret}}"
+            },
+            "READING_IDEMPOTENCY_LEASE_SECONDS": "120",
+            "READING_IDEMPOTENCY_TTL_SECONDS": "604800",
+            "READING_JOB_TTL_SECONDS": "604800",
+            "READING_LIGHT_JOB_LEASE_SECONDS": "180",
+            "READING_DEEP_JOB_LEASE_SECONDS": "360",
+            "READING_JOB_ORPHAN_GRACE_SECONDS": "60",
+            "READING_RATE_LIMIT_FREE_FREE_MAX": "10",
+            "READING_RATE_LIMIT_FREE_FREE_WINDOW_SECONDS": "600",
+            "READING_RATE_LIMIT_LIGHT_FREE_MAX": "10",
+            "READING_RATE_LIMIT_LIGHT_FREE_WINDOW_SECONDS": "600",
+            "READING_RATE_LIMIT_LIGHT_LIGHT_MAX": "3",
+            "READING_RATE_LIMIT_LIGHT_LIGHT_WINDOW_SECONDS": "900",
+            "READING_RATE_LIMIT_PREMIUM_FREE_MAX": "10",
+            "READING_RATE_LIMIT_PREMIUM_FREE_WINDOW_SECONDS": "600",
+            "READING_RATE_LIMIT_PREMIUM_LIGHT_MAX": "5",
+            "READING_RATE_LIMIT_PREMIUM_LIGHT_WINDOW_SECONDS": "900",
+            "READING_RATE_LIMIT_PREMIUM_DEEP_MAX": "2",
+            "READING_RATE_LIMIT_PREMIUM_DEEP_WINDOW_SECONDS": "1800",
+            "READING_CONCURRENCY_LIGHT_LIMIT": "1",
+            "READING_CONCURRENCY_DEEP_LIMIT": "1",
+            "READING_CONCURRENCY_LEASE_SECONDS": "180",
+            "RUNTIME_ENVIRONMENT": {
+              "Ref": "Environment"
+            }
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-light-worker"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "DeepWorkerFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "DeepWorkerLogGroup"
+      ],
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-reading-deep-worker"
+        },
+        "Runtime": "nodejs22.x",
+        "Handler": "index.handler",
+        "Timeout": 240,
+        "MemorySize": 1024,
+        "Role": {
+          "Fn::GetAtt": [
+            "DeepWorkerRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ArtifactBucketName"
+          },
+          "S3Key": {
+            "Ref": "DeepWorkerArtifactKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "READING_BEDROCK_ENABLED": {
+              "Ref": "ReadingBedrockEnabled"
+            },
+            "READING_BEDROCK_TIMEOUT_MS": "180000",
+            "BEDROCK_LIGHT_MODEL_ID": {
+              "Ref": "LightModelId"
+            },
+            "BEDROCK_LIGHT_MODEL_ALIAS": {
+              "Ref": "LightModelAlias"
+            },
+            "BEDROCK_DEEP_MODEL_ID": {
+              "Ref": "DeepModelId"
+            },
+            "BEDROCK_DEEP_MODEL_ALIAS": {
+              "Ref": "DeepModelAlias"
+            },
+            "USERS_TABLE_NAME": {
+              "Ref": "UsersTableName"
+            },
+            "READING_HISTORY_TABLE_NAME": {
+              "Ref": "HistoryTableName"
+            },
+            "READING_IDEMPOTENCY_TABLE_NAME": {
+              "Ref": "ReadingIdempotencyTable"
+            },
+            "READING_RATE_LIMIT_TABLE_NAME": {
+              "Ref": "ReadingRateLimitTable"
+            },
+            "READING_DEEP_QUOTA_TABLE_NAME": {
+              "Ref": "ReadingDeepQuotaTable"
+            },
+            "READING_JOBS_TABLE_NAME": {
+              "Ref": "ReadingJobsTable"
+            },
+            "AUDIT_HASH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:audit_hash_secret}}"
+            },
+            "READING_IDEMPOTENCY_HASH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:reading_idempotency_hash_secret}}"
+            },
+            "READING_DEEP_QUOTA_HASH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:reading_deep_quota_hash_secret}}"
+            },
+            "READING_IDEMPOTENCY_LEASE_SECONDS": "120",
+            "READING_IDEMPOTENCY_TTL_SECONDS": "604800",
+            "READING_JOB_TTL_SECONDS": "604800",
+            "READING_LIGHT_JOB_LEASE_SECONDS": "180",
+            "READING_DEEP_JOB_LEASE_SECONDS": "360",
+            "READING_JOB_ORPHAN_GRACE_SECONDS": "60",
+            "READING_DEEP_RESERVATION_SECONDS": "600",
+            "READING_RATE_LIMIT_FREE_FREE_MAX": "10",
+            "READING_RATE_LIMIT_FREE_FREE_WINDOW_SECONDS": "600",
+            "READING_RATE_LIMIT_LIGHT_FREE_MAX": "10",
+            "READING_RATE_LIMIT_LIGHT_FREE_WINDOW_SECONDS": "600",
+            "READING_RATE_LIMIT_LIGHT_LIGHT_MAX": "3",
+            "READING_RATE_LIMIT_LIGHT_LIGHT_WINDOW_SECONDS": "900",
+            "READING_RATE_LIMIT_PREMIUM_FREE_MAX": "10",
+            "READING_RATE_LIMIT_PREMIUM_FREE_WINDOW_SECONDS": "600",
+            "READING_RATE_LIMIT_PREMIUM_LIGHT_MAX": "5",
+            "READING_RATE_LIMIT_PREMIUM_LIGHT_WINDOW_SECONDS": "900",
+            "READING_RATE_LIMIT_PREMIUM_DEEP_MAX": "2",
+            "READING_RATE_LIMIT_PREMIUM_DEEP_WINDOW_SECONDS": "1800",
+            "READING_CONCURRENCY_LIGHT_LIMIT": "1",
+            "READING_CONCURRENCY_DEEP_LIMIT": "1",
+            "READING_CONCURRENCY_LEASE_SECONDS": "360",
+            "RUNTIME_ENVIRONMENT": {
+              "Ref": "Environment"
+            }
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Component",
+            "Value": "reading-deep-worker"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          }
+        ]
+      }
+    },
+    "LightEventSourceMapping": {
+      "Type": "AWS::Lambda::EventSourceMapping",
+      "Properties": {
+        "EventSourceArn": {
+          "Fn::GetAtt": [
+            "LightQueue",
+            "Arn"
+          ]
+        },
+        "FunctionName": {
+          "Ref": "LightWorkerFunction"
+        },
+        "Enabled": {
+          "Fn::If": [
+            "WorkersEnabled",
+            true,
+            false
+          ]
+        },
+        "BatchSize": 1,
+        "FunctionResponseTypes": [
+          "ReportBatchItemFailures"
+        ],
+        "ScalingConfig": {
+          "MaximumConcurrency": 5
+        }
+      }
+    },
+    "DeepEventSourceMapping": {
+      "Type": "AWS::Lambda::EventSourceMapping",
+      "Properties": {
+        "EventSourceArn": {
+          "Fn::GetAtt": [
+            "DeepQueue",
+            "Arn"
+          ]
+        },
+        "FunctionName": {
+          "Ref": "DeepWorkerFunction"
+        },
+        "Enabled": {
+          "Fn::If": [
+            "WorkersEnabled",
+            true,
+            false
+          ]
+        },
+        "BatchSize": 1,
+        "FunctionResponseTypes": [
+          "ReportBatchItemFailures"
+        ],
+        "ScalingConfig": {
+          "MaximumConcurrency": 5
+        }
+      }
+    },
+    "ReadingHttpApi": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-reading-http-api"
+        },
+        "ProtocolType": "HTTP",
+        "CorsConfiguration": {
+          "AllowOrigins": {
+            "Ref": "AllowedOrigins"
+          },
+          "AllowMethods": [
+            "GET",
+            "POST",
+            "OPTIONS"
+          ],
+          "AllowHeaders": [
+            "authorization",
+            "content-type",
+            "idempotency-key"
+          ],
+          "MaxAge": 600
+        },
+        "Tags": {
+          "Project": "nana-fortune",
+          "Environment": {
+            "Ref": "Environment"
+          },
+          "Component": "reading-http-api",
+          "ManagedBy": "cloudformation"
+        }
+      }
+    },
+    "ReadingRequestIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "ReadingHttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationMethod": "POST",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 29000,
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "ReadingRequestFunction",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "ReadingStatusIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "ReadingHttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationMethod": "POST",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 10000,
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "ReadingStatusFunction",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "ReadingRequestRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "ReadingHttpApi"
+        },
+        "RouteKey": "POST /reading",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "ReadingRequestIntegration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "ReadingStatusRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "ReadingHttpApi"
+        },
+        "RouteKey": "GET /reading/status",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "ReadingStatusIntegration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "ReadingApiStage": {
+      "Type": "AWS::ApiGatewayV2::Stage",
+      "Properties": {
+        "ApiId": {
+          "Ref": "ReadingHttpApi"
+        },
+        "StageName": {
+          "Ref": "Environment"
+        },
+        "AutoDeploy": true,
+        "Tags": {
+          "Project": "nana-fortune",
+          "Environment": {
+            "Ref": "Environment"
+          },
+          "Component": "reading-http-api-stage",
+          "ManagedBy": "cloudformation"
+        }
+      }
+    },
+    "ReadingRequestInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "ReadingRequestFunction"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/POST/reading"
+        }
+      }
+    },
+    "ReadingStatusInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "ReadingStatusFunction"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/GET/reading/status"
+        }
+      }
+    },
+    "MembershipStatusLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-membership-status"
+        },
+        "RetentionInDays": 30
+      }
+    },
+    "MembershipStatusRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "membership-status-production-read-only",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "OwnLogs",
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "MembershipStatusLogGroup",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Sid": "ReadCanonicalMembershipOnly",
+                  "Effect": "Allow",
+                  "Action": "dynamodb:GetItem",
+                  "Resource": [
+                    {
+                      "Ref": "UsersTableArn"
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "FincodeLightQuotaTable",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "ReadingDeepQuotaTable",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Key": "Component",
+            "Value": "membership-status-role"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "MembershipStatusFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "MembershipStatusLogGroup"
+      ],
+      "Properties": {
+        "Runtime": "nodejs22.x",
+        "Architectures": [
+          "arm64"
+        ],
+        "Handler": "index.handler",
+        "Timeout": 10,
+        "MemorySize": 256,
+        "Role": {
+          "Fn::GetAtt": [
+            "MembershipStatusRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ArtifactBucketName"
+          },
+          "S3Key": {
+            "Ref": "MembershipStatusArtifactKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "RUNTIME_ENVIRONMENT": {
+              "Ref": "Environment"
+            },
+            "MEMBERSHIP_STATUS_API_ENABLED": {
+              "Ref": "MembershipStatusApiEnabled"
+            },
+            "ALLOWED_ORIGINS": {
+              "Fn::Join": [
+                ",",
+                {
+                  "Ref": "AllowedOrigins"
+                }
+              ]
+            },
+            "USERS_TABLE_NAME": {
+              "Ref": "UsersTableName"
+            },
+            "FINCODE_MEMBERSHIP_QUOTA_TABLE": {
+              "Ref": "FincodeLightQuotaTable"
+            },
+            "READING_DEEP_QUOTA_TABLE_NAME": {
+              "Ref": "ReadingDeepQuotaTable"
+            },
+            "SESSION_TOKEN_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:session_token_secret}}"
+            },
+            "READING_DEEP_QUOTA_HASH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${RuntimeSecretsArn}:SecretString:reading_deep_quota_hash_secret}}"
+            }
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Key": "Component",
+            "Value": "membership-status"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "MembershipStatusIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "ReadingHttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationMethod": "POST",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 10000,
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "MembershipStatusFunction",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "MembershipStatusRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "ReadingHttpApi"
+        },
+        "RouteKey": "GET /membership/status",
+        "AuthorizationType": "NONE",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "MembershipStatusIntegration"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "MembershipStatusInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "MembershipStatusFunction"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ReadingHttpApi}/${Environment}/GET/membership/status"
+        }
+      }
+    },
+    "LightDlqAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "light-dlq production safety alarm",
+        "Namespace": "AWS/SQS",
+        "MetricName": "ApproximateNumberOfMessagesVisible",
+        "Dimensions": [
+          {
+            "Name": "QueueName",
+            "Value": {
+              "Fn::GetAtt": [
+                "LightDeadLetterQueue",
+                "QueueName"
+              ]
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Key": "Component",
+            "Value": "light-dlq"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "DeepDlqAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "deep-dlq production safety alarm",
+        "Namespace": "AWS/SQS",
+        "MetricName": "ApproximateNumberOfMessagesVisible",
+        "Dimensions": [
+          {
+            "Name": "QueueName",
+            "Value": {
+              "Fn::GetAtt": [
+                "DeepDeadLetterQueue",
+                "QueueName"
+              ]
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Key": "Component",
+            "Value": "deep-dlq"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "ReadingRequestErrorAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "readingrequest-errors production safety alarm",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "ReadingRequestFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Key": "Component",
+            "Value": "readingrequest-errors"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "ReadingStatusErrorAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "readingstatus-errors production safety alarm",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "ReadingStatusFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Key": "Component",
+            "Value": "readingstatus-errors"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "MembershipStatusErrorAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "membershipstatus-errors production safety alarm",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "MembershipStatusFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Key": "Component",
+            "Value": "membershipstatus-errors"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "LightWorkerErrorAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "lightworker-errors production safety alarm",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "LightWorkerFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Key": "Component",
+            "Value": "lightworker-errors"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    },
+    "DeepWorkerErrorAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "deepworker-errors production safety alarm",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "DeepWorkerFunction"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "nana-fortune"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Key": "Component",
+            "Value": "deepworker-errors"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "cloudformation"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "ReadingApiBase": {
+      "Value": {
+        "Fn::Sub": "https://${ReadingHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Environment}"
+      }
+    },
+    "MembershipStatusUrl": {
+      "Value": {
+        "Fn::Sub": "https://${ReadingHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Environment}/membership/status"
+      }
+    }
+  }
+}

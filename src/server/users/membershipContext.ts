@@ -21,6 +21,10 @@ export function toPublicMembershipSummary(context: Awaited<ReturnType<typeof loa
   return {
     plan: entitlements.tier,
     subscription_status: entitlements.subscriptionStatus,
+    current_period_start: context.membership.current_period_start ?? null,
+    current_period_end: context.membership.current_period_end ?? null,
+    membership_version: Number(context.membership.membership_version ?? 0),
+    membership_schema_version: String(context.membership.membership_schema_version ?? ""),
     deep_available: entitlements.canUseDeep,
     monthly_voice_limit: entitlements.monthlyVoiceLimit,
     monthly_voice_used: entitlements.monthlyVoiceUsed,

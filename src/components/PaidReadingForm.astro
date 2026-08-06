@@ -1,0 +1,120 @@
+---
+import { resolvePublicRuntimeApiConfig } from "../lib/runtimeApiConfig";
+
+type Props = { mode: "light" | "deep"; title: string };
+const { mode, title } = Astro.props;
+let readingUrl = "";
+let statusUrl = "";
+try {
+  const config = resolvePublicRuntimeApiConfig(import.meta.env);
+  readingUrl = config.readingUrl ?? "";
+  statusUrl = config.readingStatusUrl ?? "";
+} catch {
+  // Configuration errors deliberately leave the paid-reading form disabled.
+}
+const enabled = Boolean(readingUrl && statusUrl);
+---
+
+<section class="paid-reading" data-paid-reading data-mode={mode} data-reading-url={readingUrl} data-status-url={statusUrl}>
+  <h2>{title}</h2>
+  {
+    enabled ? (
+      <>
+        <p class="paid-reading__privacy">入力内容は鑑定処理と履歴保存に使用されます。カード決済処理とは分離されています。</p>
+        <form class="paid-reading__form">
+          <label>お名前<input name="name" type="text" required maxlength="80" autocomplete="name" /></label>
+          <label>生年月日<input name="birth_date" type="date" required min="1900-01-01" /></label>
+          <label>相談したいこと（任意）<textarea name="question" maxlength="2000" rows="5"></textarea></label>
+          <button class:list={["fortune-btn", mode === "deep" ? "violet" : "gold"]} type="submit">鑑定を始める</button>
+        </form>
+        <p class="paid-reading__status" role="status" aria-live="polite"></p>
+        <article class="paid-reading__result" aria-live="polite" hidden></article>
+      </>
+    ) : (
+      <p class="paid-reading__unavailable">現在、この鑑定の受付は安全のため停止しています。</p>
+    )
+  }
+</section>
+
+<script>
+  import { PaidReadingClientError, runPaidReading } from "../lib/paidReadingClient";
+
+  const messages: Record<string, string> = {
+    AUTH_REQUIRED: "ログインしてからご利用ください。",
+    READING_MODE_NOT_ALLOWED: "現在の会員プランでは、この鑑定を利用できません。",
+    READING_QUOTA_EXHAUSTED: "今期の利用回数に達しています。",
+    READING_JOB_FAILED: "鑑定処理を完了できませんでした。利用回数は安全に戻されます。",
+    READING_POLL_TIMEOUT: "鑑定を続けています。少し時間を置いて履歴をご確認ください。",
+    READING_REQUEST_FAILED: "鑑定を開始できませんでした。",
+  };
+
+  function text(parent: HTMLElement, tag: string, value: string, className = "") {
+    const element = document.createElement(tag);
+    element.textContent = value;
+    if (className) element.className = className;
+    parent.append(element);
+  }
+
+  for (const shell of document.querySelectorAll<HTMLElement>("[data-paid-reading]")) {
+    const form = shell.querySelector<HTMLFormElement>("form");
+    const status = shell.querySelector<HTMLElement>(".paid-reading__status");
+    const result = shell.querySelector<HTMLElement>(".paid-reading__result");
+    if (!form || !status || !result) continue;
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = form.querySelector<HTMLButtonElement>("button[type='submit']");
+      const token = localStorage.getItem("session_token") ?? "";
+      if (!token) { status.textContent = messages.AUTH_REQUIRED; return; }
+      const data = new FormData(form);
+      if (button) button.disabled = true;
+      status.textContent = "鑑定を受け付けています。画面を閉じずにお待ちください。";
+      result.hidden = true;
+      result.replaceChildren();
+      try {
+        const reading = await runPaidReading({
+          readingUrl: shell.dataset.readingUrl ?? "",
+          statusUrl: shell.dataset.statusUrl ?? "",
+          token,
+          idempotencyKey: crypto.randomUUID().replaceAll("-", ""),
+          reading: {
+            mode: shell.dataset.mode === "deep" ? "deep" : "light",
+            name: String(data.get("name") ?? ""),
+            birthDate: String(data.get("birth_date") ?? ""),
+            question: String(data.get("question") ?? "").trim() || undefined,
+          },
+        });
+        text(result, "h3", reading.title);
+        for (const section of reading.sections) {
+          const container = document.createElement("section");
+          text(container, "h4", section.heading);
+          text(container, "p", section.body);
+          result.append(container);
+        }
+        text(result, "h4", "次の一歩");
+        text(result, "p", reading.oneStep);
+        text(result, "h4", "気をつけたいこと");
+        text(result, "p", reading.avoidHint);
+        result.hidden = false;
+        status.textContent = "鑑定が完成しました。履歴からも読み返せます。";
+        result.focus({ preventScroll: true });
+        result.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      } catch (error) {
+        const code = error instanceof PaidReadingClientError ? error.code : "READING_REQUEST_FAILED";
+        status.textContent = messages[code] ?? "鑑定を開始できませんでした。時間を置いてもう一度お試しください。";
+      } finally {
+        if (button) button.disabled = false;
+      }
+    });
+  }
+</script>
+
+<style>
+  .paid-reading { margin: 28px 0; padding: clamp(20px, 4vw, 30px); border: 1px solid rgba(255,236,179,.18); border-radius: 24px; background: rgba(5,7,20,.72); }
+  .paid-reading h2, .paid-reading h3, .paid-reading h4 { color: #fff0bf; }
+  .paid-reading__privacy, .paid-reading__status, .paid-reading__unavailable, .paid-reading__result p { color: rgba(255,236,179,.8); line-height: 1.8; }
+  .paid-reading__form { display: grid; gap: 18px; margin-top: 20px; }
+  .paid-reading__form label { display: grid; gap: 8px; color: #f5dea0; }
+  .paid-reading__form input, .paid-reading__form textarea { box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid rgba(255,236,179,.2); border-radius: 12px; color: #fff; background: rgba(10,11,26,.9); font: inherit; }
+  .paid-reading__result { margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,236,179,.15); outline: none; }
+  .paid-reading__result section { margin: 18px 0; }
+</style>

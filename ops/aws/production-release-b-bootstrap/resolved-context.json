@@ -1,0 +1,75 @@
+{
+  "schema_version": "nana-production-release-b-bootstrap-v1",
+  "resolved_at": "2026-08-06",
+  "partition": "aws",
+  "production_account_id": "388811589005",
+  "production_region": "ap-northeast-1",
+  "identity_center_region": "ap-northeast-1",
+  "existing_sso_session_name": "shirone",
+  "discovery_profile": "nana-legacy-readonly",
+  "operator_profile_name": "nana-production-release-b",
+  "operator_permission_set_name": "NanaProductionReleaseBOperator",
+  "operator_session_duration": "PT4H",
+  "operator_permission_set_status": "PROVISIONED_EXACT_POLICY",
+  "operator_assignment": {
+    "principal_type": "USER",
+    "user_name": "Kokuryu3",
+    "principal_id": "RESOLVED_NOT_RECORDED",
+    "status": "VERIFIED"
+  },
+  "operator_profile_status": "READY",
+  "execution_role_name": "NanaProductionCanonicalRuntimeExecutionRole",
+  "execution_role_arn": "arn:aws:iam::388811589005:role/NanaProductionCanonicalRuntimeExecutionRole",
+  "bootstrap_stack_name": "nana-production-release-b-bootstrap",
+  "bootstrap_stack_status": "CREATE_COMPLETE",
+  "execution_role_status": "CREATED_EXACT_POLICY_CLOUDFORMATION_TRUST_ONLY",
+  "canonical_stack_name": "nana-reading-production",
+  "canonical_stack_status": "NOT_CREATED",
+  "artifact_bucket": {
+    "status": "RESOLVED_READ_ONLY_VERIFIED",
+    "name": "nana-prod-artifacts-388811589005-apne1",
+    "arn": "arn:aws:s3:::nana-prod-artifacts-388811589005-apne1",
+    "region": "ap-northeast-1",
+    "prefix": "nana-reading-production/release-b/",
+    "discovery_note": "The bucket owner and Tokyo region were verified read-only with the production audit profile on 2026-08-06."
+  },
+  "runtime_secret": {
+    "name": "shirone7/production/runtime",
+    "status": "CREATED_AND_INITIALIZED_CANONICAL_KEYS",
+    "arn": "arn:aws:secretsmanager:ap-northeast-1:388811589005:secret:shirone7/production/runtime-h4BVT3"
+  },
+  "legacy_tables": {
+    "users": {
+      "name": "shirone7_users",
+      "arn": "arn:aws:dynamodb:ap-northeast-1:388811589005:table/shirone7_users",
+      "status": "ACTIVE"
+    },
+    "history": {
+      "name": "shirone7_history",
+      "arn": "arn:aws:dynamodb:ap-northeast-1:388811589005:table/shirone7_history",
+      "status": "ACTIVE"
+    }
+  },
+  "canonical_resource_prefixes": {
+    "dynamodb": "arn:aws:dynamodb:ap-northeast-1:388811589005:table/nana-reading-production-*",
+    "lambda": "arn:aws:lambda:ap-northeast-1:388811589005:function:nana-reading-production-*",
+    "iam_runtime_roles": "arn:aws:iam::388811589005:role/nana-reading-production-*",
+    "sqs": "arn:aws:sqs:ap-northeast-1:388811589005:nana-reading-production-*",
+    "logs": "arn:aws:logs:ap-northeast-1:388811589005:log-group:/aws/lambda/nana-reading-production-*",
+    "alarms": "arn:aws:cloudwatch:ap-northeast-1:388811589005:alarm:nana-reading-production-*"
+  },
+  "cloudformation_resource_types": [
+    "AWS::ApiGatewayV2::Api",
+    "AWS::ApiGatewayV2::Integration",
+    "AWS::ApiGatewayV2::Route",
+    "AWS::ApiGatewayV2::Stage",
+    "AWS::CloudWatch::Alarm",
+    "AWS::DynamoDB::Table",
+    "AWS::IAM::Role",
+    "AWS::Lambda::EventSourceMapping",
+    "AWS::Lambda::Function",
+    "AWS::Lambda::Permission",
+    "AWS::Logs::LogGroup",
+    "AWS::SQS::Queue"
+  ]
+}

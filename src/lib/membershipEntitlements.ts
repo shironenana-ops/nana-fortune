@@ -50,7 +50,7 @@ export function getMembershipEntitlements(
   const monthlyVoiceRemaining = Math.max(monthlyVoiceLimit - monthlyVoiceUsed, 0);
   const extraVoiceRemaining = toNonNegativeInteger(input.extra_voice_remaining);
   const canUseMonthlyVoice =
-    tier === "premium" && isSubscriptionActive && monthlyVoiceRemaining > 0;
+    (tier === "light" || tier === "premium") && isSubscriptionActive && monthlyVoiceRemaining > 0;
   const canUseExtraVoice = extraVoiceRemaining > 0;
 
   return {
