@@ -16,6 +16,8 @@ const FIELD_NAMES = {
   "#periodStart": "current_period_start",
   "#membershipVersion": "membership_version",
   "#membershipSchema": "membership_schema_version",
+  "#membershipSource": "membership_source",
+  "#membershipUpdatedAt": "membership_updated_at",
 };
 
 function fromAttribute(value?: AttributeValue): unknown {
@@ -39,6 +41,8 @@ function whitelist(item: Record<string, AttributeValue>): TrustedMembershipRecor
     current_period_start: fromAttribute(item.current_period_start),
     membership_version: fromAttribute(item.membership_version),
     membership_schema_version: fromAttribute(item.membership_schema_version),
+    membership_source: fromAttribute(item.membership_source),
+    membership_updated_at: fromAttribute(item.membership_updated_at),
   };
 }
 
