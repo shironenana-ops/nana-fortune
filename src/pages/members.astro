@@ -1353,6 +1353,11 @@ body.members-page-body {
           </div>
 
           <div class="status-stat">
+            <span class="status-stat__label">ライト鑑定</span>
+            <strong id="lightQuota">- / -</strong>
+          </div>
+
+          <div class="status-stat">
             <span class="status-stat__label">深掘り鑑定</span>
             <strong id="deepEnabled">-</strong>
           </div>
@@ -1866,6 +1871,10 @@ body.members-page-body {
         const voiceUsed = entitlements.monthlyVoiceUsed;
         const voiceRemaining = entitlements.monthlyVoiceRemaining;
         const extraVoiceRemaining = entitlements.extraVoiceRemaining;
+        const lightLimit = Number.isSafeInteger(data.light_monthly_limit) ? data.light_monthly_limit : 0;
+        const lightRemaining = Number.isSafeInteger(data.light_monthly_remaining) ? data.light_monthly_remaining : 0;
+        const deepLimit = Number.isSafeInteger(data.deep_monthly_limit) ? data.deep_monthly_limit : 0;
+        const deepRemaining = Number.isSafeInteger(data.deep_monthly_remaining) ? data.deep_monthly_remaining : 0;
         const pendingPlan = normalizePendingPlan(data.pending_plan);
         const currentPeriodEnd = data.current_period_end || "";
 
@@ -1887,7 +1896,8 @@ body.members-page-body {
               : "現在の契約状態では会員特典を利用できません。"
         );
         setText("subscriptionStatus", statusNames[subscriptionStatus] || subscriptionStatus);
-        setText("deepEnabled", entitlements.canUseDeep ? "利用可能" : "利用不可");
+        setText("lightQuota", `${lightRemaining} / ${lightLimit}`);
+        setText("deepEnabled", entitlements.canUseDeep ? `${deepRemaining} / ${deepLimit}` : "利用不可");
         setText("voiceMain", `${voiceRemaining} / ${voiceLimit}`);
         setText("voiceUsed", `${voiceUsed}`);
         setText("voiceRemaining", `${voiceRemaining}`);

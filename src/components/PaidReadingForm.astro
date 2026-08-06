@@ -63,7 +63,7 @@ const enabled = Boolean(readingUrl && statusUrl);
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const button = form.querySelector<HTMLButtonElement>("button[type='submit']");
-      const token = localStorage.getItem("session_token") ?? "";
+      const token = localStorage.getItem("token") ?? "";
       if (!token) { status.textContent = messages.AUTH_REQUIRED; return; }
       const data = new FormData(form);
       if (button) button.disabled = true;

@@ -54,7 +54,7 @@ export async function loadReadingProductionTemplate(url = templateUrl) {
 export function validateReadingProductionTemplate(template) {
   if (template.AWSTemplateFormatVersion !== "2010-09-09") fail("unexpected template version");
   if (template.Parameters?.Environment?.Default !== "production" || text(template.Parameters.Environment.AllowedValues) !== '["production"]') fail("environment must be fixed to production");
-  if (text(template.Parameters?.AllowedOrigins?.Default) !== '"https://www.nana-fortune.com"') fail("production origin must be exact");
+  if (text(template.Parameters?.AllowedOrigins?.Default) !== '"https://www.nana-fortune.com,https://nana-fortune.com"') fail("production origins must be exact");
   for (const name of ["ReadingGenerateApiEnabled", "ReadingAsyncPaidEnabled", "ReadingStatusApiEnabled", "ReadingBedrockEnabled", "WorkerEventSourceMappingsEnabled", "ReadingLightQuotaEnabled", "MembershipStatusApiEnabled"]) {
     if (template.Parameters?.[name]?.Default !== "false") fail(`${name} must fail closed`);
   }
@@ -92,7 +92,10 @@ export function validateReadingProductionTemplate(template) {
 
   for (const [name, resource] of Object.entries(template.Resources ?? {})) {
     if (resource.Type === "AWS::IAM::Role") {
-      for (const statement of statements(template, name)) {
+      const roleStatements = statements(template, name);
+      const ownLogs = roleStatements.find((statement) => statement.Sid === "OwnLogs");
+      if (text(ownLogs?.Resource) !== text({ "Fn::Sub": `\${${name.replace(/Role$/u, "LogGroup")}.Arn}:*` })) fail(`${name} log stream scope`);
+      for (const statement of roleStatements) {
         if (statement.Resource === "*" || (Array.isArray(statement.Resource) && statement.Resource.includes("*"))) fail(`${name} contains wildcard resource`);
         if (actions(statement).includes("iam:PassRole") || actions(statement).includes("dynamodb:Scan")) fail(`${name} contains forbidden action`);
       }

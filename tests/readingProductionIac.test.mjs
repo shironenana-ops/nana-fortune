@@ -21,11 +21,22 @@ test("production template reuses external canonical Users and History tables", a
 
 test("production paid runtime is dark by default", async () => {
   const template = await loadReadingProductionTemplate();
+  assert.equal(template.Parameters.AllowedOrigins.Default, "https://www.nana-fortune.com,https://nana-fortune.com");
   for (const name of ["ReadingGenerateApiEnabled", "ReadingAsyncPaidEnabled", "ReadingStatusApiEnabled", "ReadingBedrockEnabled", "WorkerEventSourceMappingsEnabled", "ReadingLightQuotaEnabled", "MembershipStatusApiEnabled"]) {
     assert.equal(template.Parameters[name].Default, "false", name);
   }
   assert.deepEqual(template.Resources.LightEventSourceMapping.Properties.Enabled, { "Fn::If": ["WorkersEnabled", true, false] });
   assert.deepEqual(template.Resources.DeepEventSourceMapping.Properties.Enabled, { "Fn::If": ["WorkersEnabled", true, false] });
+});
+
+test("production Lambda log permissions target log streams, not a wildcard resource", async () => {
+  const template = await loadReadingProductionTemplate();
+  for (const roleName of ["ReadingRequestRole", "ReadingStatusRole", "LightWorkerRole", "DeepWorkerRole", "MembershipStatusRole"]) {
+    const statements = template.Resources[roleName].Properties.Policies.flatMap((policy) => policy.PolicyDocument.Statement);
+    const ownLogs = statements.find((statement) => statement.Sid === "OwnLogs");
+    const logGroupName = roleName.replace(/Role$/u, "LogGroup");
+    assert.deepEqual(ownLogs.Resource, { "Fn::Sub": `\${${logGroupName}.Arn}:*` });
+  }
 });
 
 test("production Lambda functions temporarily share unreserved concurrency", async () => {

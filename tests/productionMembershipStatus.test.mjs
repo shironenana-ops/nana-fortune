@@ -45,7 +45,7 @@ function runtime(record = canonicalLight, overrides = {}) {
   let secretReads = 0;
   const handler = api.createMembershipStatusHandler({
     enabled: overrides.enabled ?? true,
-    allowedOrigins: new Set(["https://www.nana-fortune.com"]),
+    allowedOrigins: new Set(["https://www.nana-fortune.com", "https://nana-fortune.com"]),
     disabledErrorCode: "MEMBERSHIP_STATUS_DISABLED",
     auditEvent: "membership_status_rejected",
     requireCanonicalMembership: true,
@@ -83,6 +83,18 @@ test("production membership accepts a named-stage rawPath only when routeKey is 
   const response = await bad.handler(event({ rawPath: "/membership/status", routeKey: "GET /other" }));
   assert.equal(response.statusCode, 404);
   assert.deepEqual(bad.counts(), { userReads: 0, quotaReads: 0, secretReads: 0 });
+});
+
+test("production membership accepts both canonical public host origins", async () => {
+  const apex = runtime();
+  assert.equal((await apex.handler(event({
+    headers: { origin: "https://nana-fortune.com", authorization: `Bearer ${token("member@example.invalid")}` },
+  }))).statusCode, 200);
+  const foreign = runtime();
+  assert.equal((await foreign.handler(event({
+    headers: { origin: "https://example.invalid", authorization: `Bearer ${token("member@example.invalid")}` },
+  }))).statusCode, 403);
+  assert.deepEqual(foreign.counts(), { userReads: 0, quotaReads: 0, secretReads: 0 });
 });
 
 test("production membership is disabled before reading secrets or DynamoDB", async () => {
