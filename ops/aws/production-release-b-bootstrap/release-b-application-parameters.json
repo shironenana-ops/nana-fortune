@@ -5,7 +5,7 @@
   { "ParameterKey": "ReadingStatusArtifactKey", "ParameterValue": "nana-reading-production/release-b/20260806/reading-status-872e85e8cc63.zip" },
   { "ParameterKey": "LightWorkerArtifactKey", "ParameterValue": "nana-reading-production/release-b/20260806/light-worker-34715b7e012e.zip" },
   { "ParameterKey": "DeepWorkerArtifactKey", "ParameterValue": "nana-reading-production/release-b/20260806/deep-worker-73135a96158c.zip" },
-  { "ParameterKey": "MembershipStatusArtifactKey", "ParameterValue": "nana-reading-production/release-b/20260806/membership-status-cac1d0613e5b.zip" },
+  { "ParameterKey": "MembershipStatusArtifactKey", "ParameterValue": "nana-reading-production/release-b/20260806/membership-status-58a9c0e39e80.zip" },
   { "ParameterKey": "AllowedOrigins", "ParameterValue": "https://www.nana-fortune.com,https://nana-fortune.com" },
   { "ParameterKey": "RuntimeSecretsArn", "ParameterValue": "arn:aws:secretsmanager:ap-northeast-1:388811589005:secret:shirone7/production/runtime-h4BVT3" },
   { "ParameterKey": "Owner", "ParameterValue": "shironenana-ops" },
