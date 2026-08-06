@@ -54,7 +54,7 @@ function tags(component) {
 }
 
 function logPolicy(logicalId) {
-  return { Sid: "OwnLogs", Effect: "Allow", Action: ["logs:CreateLogStream", "logs:PutLogEvents"], Resource: { "Fn::GetAtt": [logicalId, "Arn"] } };
+  return { Sid: "OwnLogs", Effect: "Allow", Action: ["logs:CreateLogStream", "logs:PutLogEvents"], Resource: { "Fn::Sub": `\${${logicalId}.Arn}:*` } };
 }
 
 function addMembershipResources(template) {
@@ -127,7 +127,7 @@ export async function createProductionTemplate() {
   const template = transform(source);
   template.Description = "Shirone canonical paid reading production infrastructure (disabled by default)";
   template.Parameters.Environment = { Type: "String", Default: "production", AllowedValues: ["production"] };
-  template.Parameters.AllowedOrigins = { Type: "CommaDelimitedList", Default: "https://www.nana-fortune.com", Description: "Exact production origin; wildcard is not allowed" };
+  template.Parameters.AllowedOrigins = { Type: "CommaDelimitedList", Default: "https://www.nana-fortune.com,https://nana-fortune.com", Description: "Exact production origins; wildcard is not allowed" };
   for (const name of Object.keys(template.Parameters)) {
     if (removedParameterPrefixes.some((prefix) => name.startsWith(prefix))) delete template.Parameters[name];
   }
@@ -145,6 +145,14 @@ export async function createProductionTemplate() {
     if (Array.isArray(resource?.Properties?.Tags)) resource.Properties.Tags = resource.Properties.Tags.filter((tag) => tag.Key !== "Environment").concat([{ Key: "Environment", Value: { Ref: "Environment" } }]);
   }
   addMembershipResources(template);
+  for (const [id, resource] of Object.entries(template.Resources)) {
+    if (resource.Type !== "AWS::IAM::Role") continue;
+    const ownLogs = resource.Properties.Policies
+      ?.flatMap((policy) => policy.PolicyDocument?.Statement ?? [])
+      .find((statement) => statement.Sid === "OwnLogs");
+    if (!ownLogs) throw new Error(`${id} OwnLogs policy is missing`);
+    ownLogs.Resource = { "Fn::Sub": `\${${id.replace(/Role$/u, "LogGroup")}.Arn}:*` };
+  }
   for (const id of unreservedConcurrencyFunctionIds) {
     delete template.Resources[id].Properties.ReservedConcurrentExecutions;
   }

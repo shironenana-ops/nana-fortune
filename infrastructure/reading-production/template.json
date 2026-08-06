@@ -37,8 +37,8 @@
     },
     "AllowedOrigins": {
       "Type": "CommaDelimitedList",
-      "Default": "https://www.nana-fortune.com",
-      "Description": "Exact production origin; wildcard is not allowed"
+      "Default": "https://www.nana-fortune.com,https://nana-fortune.com",
+      "Description": "Exact production origins; wildcard is not allowed"
     },
     "RuntimeSecretsArn": {
       "Type": "String",
@@ -724,10 +724,7 @@
                     "logs:PutLogEvents"
                   ],
                   "Resource": {
-                    "Fn::GetAtt": [
-                      "ReadingRequestLogGroup",
-                      "Arn"
-                    ]
+                    "Fn::Sub": "${ReadingRequestLogGroup.Arn}:*"
                   }
                 },
                 {
@@ -927,10 +924,7 @@
                     "logs:PutLogEvents"
                   ],
                   "Resource": {
-                    "Fn::GetAtt": [
-                      "ReadingStatusLogGroup",
-                      "Arn"
-                    ]
+                    "Fn::Sub": "${ReadingStatusLogGroup.Arn}:*"
                   }
                 },
                 {
@@ -1004,10 +998,7 @@
                     "logs:PutLogEvents"
                   ],
                   "Resource": {
-                    "Fn::GetAtt": [
-                      "LightWorkerLogGroup",
-                      "Arn"
-                    ]
+                    "Fn::Sub": "${LightWorkerLogGroup.Arn}:*"
                   }
                 },
                 {
@@ -1188,10 +1179,7 @@
                     "logs:PutLogEvents"
                   ],
                   "Resource": {
-                    "Fn::GetAtt": [
-                      "DeepWorkerLogGroup",
-                      "Arn"
-                    ]
+                    "Fn::Sub": "${DeepWorkerLogGroup.Arn}:*"
                   }
                 },
                 {
@@ -2050,10 +2038,7 @@
                     "logs:PutLogEvents"
                   ],
                   "Resource": {
-                    "Fn::GetAtt": [
-                      "MembershipStatusLogGroup",
-                      "Arn"
-                    ]
+                    "Fn::Sub": "${MembershipStatusLogGroup.Arn}:*"
                   }
                 },
                 {

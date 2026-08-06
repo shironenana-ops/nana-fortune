@@ -3,7 +3,10 @@ import { createDynamoMembershipQuotaRepository } from "../users/dynamoMembership
 import { createDynamoUserRepository } from "../users/dynamoUserRepository";
 import { createMembershipStatusHandler } from "./membershipStatusHandler";
 
-const PRODUCTION_ORIGIN = "https://www.nana-fortune.com";
+const PRODUCTION_ORIGINS = new Set([
+  "https://www.nana-fortune.com",
+  "https://nana-fortune.com",
+]);
 
 function enabled(value: unknown): boolean {
   if (value !== "true" && value !== "false") throw new Error("production membership flag is not configured");
@@ -13,7 +16,9 @@ function enabled(value: unknown): boolean {
 function origins(value: unknown): ReadonlySet<string> {
   if (typeof value !== "string") throw new Error("production membership origins are not configured");
   const result = new Set(value.split(",").map((entry) => entry.trim()).filter(Boolean));
-  if (result.size !== 1 || !result.has(PRODUCTION_ORIGIN)) throw new Error("production membership origins are not configured");
+  if (result.size !== PRODUCTION_ORIGINS.size || [...PRODUCTION_ORIGINS].some((origin) => !result.has(origin))) {
+    throw new Error("production membership origins are not configured");
+  }
   return result;
 }
 
