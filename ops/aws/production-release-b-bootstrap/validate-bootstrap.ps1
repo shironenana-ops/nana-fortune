@@ -119,7 +119,7 @@ Assert-True ($createChangeSet.Condition.StringEquals.'cloudformation:RoleArn' -e
 Assert-True ($createChangeSet.Resource -eq 'arn:aws:cloudformation:ap-northeast-1:388811589005:stack/nana-reading-production/*') 'CHANGE_SET_STACK_SCOPE_INVALID'
 Assert-True ($createChangeSet.Condition.StringLike.'cloudformation:ChangeSetName' -eq 'nana-reading-production-*') 'CHANGE_SET_NAME_SCOPE_INVALID'
 Assert-True ($createChangeSet.Condition.Null.'cloudformation:RoleArn' -eq 'false') 'EXECUTION_ROLE_NOT_REQUIRED'
-Assert-True ($createChangeSet.Condition.StringEquals.'cloudformation:TemplateUrl' -eq 'https://nana-prod-artifacts-388811589005-apne1.s3.ap-northeast-1.amazonaws.com/nana-reading-production/release-b/20260806/template-789cc9711056.json') 'CHANGE_SET_TEMPLATE_URL_SCOPE_INVALID'
+Assert-True ($createChangeSet.Condition.StringEquals.'cloudformation:TemplateUrl' -eq 'https://nana-prod-artifacts-388811589005-apne1.s3.ap-northeast-1.amazonaws.com/nana-reading-production/release-b/20260806/template-dfd005bb3321.json') 'CHANGE_SET_TEMPLATE_URL_SCOPE_INVALID'
 Assert-True ($createChangeSet.Condition.Null.'cloudformation:TemplateUrl' -eq 'false') 'CHANGE_SET_TEMPLATE_URL_NOT_REQUIRED'
 Assert-True (($createChangeSet.Condition.'ForAllValues:StringEquals'.'aws:TagKeys' -join ',') -eq 'Project,Environment,Component,ManagedBy') 'CHANGE_SET_TAG_KEYS_INVALID'
 $operateStack = Get-Statement $operator 'OperateOnlyReleaseBStack'
